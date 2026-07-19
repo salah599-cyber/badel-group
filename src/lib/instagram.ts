@@ -8,20 +8,18 @@ export interface InstagramPost {
 }
 
 const INSTAGRAM_API = "https://graph.instagram.com";
+const DEFAULT_INSTAGRAM_HANDLE = "badelgroup.om";
 
-export function getInstagramHandle(): string | null {
-  const handle = process.env.NEXT_PUBLIC_INSTAGRAM_HANDLE?.trim();
-  return handle || null;
+export function getInstagramHandle(): string {
+  return process.env.NEXT_PUBLIC_INSTAGRAM_HANDLE?.trim() || DEFAULT_INSTAGRAM_HANDLE;
 }
 
 export function getInstagramProfileUrl(): string {
-  const handle = getInstagramHandle();
-  return handle ? `https://instagram.com/${handle}` : "https://instagram.com";
+  return `https://instagram.com/${getInstagramHandle()}`;
 }
 
 export function getInstagramProfileLabel(): string {
-  const handle = getInstagramHandle();
-  return handle ? `@${handle}` : "Instagram";
+  return `@${getInstagramHandle()}`;
 }
 
 export async function fetchInstagramPosts(limit = 6): Promise<InstagramPost[]> {
