@@ -14,6 +14,7 @@ import {
 } from "@/lib/actions";
 import type { AdminMember, SiteMember } from "@/lib/admin-members";
 import { partnershipStatusLabels } from "@/lib/partnerships";
+import { playingSideLabels } from "@/lib/player-profile";
 import type { Permission } from "@/lib/permissions";
 import type { Entry, Sponsor, Tournament, TournamentType } from "@/lib/types";
 import type { PendingUser } from "@/lib/clerk-users";
@@ -228,6 +229,9 @@ export function AdminPanel({
                     <p className="font-medium">{entry.name}</p>
                     <p className="text-sm text-gray-500">
                       {entry.tournamentName} · {entry.email}
+                      {entry.playingSide
+                        ? ` · ${playingSideLabels[entry.playingSide]}`
+                        : ""}
                       {partnerLabel ? ` · ${partnerLabel}` : ""}
                       {entry.partnerPlayerName
                         ? ` · Paired with ${entry.partnerPlayerName}`

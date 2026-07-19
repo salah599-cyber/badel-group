@@ -20,6 +20,7 @@ export const partnershipStatusEnum = pgEnum("partnership_status", [
   "approved",
   "rejected",
 ]);
+export const playingSideEnum = pgEnum("playing_side", ["right", "left", "any"]);
 export const pairingModeEnum = pgEnum("pairing_mode", ["manual", "random"]);
 export const sponsorTierEnum = pgEnum("sponsor_tier", [
   "platinum",
@@ -72,6 +73,7 @@ export const entries = pgTable("entries", {
   partnershipStatus: partnershipStatusEnum("partnership_status")
     .notNull()
     .default("not_applicable"),
+  playingSide: playingSideEnum("playing_side").notNull().default("any"),
   skillLevel: text("skill_level").notNull().default("intermediate"),
   notes: text("notes"),
   status: entryStatusEnum("status").notNull().default("pending"),

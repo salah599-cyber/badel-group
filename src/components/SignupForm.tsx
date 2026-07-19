@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { createEntryAction } from "@/lib/actions";
-import type { SignupMode, Tournament } from "@/lib/types";
+import { playingSideLabels } from "@/lib/player-profile";
+import type { PlayingSide, SignupMode, Tournament } from "@/lib/types";
 
 type SignupFormProps = {
   tournaments: Tournament[];
   defaultName: string;
   defaultEmail: string;
+  defaultPlayingSide: PlayingSide;
 };
 
 function signupHint(tournament: Tournament | undefined, signupMode: SignupMode) {
@@ -21,7 +23,12 @@ function signupHint(tournament: Tournament | undefined, signupMode: SignupMode) 
   return "Registered partners must approve your request. Unregistered partners require admin approval.";
 }
 
-export function SignupForm({ tournaments, defaultName, defaultEmail }: SignupFormProps) {
+export function SignupForm({
+  tournaments,
+  defaultName,
+  defaultEmail,
+  defaultPlayingSide,
+}: SignupFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submittedMode, setSubmittedMode] = useState<SignupMode>("solo");
   const [submittedPartnerType, setSubmittedPartnerType] = useState<"registered" | "unregistered" | null>(null);
@@ -252,6 +259,30 @@ export function SignupForm({ tournaments, defaultName, defaultEmail }: SignupFor
         </label>
         <input id="phone" name="phone" type="tel" required className="input" />
       </div>
+
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-medium text-gray-700">Preferred playing side</legend>
+        <p className="text-xs text-gray-500">
+          Saved to your profile so you don&apos;t need to choose again next time.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {(["right", "left", "any"] as const).map((side) => (
+            <label
+              key={side}
+              className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm"
+            >
+              <input
+                type="radio"
+                name="playingSide"
+                value={side}
+                defaultChecked={defaultPlayingSide === side}
+                required
+              />
+              <span className="font-medium text-gray-800">{playingSideLabels[side]}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div>
         <label htmlFor="skillLevel" className="mb-1 block text-sm font-medium text-gray-700">

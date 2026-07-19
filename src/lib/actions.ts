@@ -20,6 +20,7 @@ import {
   tournaments,
 } from "@/lib/db/schema";
 import { canAdminApproveEntry } from "@/lib/partnerships";
+import { parsePlayingSide } from "@/lib/player-profile";
 import {
   createNotification,
   getUnreadNotificationCount,
@@ -183,6 +184,7 @@ export async function createEntryAction(formData: FormData) {
   const partnerName = (formData.get("partnerName") as string | null)?.trim() || null;
   const email = (formData.get("email") as string).trim().toLowerCase();
   const userEmail = user.emailAddresses[0]?.emailAddress?.toLowerCase();
+  const playingSide = parsePlayingSide(formData.get("playingSide"));
 
   if (userEmail && email !== userEmail) {
     throw new Error("Email must match your account email");
@@ -259,6 +261,7 @@ export async function createEntryAction(formData: FormData) {
     partnerEmail: resolvedPartnerEmail,
     partnerUserId,
     partnershipStatus,
+    playingSide,
     skillLevel: formData.get("skillLevel") as string,
     notes: (formData.get("notes") as string) || null,
     status: "pending",
@@ -272,6 +275,14 @@ export async function createEntryAction(formData: FormData) {
       href: "/signup",
     });
   }
+
+  const client = await clerkClient();
+  await client.users.updateUserMetadata(user.id, {
+    publicMetadata: {
+      ...user.publicMetadata,
+      playingSide,
+    },
+  });
 
   revalidatePath("/admin");
   revalidatePath("/signup");

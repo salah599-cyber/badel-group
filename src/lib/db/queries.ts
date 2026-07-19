@@ -122,6 +122,7 @@ function entrySelect() {
     partnerEntryId: entries.partnerEntryId,
     partnerPlayerName: partnerEntry.name,
     partnershipStatus: entries.partnershipStatus,
+    playingSide: entries.playingSide,
     skillLevel: entries.skillLevel,
     status: entries.status,
     createdAt: entries.createdAt,

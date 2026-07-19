@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { pairEntriesAction, unpairEntryAction } from "@/lib/actions";
+import { playingSideLabels } from "@/lib/player-profile";
 import type { Entry, Tournament } from "@/lib/types";
 
 type EntryPairingSectionProps = {
@@ -121,7 +122,12 @@ export function EntryPairingSection({
                 >
                   <div>
                     <p className="font-medium text-gray-900">{entry.name}</p>
-                    <p className="text-xs text-gray-500">{entry.email}</p>
+                    <p className="text-xs text-gray-500">
+                      {entry.email}
+                      {entry.playingSide
+                        ? ` · ${playingSideLabels[entry.playingSide]}`
+                        : ""}
+                    </p>
                   </div>
                   <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-600">
                     {entry.status}
@@ -187,6 +193,7 @@ export function EntryPairingSection({
           {unpairedEntries.map((entry) => (
             <option key={entry.id} value={entry.id}>
               {entry.name}
+              {entry.playingSide ? ` (${playingSideLabels[entry.playingSide]})` : ""}
             </option>
           ))}
         </select>
@@ -202,6 +209,7 @@ export function EntryPairingSection({
             .map((entry) => (
               <option key={entry.id} value={entry.id}>
                 {entry.name}
+                {entry.playingSide ? ` (${playingSideLabels[entry.playingSide]})` : ""}
               </option>
             ))}
         </select>

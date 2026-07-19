@@ -39,6 +39,7 @@ export type AdminMetadata = {
   tournamentIds?: string[];
   approved?: boolean;
   status?: string;
+  playingSide?: string;
 };
 
 export type AdminContext = {

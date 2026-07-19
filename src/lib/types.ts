@@ -7,6 +7,7 @@ export type PartnershipStatus =
   | "pending_admin"
   | "approved"
   | "rejected";
+export type PlayingSide = "right" | "left" | "any";
 
 export interface TournamentType {
   id: string;
@@ -71,6 +72,7 @@ export interface Entry {
   partnerEntryId?: string | null;
   partnerPlayerName?: string | null;
   partnershipStatus?: PartnershipStatus;
+  playingSide?: PlayingSide;
   skillLevel?: string;
   status: string;
   tournamentId?: string;
