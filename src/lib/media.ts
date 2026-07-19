@@ -25,3 +25,12 @@ export function getMediaSrc(url: string) {
   }
   return url;
 }
+
+export async function resolveSponsorLogos<T extends { logoUrl: string }>(items: T[]) {
+  return Promise.all(
+    items.map(async (item) => ({
+      ...item,
+      logoUrl: isBlobUrl(item.logoUrl) ? await getDownloadUrl(item.logoUrl) : item.logoUrl,
+    })),
+  );
+}

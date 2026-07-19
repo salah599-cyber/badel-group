@@ -15,7 +15,7 @@ export function Hero() {
       <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
       <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-brand-green/20 blur-3xl" />
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[auto_1fr] lg:gap-14 lg:py-24">
+      <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 py-12 sm:gap-10 sm:px-6 sm:py-16 lg:grid-cols-[auto_1fr] lg:gap-14 lg:py-24">
         <div className="mx-auto flex justify-center lg:mx-0">
           <Logo size="xl" className="drop-shadow-2xl" />
         </div>
@@ -25,7 +25,7 @@ export function Hero() {
             <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
             Padel Tournaments & Community
           </p>
-          <h1 className="mb-4 text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
+          <h1 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl">
             Welcome to Badel Group
           </h1>
           <p className="mb-8 max-w-xl text-lg leading-relaxed text-white/90 lg:mx-0 mx-auto">

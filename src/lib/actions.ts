@@ -77,15 +77,26 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
   revalidatePath("/admin");
 }
 
-export async function createSponsorAction(formData: FormData) {
+export async function createSponsorAction(input: {
+  name: string;
+  tier: "platinum" | "gold" | "silver" | "bronze";
+  logoUrl: string;
+  website?: string;
+}) {
   await requirePermission("sponsors:manage");
   if (!db) throw new Error("Database not configured");
 
+  const name = input.name?.trim();
+  const logoUrl = input.logoUrl?.trim();
+
+  if (!name) throw new Error("Sponsor name is required");
+  if (!logoUrl) throw new Error("Sponsor logo is required");
+
   await db.insert(sponsors).values({
-    name: formData.get("name") as string,
-    tier: formData.get("tier") as "platinum" | "gold" | "silver" | "bronze",
-    logoUrl: formData.get("logoUrl") as string,
-    website: (formData.get("website") as string) || null,
+    name,
+    tier: input.tier,
+    logoUrl,
+    website: input.website?.trim() || null,
   });
 
   revalidatePath("/sponsors");

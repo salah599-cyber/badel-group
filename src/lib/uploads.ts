@@ -22,6 +22,7 @@ export async function uploadFiles(
   const response = await fetch("/api/upload", {
     method: "POST",
     body: formData,
+    credentials: "same-origin",
   });
 
   if (!response.ok) {

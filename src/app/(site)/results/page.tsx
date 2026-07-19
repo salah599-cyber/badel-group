@@ -37,10 +37,10 @@ export default async function ResultsPage() {
                 {result.winners.map((winner) => (
                   <div
                     key={winner.place}
-                    className="flex items-center justify-between py-4 first:pt-0 last:pb-0"
+                    className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <span
-                      className={`inline-flex min-w-16 items-center justify-center rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                      className={`inline-flex w-fit min-w-16 items-center justify-center rounded-full px-3 py-1 text-xs font-bold uppercase ${
                         winner.place === "1st"
                           ? "bg-primary/15 text-primary"
                           : winner.place === "2nd"

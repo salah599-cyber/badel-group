@@ -31,11 +31,16 @@ export function SectionHeading({
         </span>
         <span className="h-px w-8 bg-secondary" aria-hidden />
       </div>
-      <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+      <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl md:text-4xl">
         {title}
       </h2>
       {subtitle && (
-        <p className="mt-2 max-w-2xl text-gray-600 sm:text-lg">{subtitle}</p>
+        <p
+          className={cn(
+            "mt-2 max-w-2xl text-base text-gray-600 sm:text-lg",
+            align === "center" && "mx-auto",
+          )}
+        >{subtitle}</p>
       )}
     </div>
   );

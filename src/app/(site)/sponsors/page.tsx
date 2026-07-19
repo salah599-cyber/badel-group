@@ -7,6 +7,8 @@ export const metadata = {
   title: "Sponsors | Badel Group",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function SponsorsPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
@@ -25,8 +27,8 @@ export default async function SponsorsPage() {
         )}
       </div>
 
-      <div className="mt-12 overflow-hidden rounded-3xl bg-gradient-to-r from-primary to-secondary p-10 text-center text-white shadow-xl">
-        <h2 className="mb-2 text-2xl font-bold">Become a Sponsor</h2>
+      <div className="mt-12 overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-secondary p-8 text-center text-white shadow-xl sm:rounded-3xl sm:p-10">
+        <h2 className="mb-2 text-xl font-bold sm:text-2xl">Become a Sponsor</h2>
         <p className="mb-6 text-white/90">
           Partner with Badel Group and reach our growing padel community.
         </p>

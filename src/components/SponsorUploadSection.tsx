@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { FileDropzone } from "@/components/FileDropzone";
 import { createSponsorAction, createSponsorsBulkAction, deleteSponsorAction } from "@/lib/actions";
 import { getMediaSrc } from "@/lib/media";
@@ -17,11 +17,20 @@ export function SponsorUploadSection({
 }) {
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [tier, setTier] = useState("gold");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoUrl, setLogoUrl] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function clearLogoPreview() {
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    setLogoPreview(null);
+    setLogoFile(null);
+  }
 
   async function handleBulkUpload(files: File[]) {
+    setError(null);
     setStatus(`Uploading ${files.length} logo${files.length > 1 ? "s" : ""}...`);
     startTransition(async () => {
       try {
@@ -36,30 +45,35 @@ export function SponsorUploadSection({
         setStatus(`Added ${uploaded.length} sponsor${uploaded.length > 1 ? "s" : ""}.`);
         onComplete?.();
       } catch (err) {
-        setStatus(err instanceof Error ? err.message : "Upload failed");
+        setStatus(null);
+        setError(err instanceof Error ? err.message : "Upload failed");
       }
     });
   }
 
-  async function handleSingleLogo(files: File[]) {
+  function handleSingleLogo(files: File[]) {
     const file = files[0];
     if (!file) return;
+    clearLogoPreview();
+    setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
-    setStatus("Uploading logo...");
-    startTransition(async () => {
-      try {
-        const [uploaded] = await uploadFiles([file], "sponsors");
-        setLogoUrl(uploaded.url);
-        setStatus("Logo ready. Fill in details and save.");
-      } catch (err) {
-        setStatus(err instanceof Error ? err.message : "Upload failed");
-      }
-    });
+    setError(null);
+    setStatus("Logo selected. Fill in the details and click Add Sponsor.");
   }
 
   return (
     <section id="sponsors">
       <h2 className="mb-4 text-xl font-bold text-gray-900">Sponsors ({sponsors.length})</h2>
+
+      {(error || status) && (
+        <div
+          className={`mb-4 rounded-xl px-4 py-3 text-sm font-medium ${
+            error ? "border border-brand-red/30 bg-brand-red/10 text-brand-red" : "border border-primary/20 bg-primary/5 text-primary-dark"
+          }`}
+        >
+          {error ?? status}
+        </div>
+      )}
 
       <ul className="mb-6 space-y-2">
         {sponsors.map((s) => (
@@ -78,11 +92,13 @@ export function SponsorUploadSection({
               onClick={() =>
                 startTransition(async () => {
                   try {
+                    setError(null);
                     await deleteSponsorAction(s.id);
                     setStatus("Sponsor removed.");
                     onComplete?.();
                   } catch (err) {
-                    setStatus(err instanceof Error ? err.message : "Failed to remove sponsor");
+                    setStatus(null);
+                    setError(err instanceof Error ? err.message : "Failed to remove sponsor");
                   }
                 })
               }
@@ -119,24 +135,48 @@ export function SponsorUploadSection({
       </div>
 
       <form
+        ref={formRef}
         onSubmit={(e) => {
           e.preventDefault();
-          const fd = new FormData(e.currentTarget);
-          if (!logoUrl) {
-            setStatus("Please upload a logo first.");
+          setError(null);
+          setStatus(null);
+
+          if (!logoFile) {
+            setError("Please select a sponsor logo before saving.");
             return;
           }
-          fd.set("logoUrl", logoUrl);
+
+          const form = formRef.current;
+          if (!form) return;
+
+          const name = (form.elements.namedItem("name") as HTMLInputElement).value;
+          const tier = (form.elements.namedItem("tier") as HTMLSelectElement).value as
+            | "platinum"
+            | "gold"
+            | "silver"
+            | "bronze";
+          const website = (form.elements.namedItem("website") as HTMLInputElement).value;
+
           startTransition(async () => {
             try {
-              await createSponsorAction(fd);
-              setLogoUrl("");
-              setLogoPreview(null);
-              setStatus("Sponsor added.");
-              e.currentTarget.reset();
+              setStatus("Uploading logo...");
+              const [uploaded] = await uploadFiles([logoFile], "sponsors");
+
+              setStatus("Saving sponsor...");
+              await createSponsorAction({
+                name,
+                tier,
+                logoUrl: uploaded.url,
+                website: website || undefined,
+              });
+
+              form.reset();
+              clearLogoPreview();
+              setStatus("Sponsor added successfully.");
               onComplete?.();
             } catch (err) {
-              setStatus(err instanceof Error ? err.message : "Failed to add sponsor");
+              setStatus(null);
+              setError(err instanceof Error ? err.message : "Failed to add sponsor");
             }
           });
         }}
@@ -155,23 +195,33 @@ export function SponsorUploadSection({
             multiple={false}
             allowFolder={false}
             label="Drop sponsor logo here"
-            hint="Single logo for manual entry"
+            hint="Required — PNG, JPG, WEBP, or SVG"
             disabled={isPending}
             onFilesSelected={handleSingleLogo}
           />
           {logoPreview && (
-            <div className="relative mt-3 h-16 w-32">
-              <Image src={logoPreview} alt="Logo preview" fill className="object-contain" unoptimized />
+            <div className="mt-3 flex items-center gap-3">
+              <div className="relative h-16 w-32">
+                <Image src={logoPreview} alt="Logo preview" fill className="object-contain" unoptimized />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  clearLogoPreview();
+                  setStatus(null);
+                }}
+                className="text-sm text-gray-500 hover:text-brand-red"
+              >
+                Remove logo
+              </button>
             </div>
           )}
         </div>
         <input name="website" placeholder="Website URL (optional)" className="input sm:col-span-2" />
-        <button type="submit" disabled={isPending || !logoUrl} className="btn-primary sm:col-span-2">
-          + Add Sponsor
+        <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
+          {isPending ? "Saving..." : "+ Add Sponsor"}
         </button>
       </form>
-
-      {status && <p className="mt-3 text-sm font-medium text-primary-dark">{status}</p>}
     </section>
   );
 }

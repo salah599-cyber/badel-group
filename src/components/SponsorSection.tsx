@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { getMediaSrc } from "@/lib/media";
 import { tierLabels, type Sponsor, type SponsorTier } from "@/lib/types";
 
 const tierSizes: Record<SponsorTier, string> = {
@@ -22,14 +21,15 @@ export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
       href={sponsor.website ?? "#"}
       target="_blank"
       rel="noopener noreferrer"
-      className="card-hover flex flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+      className="card-hover flex min-w-[8rem] flex-1 flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:min-w-0 sm:flex-none sm:p-5"
     >
       <div className={`relative ${tierSizes[sponsor.tier]}`}>
         <Image
-          src={getMediaSrc(sponsor.logoUrl)}
+          src={sponsor.logoUrl}
           alt={sponsor.name}
           fill
           className="object-contain"
+          unoptimized
         />
       </div>
       <span className="text-xs font-semibold text-gray-700">{sponsor.name}</span>
@@ -55,7 +55,7 @@ export function SponsorTierSection({
         </h3>
         <span className={`h-1 w-10 rounded-full bg-gradient-to-r ${tierAccent[tier]}`} />
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
         {sponsors.map((sponsor) => (
           <SponsorLogo key={sponsor.id} sponsor={sponsor} />
         ))}

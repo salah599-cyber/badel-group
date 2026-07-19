@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
 @theme inline {
   --color-primary: #cc5500;
   --color-primary-dark: #a34400;
@@ -17,6 +22,9 @@ body {
     radial-gradient(circle at 20% 10%, rgb(204 85 0 / 0.04), transparent 40%),
     radial-gradient(circle at 80% 0%, rgb(255 140 66 / 0.06), transparent 35%);
   color: #1a1a1a;
+  overflow-x: clip;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @layer components {
@@ -29,7 +37,11 @@ body {
   }
 
   .section-shell {
-    @apply rounded-3xl border border-primary/10 bg-white/80 p-6 shadow-sm backdrop-blur-sm sm:p-8;
+    @apply rounded-2xl border border-primary/10 bg-white/80 p-4 shadow-sm backdrop-blur-sm sm:rounded-3xl sm:p-6 md:p-8;
+  }
+
+  .table-scroll {
+    @apply -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0;
   }
 
   .card-hover {

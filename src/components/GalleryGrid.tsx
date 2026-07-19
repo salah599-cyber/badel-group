@@ -18,7 +18,7 @@ export function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
             fill
             className="object-cover transition duration-500 group-hover:scale-110"
           />
-          <figcaption className="absolute inset-x-0 bottom-0 translate-y-full bg-gradient-to-t from-black/80 to-transparent p-4 text-xs font-medium text-white transition duration-300 group-hover:translate-y-0">
+          <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 text-xs font-medium text-white sm:translate-y-full sm:transition sm:duration-300 sm:group-hover:translate-y-0">
             {photo.caption}
           </figcaption>
         </figure>

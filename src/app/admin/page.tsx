@@ -35,8 +35,8 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-      <div className="mb-8 flex items-center gap-4">
-        <Logo size="md" />
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center">
+        <Logo size="md" className="shrink-0" />
         <SectionHeading
           title="Admin Panel"
           subtitle={

@@ -12,6 +12,8 @@ import {
 } from "@/lib/data";
 import { tierOrder } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const upcoming = await fetchUpcomingTournaments();
   const galleryPhotos = await fetchGalleryPhotos();
@@ -20,7 +22,7 @@ export default async function HomePage() {
     <>
       <Hero />
 
-      <div className="mx-auto max-w-6xl space-y-20 px-4 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-6xl space-y-12 px-4 py-12 sm:space-y-20 sm:px-6 sm:py-16 md:py-20">
         <section>
           <SectionHeading
             title="Upcoming Tournaments"
@@ -61,10 +63,10 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-secondary px-6 py-12 text-center text-white shadow-xl sm:px-12">
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-dark via-primary to-secondary px-5 py-10 text-center text-white shadow-xl sm:rounded-3xl sm:px-12 sm:py-12">
           <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <div className="relative">
-            <h2 className="mb-3 text-3xl font-bold">Get in Touch</h2>
+            <h2 className="mb-3 text-2xl font-bold sm:text-3xl">Get in Touch</h2>
             <p className="mx-auto mb-8 max-w-lg text-white/90">
               Questions about tournaments or sponsorship? We&apos;d love to hear from you.
             </p>

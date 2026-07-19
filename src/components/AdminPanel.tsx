@@ -99,8 +99,8 @@ export function AdminPanel({
       {canAccess(permissions, "tournaments:manage", isSuperAdmin) && (
         <section id="tournaments">
           <h2 className="mb-4 text-xl font-bold text-gray-900">Tournaments</h2>
-          <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-            <table className="w-full text-left text-sm">
+          <div className="mb-4 table-scroll overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            <table className="w-full min-w-[28rem] text-left text-sm">
               <thead className="bg-cream-dark text-xs font-semibold uppercase text-gray-500">
                 <tr>
                   <th className="px-4 py-3">Name</th>
