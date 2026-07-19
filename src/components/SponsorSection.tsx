@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { tierLabels, type Sponsor, type SponsorTier } from "@/lib/types";
+import { normalizeWebsiteUrl } from "@/lib/urls";
 
 const tierSizes: Record<SponsorTier, string> = {
   platinum: "h-20 w-40",
@@ -16,13 +17,10 @@ const tierAccent: Record<SponsorTier, string> = {
 };
 
 export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
-  return (
-    <a
-      href={sponsor.website ?? "#"}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="card-hover flex min-w-[8rem] flex-1 flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:min-w-0 sm:flex-none sm:p-5"
-    >
+  const website = normalizeWebsiteUrl(sponsor.website);
+
+  const content = (
+    <>
       <div className={`relative ${tierSizes[sponsor.tier]}`}>
         <Image
           src={sponsor.logoUrl}
@@ -33,6 +31,25 @@ export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
         />
       </div>
       <span className="text-xs font-semibold text-gray-700">{sponsor.name}</span>
+    </>
+  );
+
+  if (!website) {
+    return (
+      <div className="card-hover flex min-w-[8rem] flex-1 flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:min-w-0 sm:flex-none sm:p-5">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={website}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="card-hover flex min-w-[8rem] flex-1 flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:min-w-0 sm:flex-none sm:p-5"
+    >
+      {content}
     </a>
   );
 }

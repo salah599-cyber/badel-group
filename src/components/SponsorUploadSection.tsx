@@ -219,7 +219,11 @@ export function SponsorUploadSection({
             </div>
           )}
         </div>
-        <input name="website" placeholder="Website URL (optional)" className="input sm:col-span-2" />
+        <input
+          name="website"
+          placeholder="Website (e.g. www.example.com)"
+          className="input sm:col-span-2"
+        />
         <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
           {isPending ? "Saving..." : "+ Add Sponsor"}
         </button>

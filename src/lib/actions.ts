@@ -31,6 +31,7 @@ import {
 } from "@/lib/notifications";
 import { hasAdminAccess } from "@/lib/permissions";
 import type { AdminMetadata } from "@/lib/permissions";
+import { normalizeWebsiteUrl } from "@/lib/urls";
 import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
   canManageTournament,
@@ -545,7 +546,7 @@ export async function createSponsorAction(input: {
     name,
     tier: input.tier,
     logoUrl,
-    website: input.website?.trim() || null,
+    website: normalizeWebsiteUrl(input.website),
   });
 
   revalidatePath("/sponsors");
@@ -596,7 +597,7 @@ export async function createSponsorsBulkAction(
       name: item.name,
       tier: item.tier as "platinum" | "gold" | "silver" | "bronze",
       logoUrl: item.logoUrl,
-      website: item.website ?? null,
+      website: normalizeWebsiteUrl(item.website),
     })),
   );
 
