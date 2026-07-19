@@ -1,41 +1,52 @@
-import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 
 export function Footer() {
   return (
-    <footer className="mt-auto border-t border-primary/10 bg-primary-dark text-white">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Image
-              src="/logo.png"
-              alt="Badel Group"
-              width={56}
-              height={56}
-              className="h-14 w-14 object-contain"
-            />
-            <div>
-              <p className="text-lg font-bold tracking-wide uppercase">Badel Group</p>
-              <p className="text-sm text-white/70">Padel tournaments & community</p>
-            </div>
+    <footer className="mt-auto border-t border-primary/20 bg-gradient-to-br from-primary-dark to-[#7a3200] text-white">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col items-center gap-3 sm:items-start">
+            <Logo size="lg" variant="light" />
+            <p className="max-w-xs text-center text-sm text-white/75 sm:text-left">
+              Padel tournaments, community events, and championship experiences across the UAE.
+            </p>
           </div>
 
-          <div className="flex flex-col items-center gap-2 sm:items-end">
-            <div className="flex gap-4 text-sm">
-              <a href="mailto:info@badelgroup.com" className="hover:text-secondary">
-                info@badelgroup.com
-              </a>
-              <a href="https://instagram.com" className="hover:text-secondary" target="_blank" rel="noopener noreferrer">
-                Instagram
-              </a>
+          <div className="grid grid-cols-2 gap-8 text-sm sm:gap-12">
+            <div>
+              <p className="mb-3 font-semibold text-secondary">Explore</p>
+              <ul className="space-y-2 text-white/80">
+                <li><Link href="/gallery" className="hover:text-white">Gallery</Link></li>
+                <li><Link href="/results" className="hover:text-white">Results</Link></li>
+                <li><Link href="/sponsors" className="hover:text-white">Sponsors</Link></li>
+                <li><Link href="/signup" className="hover:text-white">Sign Up</Link></li>
+              </ul>
             </div>
-            <Link href="/admin" className="text-xs text-white/50 hover:text-white/80">
-              Admin
-            </Link>
+            <div>
+              <p className="mb-3 font-semibold text-secondary">Contact</p>
+              <ul className="space-y-2 text-white/80">
+                <li>
+                  <a href="mailto:info@badelgroup.com" className="hover:text-white">
+                    info@badelgroup.com
+                  </a>
+                </li>
+                <li>
+                  <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                    Instagram
+                  </a>
+                </li>
+                <li>
+                  <Link href="/admin" className="text-white/50 hover:text-white/80">
+                    Admin
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-white/10 pt-6 text-center text-xs text-white/50">
+        <div className="mt-10 border-t border-white/15 pt-6 text-center text-xs text-white/50">
           © {new Date().getFullYear()} Badel Group. All rights reserved.
         </div>
       </div>

@@ -1,5 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
+import { SectionHeading } from "@/components/SectionHeading";
 import { AdminPanel } from "@/components/AdminPanel";
 import {
   fetchPendingEntries,
@@ -18,13 +19,14 @@ export default async function AdminPage() {
   const pendingEntries = await fetchPendingEntries();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
       <div className="mb-8 flex items-center gap-4">
-        <Image src="/logo.png" alt="Badel Group" width={48} height={48} className="h-12 w-12" />
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-600">Manage tournaments, players, sponsors, and media</p>
-        </div>
+        <Logo size="md" />
+        <SectionHeading
+          title="Admin Panel"
+          subtitle="Manage tournaments, players, sponsors, and media"
+          className="mb-0"
+        />
       </div>
 
       {!hasDatabase() && (

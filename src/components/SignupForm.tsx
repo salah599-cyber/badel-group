@@ -26,7 +26,7 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-brand-green/30 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-brand-green/30 bg-brand-green/5 p-8 text-center">
         <div className="mb-4 text-4xl text-brand-green">✓</div>
         <h2 className="mb-2 text-2xl font-bold text-gray-900">Registration Submitted</h2>
         <p className="text-gray-600">
@@ -38,7 +38,7 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
         <p className="rounded-lg bg-brand-red/10 px-3 py-2 text-sm text-brand-red">{error}</p>
       )}
@@ -52,7 +52,7 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
           name="tournamentId"
           required
           defaultValue={tournaments[0]?.id}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="input"
         >
           {tournaments.map((t) => (
             <option key={t.id} value={t.id}>
@@ -66,63 +66,35 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
         <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
           Full Name
         </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          required
-          className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
+        <input id="name" name="name" type="text" required className="input" />
       </div>
 
       <div>
         <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
           Email
         </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
+        <input id="email" name="email" type="email" required className="input" />
       </div>
 
       <div>
         <label htmlFor="phone" className="mb-1 block text-sm font-medium text-gray-700">
           Phone
         </label>
-        <input
-          id="phone"
-          name="phone"
-          type="tel"
-          required
-          className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
+        <input id="phone" name="phone" type="tel" required className="input" />
       </div>
 
       <div>
         <label htmlFor="partnerName" className="mb-1 block text-sm font-medium text-gray-700">
           Partner Name (for doubles)
         </label>
-        <input
-          id="partnerName"
-          name="partnerName"
-          type="text"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
+        <input id="partnerName" name="partnerName" type="text" className="input" />
       </div>
 
       <div>
         <label htmlFor="skillLevel" className="mb-1 block text-sm font-medium text-gray-700">
           Skill Level
         </label>
-        <select
-          id="skillLevel"
-          name="skillLevel"
-          defaultValue="intermediate"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        >
+        <select id="skillLevel" name="skillLevel" defaultValue="intermediate" className="input">
           <option value="beginner">Beginner</option>
           <option value="intermediate">Intermediate</option>
           <option value="advanced">Advanced</option>
@@ -133,19 +105,10 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
         <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-700">
           Notes (optional)
         </label>
-        <textarea
-          id="notes"
-          name="notes"
-          rows={3}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
+        <textarea id="notes" name="notes" rows={3} className="input" />
       </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-full rounded-xl bg-primary py-3 font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
-      >
+      <button type="submit" disabled={isPending} className="btn-primary w-full py-3">
         {isPending ? "Submitting..." : "Submit Registration"}
       </button>
     </form>

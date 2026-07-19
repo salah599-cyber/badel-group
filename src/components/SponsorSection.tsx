@@ -8,13 +8,20 @@ const tierSizes: Record<SponsorTier, string> = {
   bronze: "h-12 w-24",
 };
 
+const tierAccent: Record<SponsorTier, string> = {
+  platinum: "from-gray-400 to-gray-600",
+  gold: "from-amber-400 to-amber-600",
+  silver: "from-slate-300 to-slate-500",
+  bronze: "from-orange-700 to-orange-900",
+};
+
 export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
   return (
     <a
       href={sponsor.website ?? "#"}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex flex-col items-center gap-2 rounded-xl border border-gray-100 bg-white p-4 transition hover:border-secondary hover:shadow-md"
+      className="card-hover flex flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
     >
       <div className={`relative ${tierSizes[sponsor.tier]}`}>
         <Image
@@ -24,7 +31,7 @@ export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
           className="object-contain"
         />
       </div>
-      <span className="text-xs font-medium text-gray-600">{sponsor.name}</span>
+      <span className="text-xs font-semibold text-gray-700">{sponsor.name}</span>
     </a>
   );
 }
@@ -40,9 +47,13 @@ export function SponsorTierSection({
 
   return (
     <div>
-      <h3 className="mb-4 text-center text-sm font-bold tracking-widest text-primary uppercase">
-        {tierLabels[tier]} Sponsors
-      </h3>
+      <div className="mb-5 flex items-center justify-center gap-3">
+        <span className={`h-1 w-10 rounded-full bg-gradient-to-r ${tierAccent[tier]}`} />
+        <h3 className="text-sm font-bold tracking-[0.18em] text-primary uppercase">
+          {tierLabels[tier]} Sponsors
+        </h3>
+        <span className={`h-1 w-10 rounded-full bg-gradient-to-r ${tierAccent[tier]}`} />
+      </div>
       <div className="flex flex-wrap items-center justify-center gap-4">
         {sponsors.map((sponsor) => (
           <SponsorLogo key={sponsor.id} sponsor={sponsor} />

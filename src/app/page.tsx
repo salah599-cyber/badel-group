@@ -1,5 +1,6 @@
 import { GalleryPreview } from "@/components/GalleryGrid";
 import { Hero } from "@/components/Hero";
+import { SectionHeading } from "@/components/SectionHeading";
 import { SponsorTierSection } from "@/components/SponsorSection";
 import { TournamentCard } from "@/components/TournamentCard";
 import {
@@ -17,12 +18,12 @@ export default async function HomePage() {
     <>
       <Hero />
 
-      <div className="mx-auto max-w-6xl space-y-16 px-4 py-12 sm:px-6">
+      <div className="mx-auto max-w-6xl space-y-20 px-4 py-16 sm:px-6 sm:py-20">
         <section>
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Upcoming Tournaments</h2>
-            <p className="text-gray-600">Register now — admin approval required after signup</p>
-          </div>
+          <SectionHeading
+            title="Upcoming Tournaments"
+            subtitle="Register now — admin approval required after signup"
+          />
           {upcoming.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2">
               {upcoming.map((tournament) => (
@@ -30,7 +31,7 @@ export default async function HomePage() {
               ))}
             </div>
           ) : (
-            <p className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
+            <p className="rounded-2xl border border-dashed border-primary/20 bg-white/60 p-10 text-center text-gray-500">
               No upcoming tournaments at the moment. Check back soon!
             </p>
           )}
@@ -38,12 +39,13 @@ export default async function HomePage() {
 
         <GalleryPreview photos={galleryPhotos} />
 
-        <section>
-          <div className="mb-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-900">Our Sponsors</h2>
-            <p className="text-gray-600">Thank you to our partners who make every event possible</p>
-          </div>
-          <div className="space-y-10">
+        <section className="section-shell">
+          <SectionHeading
+            title="Our Sponsors"
+            subtitle="Thank you to our partners who make every event possible"
+            align="center"
+          />
+          <div className="space-y-12">
             {await Promise.all(
               tierOrder.map(async (tier) => {
                 const sponsors = await fetchSponsorsByTier(tier);
@@ -55,26 +57,29 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="rounded-2xl bg-primary-dark px-6 py-10 text-center text-white sm:px-10">
-          <h2 className="mb-2 text-2xl font-bold">Get in Touch</h2>
-          <p className="mb-6 text-white/80">
-            Questions about tournaments or sponsorship? We&apos;d love to hear from you.
-          </p>
-          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <a
-              href="mailto:info@badelgroup.com"
-              className="rounded-xl bg-white px-6 py-3 font-semibold text-primary-dark transition hover:bg-cream"
-            >
-              info@badelgroup.com
-            </a>
-            <a
-              href="https://instagram.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl border border-white/40 px-6 py-3 font-semibold transition hover:bg-white/10"
-            >
-              Follow on Instagram
-            </a>
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-secondary px-6 py-12 text-center text-white shadow-xl sm:px-12">
+          <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="relative">
+            <h2 className="mb-3 text-3xl font-bold">Get in Touch</h2>
+            <p className="mx-auto mb-8 max-w-lg text-white/90">
+              Questions about tournaments or sponsorship? We&apos;d love to hear from you.
+            </p>
+            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <a
+                href="mailto:info@badelgroup.com"
+                className="rounded-xl bg-white px-7 py-3.5 font-semibold text-primary-dark shadow-lg transition hover:bg-cream"
+              >
+                info@badelgroup.com
+              </a>
+              <a
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-white/40 bg-white/10 px-7 py-3.5 font-semibold backdrop-blur-sm transition hover:bg-white/20"
+              >
+                Follow on Instagram
+              </a>
+            </div>
           </div>
         </section>
       </div>
