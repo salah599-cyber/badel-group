@@ -19,8 +19,8 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
           <h3 className="text-xl font-bold text-gray-900 transition group-hover:text-primary">
             {tournament.name}
           </h3>
-          <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-dark capitalize">
-            {tournament.format}
+          <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-dark">
+            {tournament.typeName}
           </span>
         </div>
 

@@ -1,31 +1,68 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, ne } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "./index";
 import {
   entries,
   galleryPhotos,
   results,
   sponsors,
+  tournamentTypes,
   tournaments,
 } from "./schema";
 import type { SponsorTier } from "@/lib/types";
 
+function tournamentSelect() {
+  return db!.select({
+    id: tournaments.id,
+    name: tournaments.name,
+    date: tournaments.date,
+    location: tournaments.location,
+    status: tournaments.status,
+    description: tournaments.description,
+    maxPlayers: tournaments.maxPlayers,
+    tournamentTypeId: tournaments.tournamentTypeId,
+    typeName: tournamentTypes.name,
+    typeSlug: tournamentTypes.slug,
+    requiresPartner: tournamentTypes.requiresPartner,
+    pairingMode: tournamentTypes.pairingMode,
+  })
+    .from(tournaments)
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id));
+}
+
+export async function getTournamentTypes() {
+  if (!db) return [];
+  return db
+    .select()
+    .from(tournamentTypes)
+    .orderBy(tournamentTypes.sortOrder, tournamentTypes.name);
+}
+
+export async function getTournamentTypeById(id: string) {
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(tournamentTypes)
+    .where(eq(tournamentTypes.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export async function getTournaments() {
   if (!db) return [];
-  return db.select().from(tournaments).orderBy(desc(tournaments.date));
+  return tournamentSelect().orderBy(desc(tournaments.date));
 }
 
 export async function getUpcomingTournaments() {
   if (!db) return [];
-  return db
-    .select()
-    .from(tournaments)
+  return tournamentSelect()
     .where(eq(tournaments.status, "upcoming"))
     .orderBy(tournaments.date);
 }
 
 export async function getTournamentById(id: string) {
   if (!db) return null;
-  const rows = await db.select().from(tournaments).where(eq(tournaments.id, id)).limit(1);
+  const rows = await tournamentSelect().where(eq(tournaments.id, id)).limit(1);
   return rows[0] ?? null;
 }
 
@@ -71,6 +108,8 @@ export async function getResults() {
 
 export async function getPendingEntries() {
   if (!db) return [];
+  const partnerEntry = alias(entries, "partner_entry");
+
   return db
     .select({
       id: entries.id,
@@ -78,15 +117,47 @@ export async function getPendingEntries() {
       email: entries.email,
       phone: entries.phone,
       partnerName: entries.partnerName,
+      partnerEntryId: entries.partnerEntryId,
+      partnerPlayerName: partnerEntry.name,
       skillLevel: entries.skillLevel,
       status: entries.status,
       createdAt: entries.createdAt,
       tournamentId: entries.tournamentId,
       tournamentName: tournaments.name,
+      pairingMode: tournamentTypes.pairingMode,
     })
     .from(entries)
     .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
     .where(eq(entries.status, "pending"))
+    .orderBy(desc(entries.createdAt));
+}
+
+export async function getManageableEntries() {
+  if (!db) return [];
+  const partnerEntry = alias(entries, "partner_entry");
+
+  return db
+    .select({
+      id: entries.id,
+      name: entries.name,
+      email: entries.email,
+      phone: entries.phone,
+      partnerEntryId: entries.partnerEntryId,
+      partnerPlayerName: partnerEntry.name,
+      skillLevel: entries.skillLevel,
+      status: entries.status,
+      createdAt: entries.createdAt,
+      tournamentId: entries.tournamentId,
+      tournamentName: tournaments.name,
+      pairingMode: tournamentTypes.pairingMode,
+    })
+    .from(entries)
+    .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
+    .where(ne(entries.status, "rejected"))
     .orderBy(desc(entries.createdAt));
 }
 
@@ -103,4 +174,13 @@ export async function getAllEntries() {
     .from(entries)
     .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
     .orderBy(desc(entries.createdAt));
+}
+
+export async function countTournamentsByType(typeId: string) {
+  if (!db) return 0;
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(tournaments)
+    .where(eq(tournaments.tournamentTypeId, typeId));
+  return Number(value);
 }

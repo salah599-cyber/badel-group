@@ -4,10 +4,21 @@ import { useState, useTransition } from "react";
 import { createEntryAction } from "@/lib/actions";
 import type { Tournament } from "@/lib/types";
 
+function signupHint(tournament: Tournament | undefined) {
+  if (!tournament) return null;
+  if (tournament.pairingMode === "random") {
+    return "Sign up solo — teams will be assigned randomly.";
+  }
+  return "Sign up individually — an admin will assign your partner.";
+}
+
 export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [selectedId, setSelectedId] = useState(tournaments[0]?.id ?? "");
+
+  const selectedTournament = tournaments.find((t) => t.id === selectedId);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -18,8 +29,12 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
       try {
         await createEntryAction(formData);
         setSubmitted(true);
-      } catch {
-        setError("Registration failed. Please try again or contact support.");
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Registration failed. Please try again or contact support.",
+        );
       }
     });
   }
@@ -51,15 +66,19 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
           id="tournamentId"
           name="tournamentId"
           required
-          defaultValue={tournaments[0]?.id}
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
           className="input"
         >
           {tournaments.map((t) => (
             <option key={t.id} value={t.id}>
-              {t.name} — {new Date(t.date).toLocaleDateString()}
+              {t.name} — {new Date(t.date).toLocaleDateString()} ({t.typeName})
             </option>
           ))}
         </select>
+        {signupHint(selectedTournament) && (
+          <p className="mt-1 text-xs text-gray-500">{signupHint(selectedTournament)}</p>
+        )}
       </div>
 
       <div>
@@ -81,13 +100,6 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
           Phone
         </label>
         <input id="phone" name="phone" type="tel" required className="input" />
-      </div>
-
-      <div>
-        <label htmlFor="partnerName" className="mb-1 block text-sm font-medium text-gray-700">
-          Partner Name (for doubles)
-        </label>
-        <input id="partnerName" name="partnerName" type="text" className="input" />
       </div>
 
       <div>

@@ -4,7 +4,38 @@ import type {
   SponsorTier,
   Tournament,
   TournamentResult,
+  TournamentType,
 } from "./types";
+
+export const defaultTournamentTypes: TournamentType[] = [
+  {
+    id: "type-doubles",
+    name: "Doubles",
+    slug: "doubles",
+    description: "Standard doubles — sign up solo, admin assigns partners",
+    requiresPartner: false,
+    pairingMode: "manual",
+    sortOrder: 1,
+  },
+  {
+    id: "type-mixed-doubles",
+    name: "Mixed Doubles",
+    slug: "mixed-doubles",
+    description: "Mixed-gender doubles — sign up solo, admin assigns partners",
+    requiresPartner: false,
+    pairingMode: "manual",
+    sortOrder: 2,
+  },
+  {
+    id: "type-random-teams",
+    name: "Random Team Selection",
+    slug: "random-teams",
+    description: "Sign up solo — teams are assigned randomly on the day",
+    requiresPartner: false,
+    pairingMode: "random",
+    sortOrder: 3,
+  },
+];
 
 export const seedTournaments: Tournament[] = [
   {
@@ -12,7 +43,11 @@ export const seedTournaments: Tournament[] = [
     name: "Badel Spring Open 2026",
     date: "2026-04-12",
     location: "Dubai Sports City",
-    format: "doubles",
+    tournamentTypeId: "type-doubles",
+    typeName: "Doubles",
+    typeSlug: "doubles",
+    requiresPartner: false,
+    pairingMode: "manual",
     status: "upcoming",
     description:
       "Our flagship doubles tournament. Open to all skill levels — sign up as a pair and compete for the Badel Group trophy.",
@@ -24,10 +59,14 @@ export const seedTournaments: Tournament[] = [
     name: "Community Cup",
     date: "2026-05-03",
     location: "Abu Dhabi Padel Club",
-    format: "singles",
+    tournamentTypeId: "type-mixed-doubles",
+    typeName: "Mixed Doubles",
+    typeSlug: "mixed-doubles",
+    requiresPartner: false,
+    pairingMode: "manual",
     status: "upcoming",
     description:
-      "A friendly singles tournament celebrating our growing padel community. Admin approval required after signup.",
+      "A friendly mixed doubles tournament celebrating our growing padel community. Admin approval required after signup.",
     maxPlayers: 16,
     registeredCount: 0,
   },

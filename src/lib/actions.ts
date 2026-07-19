@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { clerkClient } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
 import {
   getAdminContext,
@@ -10,7 +10,15 @@ import {
   requireSuperAdmin,
 } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { entries, galleryPhotos, results, sponsors, tournaments } from "@/lib/db/schema";
+import { countTournamentsByType } from "@/lib/db/queries";
+import {
+  entries,
+  galleryPhotos,
+  results,
+  sponsors,
+  tournamentTypes,
+  tournaments,
+} from "@/lib/db/schema";
 import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
   canManageTournament,
@@ -34,15 +42,26 @@ async function assertEntryAccess(entryId: string) {
   }
 }
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export async function createTournamentAction(formData: FormData) {
   await requirePermission("tournaments:manage");
   if (!db) throw new Error("Database not configured");
+
+  const tournamentTypeId = formData.get("tournamentTypeId") as string;
+  if (!tournamentTypeId) throw new Error("Tournament type is required");
 
   await db.insert(tournaments).values({
     name: formData.get("name") as string,
     date: formData.get("date") as string,
     location: formData.get("location") as string,
-    format: formData.get("format") as "singles" | "doubles",
+    tournamentTypeId,
     description: formData.get("description") as string,
     maxPlayers: Number(formData.get("maxPlayers")),
     status: "upcoming",
@@ -50,21 +69,194 @@ export async function createTournamentAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/admin");
+  revalidatePath("/signup");
+}
+
+export async function createTournamentTypeAction(formData: FormData) {
+  await requirePermission("tournaments:manage");
+  if (!db) throw new Error("Database not configured");
+
+  const name = (formData.get("name") as string).trim();
+  if (!name) throw new Error("Type name is required");
+
+  const baseSlug = slugify(name);
+  let slug = baseSlug;
+  let suffix = 1;
+
+  while (true) {
+    const existing = await db
+      .select({ id: tournamentTypes.id })
+      .from(tournamentTypes)
+      .where(eq(tournamentTypes.slug, slug))
+      .limit(1);
+    if (existing.length === 0) break;
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+
+  const [{ value: maxOrder }] = await db
+    .select({ value: max(tournamentTypes.sortOrder) })
+    .from(tournamentTypes);
+
+  await db.insert(tournamentTypes).values({
+    name,
+    slug,
+    description: (formData.get("description") as string) || null,
+    requiresPartner: false,
+    pairingMode: (formData.get("pairingMode") as "manual" | "random") || "manual",
+    sortOrder: (maxOrder ?? 0) + 1,
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function deleteTournamentTypeAction(typeId: string) {
+  await requirePermission("tournaments:manage");
+  if (!db) throw new Error("Database not configured");
+
+  const inUse = await countTournamentsByType(typeId);
+  if (inUse > 0) {
+    throw new Error("Cannot delete a type that is used by existing tournaments");
+  }
+
+  await db.delete(tournamentTypes).where(eq(tournamentTypes.id, typeId));
+  revalidatePath("/admin");
 }
 
 export async function createEntryAction(formData: FormData) {
   if (!db) throw new Error("Database not configured");
 
+  const tournamentId = formData.get("tournamentId") as string;
+
+  const [tournament] = await db
+    .select({ id: tournaments.id })
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament) throw new Error("Tournament not found");
+
   await db.insert(entries).values({
-    tournamentId: formData.get("tournamentId") as string,
+    tournamentId,
     name: formData.get("name") as string,
     email: formData.get("email") as string,
     phone: formData.get("phone") as string,
-    partnerName: (formData.get("partnerName") as string) || null,
     skillLevel: formData.get("skillLevel") as string,
     notes: (formData.get("notes") as string) || null,
     status: "pending",
   });
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+}
+
+async function assertEntryPairingAccess(entryId: string) {
+  const ctx = await requirePermission("entries:manage");
+  if (!db) throw new Error("Database not configured");
+
+  const [entry] = await db
+    .select({
+      tournamentId: entries.tournamentId,
+      status: entries.status,
+      pairingMode: tournamentTypes.pairingMode,
+    })
+    .from(entries)
+    .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .where(eq(entries.id, entryId))
+    .limit(1);
+
+  if (!entry) throw new Error("Entry not found");
+  if (!canManageTournament(ctx, entry.tournamentId)) {
+    throw new Error("You do not have access to this tournament");
+  }
+  if (entry.status === "rejected") {
+    throw new Error("Cannot pair a rejected entry");
+  }
+  if (entry.pairingMode !== "manual") {
+    throw new Error("This tournament type does not use manual pairing");
+  }
+
+  return entry;
+}
+
+async function isEntryPaired(entryId: string) {
+  if (!db) return false;
+
+  const [entry] = await db
+    .select({ partnerEntryId: entries.partnerEntryId })
+    .from(entries)
+    .where(eq(entries.id, entryId))
+    .limit(1);
+
+  if (entry?.partnerEntryId) return true;
+
+  const [reverse] = await db
+    .select({ id: entries.id })
+    .from(entries)
+    .where(eq(entries.partnerEntryId, entryId))
+    .limit(1);
+
+  return Boolean(reverse);
+}
+
+export async function pairEntriesAction(entryIdA: string, entryIdB: string) {
+  if (!db) throw new Error("Database not configured");
+  if (entryIdA === entryIdB) throw new Error("Select two different players");
+
+  await assertEntryPairingAccess(entryIdA);
+  await assertEntryPairingAccess(entryIdB);
+
+  const [entryA] = await db
+    .select({ tournamentId: entries.tournamentId })
+    .from(entries)
+    .where(eq(entries.id, entryIdA))
+    .limit(1);
+  const [entryB] = await db
+    .select({ tournamentId: entries.tournamentId })
+    .from(entries)
+    .where(eq(entries.id, entryIdB))
+    .limit(1);
+
+  if (!entryA || !entryB) throw new Error("Entry not found");
+  if (entryA.tournamentId !== entryB.tournamentId) {
+    throw new Error("Players must be in the same tournament");
+  }
+
+  if (await isEntryPaired(entryIdA) || await isEntryPaired(entryIdB)) {
+    throw new Error("One or both players are already paired. Unpair first.");
+  }
+
+  await db.update(entries).set({ partnerEntryId: entryIdB }).where(eq(entries.id, entryIdA));
+  await db.update(entries).set({ partnerEntryId: entryIdA }).where(eq(entries.id, entryIdB));
+
+  revalidatePath("/admin");
+}
+
+export async function unpairEntryAction(entryId: string) {
+  await assertEntryPairingAccess(entryId);
+  if (!db) throw new Error("Database not configured");
+
+  const [entry] = await db
+    .select({ partnerEntryId: entries.partnerEntryId })
+    .from(entries)
+    .where(eq(entries.id, entryId))
+    .limit(1);
+
+  if (!entry) throw new Error("Entry not found");
+
+  const partnerId = entry.partnerEntryId;
+
+  await db.update(entries).set({ partnerEntryId: null }).where(eq(entries.id, entryId));
+
+  if (partnerId) {
+    await db.update(entries).set({ partnerEntryId: null }).where(eq(entries.id, partnerId));
+  } else {
+    await db
+      .update(entries)
+      .set({ partnerEntryId: null })
+      .where(eq(entries.partnerEntryId, entryId));
+  }
 
   revalidatePath("/admin");
 }

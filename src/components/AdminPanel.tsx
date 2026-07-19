@@ -5,6 +5,8 @@ import { AdminMembersSection } from "@/components/AdminMembersSection";
 import { GalleryUploadSection } from "@/components/GalleryUploadSection";
 import { SponsorUploadSection } from "@/components/SponsorUploadSection";
 import { UserApprovalsSection } from "@/components/UserApprovalsSection";
+import { EntryPairingSection } from "@/components/EntryPairingSection";
+import { TournamentTypesSection } from "@/components/TournamentTypesSection";
 import {
   createResultAction,
   createTournamentAction,
@@ -12,11 +14,13 @@ import {
 } from "@/lib/actions";
 import type { AdminMember, SiteMember } from "@/lib/admin-members";
 import type { Permission } from "@/lib/permissions";
-import type { Entry, Sponsor, Tournament } from "@/lib/types";
+import type { Entry, Sponsor, Tournament, TournamentType } from "@/lib/types";
 import type { PendingUser } from "@/lib/clerk-users";
 
 type AdminPanelProps = {
   tournaments: Tournament[];
+  tournamentTypes: TournamentType[];
+  manageableEntries: Entry[];
   sponsors: Sponsor[];
   pendingEntries: Entry[];
   pendingUsers: PendingUser[];
@@ -50,6 +54,8 @@ function filterByTournamentScope<T extends { id: string }>(
 
 export function AdminPanel({
   tournaments,
+  tournamentTypes,
+  manageableEntries,
   sponsors,
   pendingEntries,
   pendingUsers,
@@ -99,11 +105,28 @@ export function AdminPanel({
       {canAccess(permissions, "tournaments:manage", isSuperAdmin) && (
         <section id="tournaments">
           <h2 className="mb-4 text-xl font-bold text-gray-900">Tournaments</h2>
+
+          <TournamentTypesSection
+            types={tournamentTypes}
+            onComplete={() => window.location.reload()}
+          />
+
+          <EntryPairingSection
+            tournaments={visibleTournaments}
+            entries={manageableEntries.filter((entry) => {
+              if (isSuperAdmin || role === "admin") return true;
+              if (!entry.tournamentId) return false;
+              return scopedTournamentIds.includes(entry.tournamentId);
+            })}
+            onComplete={() => window.location.reload()}
+          />
+
           <div className="mb-4 table-scroll overflow-hidden rounded-2xl border border-gray-200 bg-white">
             <table className="w-full min-w-[28rem] text-left text-sm">
               <thead className="bg-cream-dark text-xs font-semibold uppercase text-gray-500">
                 <tr>
                   <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Entries</th>
                 </tr>
@@ -112,6 +135,7 @@ export function AdminPanel({
                 {visibleTournaments.map((t) => (
                   <tr key={t.id}>
                     <td className="px-4 py-3 font-medium">{t.name}</td>
+                    <td className="px-4 py-3 text-gray-600">{t.typeName}</td>
                     <td className="px-4 py-3 text-gray-600">{t.date}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {t.registeredCount}/{t.maxPlayers}
@@ -134,9 +158,17 @@ export function AdminPanel({
             <input name="name" placeholder="Tournament name" required className="input" />
             <input name="date" type="date" required className="input" />
             <input name="location" placeholder="Location" required className="input" />
-            <select name="format" className="input">
-              <option value="doubles">Doubles</option>
-              <option value="singles">Singles</option>
+            <select
+              name="tournamentTypeId"
+              required
+              className="input"
+              defaultValue={tournamentTypes[0]?.id}
+            >
+              {tournamentTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
             </select>
             <input
               name="maxPlayers"
@@ -176,6 +208,11 @@ export function AdminPanel({
                     <p className="font-medium">{entry.name}</p>
                     <p className="text-sm text-gray-500">
                       {entry.tournamentName} · {entry.email}
+                      {entry.partnerPlayerName
+                        ? ` · Paired with ${entry.partnerPlayerName}`
+                        : entry.pairingMode === "manual"
+                          ? " · Awaiting partner"
+                          : ""}
                     </p>
                   </div>
                   <div className="flex gap-2">

@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   jsonb,
   pgEnum,
@@ -6,11 +7,12 @@ import {
   text,
   timestamp,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 export const tournamentStatusEnum = pgEnum("tournament_status", ["upcoming", "completed"]);
-export const tournamentFormatEnum = pgEnum("tournament_format", ["singles", "doubles"]);
 export const entryStatusEnum = pgEnum("entry_status", ["pending", "approved", "rejected"]);
+export const pairingModeEnum = pgEnum("pairing_mode", ["manual", "random"]);
 export const sponsorTierEnum = pgEnum("sponsor_tier", [
   "platinum",
   "gold",
@@ -18,12 +20,25 @@ export const sponsorTierEnum = pgEnum("sponsor_tier", [
   "bronze",
 ]);
 
+export const tournamentTypes = pgTable("tournament_types", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  requiresPartner: boolean("requires_partner").notNull().default(false),
+  pairingMode: pairingModeEnum("pairing_mode").notNull().default("manual"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const tournaments = pgTable("tournaments", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   date: text("date").notNull(),
   location: text("location").notNull(),
-  format: tournamentFormatEnum("format").notNull().default("doubles"),
+  tournamentTypeId: uuid("tournament_type_id")
+    .notNull()
+    .references(() => tournamentTypes.id),
   status: tournamentStatusEnum("status").notNull().default("upcoming"),
   description: text("description").notNull(),
   maxPlayers: integer("max_players").notNull().default(32),
@@ -39,6 +54,9 @@ export const entries = pgTable("entries", {
   email: text("email").notNull(),
   phone: text("phone").notNull(),
   partnerName: text("partner_name"),
+  partnerEntryId: uuid("partner_entry_id").references((): AnyPgColumn => entries.id, {
+    onDelete: "set null",
+  }),
   skillLevel: text("skill_level").notNull().default("intermediate"),
   notes: text("notes"),
   status: entryStatusEnum("status").notNull().default("pending"),

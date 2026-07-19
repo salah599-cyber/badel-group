@@ -7,8 +7,10 @@ import {
   fetchSiteMembers,
 } from "@/lib/admin-members";
 import {
+  fetchManageableEntries,
   fetchPendingEntries,
   fetchSponsors,
+  fetchTournamentTypes,
   fetchUpcomingTournaments,
 } from "@/lib/data";
 import { fetchPendingUsers } from "@/lib/clerk-users";
@@ -25,6 +27,8 @@ export default async function AdminPage() {
   if (!ctx) redirect("/?error=unauthorized");
 
   const upcoming = await fetchUpcomingTournaments();
+  const tournamentTypes = await fetchTournamentTypes();
+  const manageableEntries = await fetchManageableEntries();
   const sponsors = await fetchSponsors();
   const pendingEntries = await fetchPendingEntries();
   const pendingUsers = ctx.permissions.includes("users:approve") || ctx.isSuperAdmin
@@ -59,6 +63,8 @@ export default async function AdminPage() {
 
       <AdminPanel
         tournaments={upcoming}
+        tournamentTypes={tournamentTypes}
+        manageableEntries={manageableEntries}
         sponsors={sponsors}
         pendingEntries={pendingEntries}
         pendingUsers={pendingUsers}
