@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { FileDropzone } from "@/components/FileDropzone";
 import { createSponsorAction, createSponsorsBulkAction, deleteSponsorAction } from "@/lib/actions";
+import { getMediaSrc } from "@/lib/media";
 import { nameFromFilename, uploadFiles } from "@/lib/uploads";
 import type { Sponsor } from "@/lib/types";
 
@@ -67,7 +68,7 @@ export function SponsorUploadSection({
             className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white px-4 py-3"
           >
             <div className="relative h-10 w-16 shrink-0">
-              <Image src={s.logoUrl} alt={s.name} fill className="object-contain" />
+              <Image src={getMediaSrc(s.logoUrl)} alt={s.name} fill className="object-contain" />
             </div>
             <span className="flex-1 font-medium">{s.name}</span>
             <span className="text-xs font-semibold text-primary uppercase">{s.tier}</span>

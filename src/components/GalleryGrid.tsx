@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getMediaSrc } from "@/lib/media";
 import { SectionHeading } from "@/components/SectionHeading";
 import type { GalleryPhoto } from "@/lib/types";
 
@@ -12,7 +13,7 @@ export function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
           className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5"
         >
           <Image
-            src={photo.imageUrl}
+            src={getMediaSrc(photo.imageUrl)}
             alt={photo.caption}
             fill
             className="object-cover transition duration-500 group-hover:scale-110"

@@ -3,21 +3,25 @@
 import { useTransition } from "react";
 import { GalleryUploadSection } from "@/components/GalleryUploadSection";
 import { SponsorUploadSection } from "@/components/SponsorUploadSection";
+import { UserApprovalsSection } from "@/components/UserApprovalsSection";
 import {
   createResultAction,
   createTournamentAction,
   updateEntryStatusAction,
 } from "@/lib/actions";
 import type { Entry, Sponsor, Tournament } from "@/lib/types";
+import type { PendingUser } from "@/lib/clerk-users";
 
 export function AdminPanel({
   tournaments,
   sponsors,
   pendingEntries,
+  pendingUsers,
 }: {
   tournaments: Tournament[];
   sponsors: Sponsor[];
   pendingEntries: Entry[];
+  pendingUsers: PendingUser[];
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -126,6 +130,11 @@ export function AdminPanel({
           </p>
         )}
       </section>
+
+      <UserApprovalsSection
+        pendingUsers={pendingUsers}
+        onComplete={() => window.location.reload()}
+      />
 
       <SponsorUploadSection
         sponsors={sponsors}

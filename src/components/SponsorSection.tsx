@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { getMediaSrc } from "@/lib/media";
 import { tierLabels, type Sponsor, type SponsorTier } from "@/lib/types";
 
 const tierSizes: Record<SponsorTier, string> = {
@@ -25,7 +26,7 @@ export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
     >
       <div className={`relative ${tierSizes[sponsor.tier]}`}>
         <Image
-          src={sponsor.logoUrl}
+          src={getMediaSrc(sponsor.logoUrl)}
           alt={sponsor.name}
           fill
           className="object-contain"

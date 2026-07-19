@@ -12,3 +12,10 @@ export async function isAdmin() {
   if (!user) return false;
   return user.publicMetadata?.role === "admin";
 }
+
+export async function isApprovedUser() {
+  const user = await currentUser();
+  if (!user) return false;
+  if (user.publicMetadata?.role === "admin") return true;
+  return user.publicMetadata?.approved === true;
+}

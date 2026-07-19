@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { clerkClient } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -164,5 +165,39 @@ export async function createResultAction(formData: FormData) {
 
   revalidatePath("/results");
   revalidatePath("/");
+  revalidatePath("/admin");
+}
+
+export async function approveUserAction(userId: string) {
+  await assertAdmin();
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+
+  await client.users.updateUserMetadata(userId, {
+    publicMetadata: {
+      ...user.publicMetadata,
+      approved: true,
+      status: "approved",
+    },
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function rejectUserAction(userId: string) {
+  await assertAdmin();
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+
+  await client.users.updateUserMetadata(userId, {
+    publicMetadata: {
+      ...user.publicMetadata,
+      approved: false,
+      status: "rejected",
+    },
+  });
+
+  await client.users.banUser(userId);
+
   revalidatePath("/admin");
 }

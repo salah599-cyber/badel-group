@@ -7,6 +7,7 @@ import {
   fetchSponsors,
   fetchUpcomingTournaments,
 } from "@/lib/data";
+import { fetchPendingUsers } from "@/lib/clerk-users";
 import { hasDatabase } from "@/lib/db";
 
 export const metadata = {
@@ -17,6 +18,7 @@ export default async function AdminPage() {
   const upcoming = await fetchUpcomingTournaments();
   const sponsors = await fetchSponsors();
   const pendingEntries = await fetchPendingEntries();
+  const pendingUsers = await fetchPendingUsers();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
@@ -40,6 +42,7 @@ export default async function AdminPage() {
         tournaments={upcoming}
         sponsors={sponsors}
         pendingEntries={pendingEntries}
+        pendingUsers={pendingUsers}
       />
 
       <Link href="/" className="mt-8 inline-block text-sm font-semibold text-primary hover:text-primary-dark">
