@@ -27,16 +27,12 @@ WHERE "tournament_type_id" IS NULL;
 ALTER TABLE "tournaments"
   ALTER COLUMN "tournament_type_id" SET NOT NULL;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'tournaments_tournament_type_id_tournament_types_id_fk'
-  ) THEN
-    ALTER TABLE "tournaments"
-      ADD CONSTRAINT "tournaments_tournament_type_id_tournament_types_id_fk"
-      FOREIGN KEY ("tournament_type_id") REFERENCES "tournament_types"("id");
-  END IF;
-END $$;
+ALTER TABLE "tournaments"
+  DROP CONSTRAINT IF EXISTS "tournaments_tournament_type_id_tournament_types_id_fk";
+
+ALTER TABLE "tournaments"
+  ADD CONSTRAINT "tournaments_tournament_type_id_tournament_types_id_fk"
+  FOREIGN KEY ("tournament_type_id") REFERENCES "tournament_types"("id");
 
 ALTER TABLE "tournaments" DROP COLUMN IF EXISTS "format";
 

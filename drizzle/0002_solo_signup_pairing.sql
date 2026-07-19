@@ -1,10 +1,5 @@
 -- Solo signup + admin pairing for doubles formats
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'pairing_mode') THEN
-    CREATE TYPE "pairing_mode" AS ENUM('manual', 'random');
-  END IF;
-END $$;
+CREATE TYPE "pairing_mode" AS ENUM('manual', 'random');
 
 ALTER TABLE "tournament_types"
   ADD COLUMN IF NOT EXISTS "pairing_mode" "pairing_mode" DEFAULT 'manual' NOT NULL;
@@ -30,13 +25,9 @@ WHERE "slug" = 'mixed-doubles';
 ALTER TABLE "entries"
   ADD COLUMN IF NOT EXISTS "partner_entry_id" uuid;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'entries_partner_entry_id_entries_id_fk'
-  ) THEN
-    ALTER TABLE "entries"
-      ADD CONSTRAINT "entries_partner_entry_id_entries_id_fk"
-      FOREIGN KEY ("partner_entry_id") REFERENCES "entries"("id") ON DELETE SET NULL;
-  END IF;
-END $$;
+ALTER TABLE "entries"
+  DROP CONSTRAINT IF EXISTS "entries_partner_entry_id_entries_id_fk";
+
+ALTER TABLE "entries"
+  ADD CONSTRAINT "entries_partner_entry_id_entries_id_fk"
+  FOREIGN KEY ("partner_entry_id") REFERENCES "entries"("id") ON DELETE SET NULL;
