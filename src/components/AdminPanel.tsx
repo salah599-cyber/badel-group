@@ -6,6 +6,7 @@ import { GalleryUploadSection } from "@/components/GalleryUploadSection";
 import { SponsorUploadSection } from "@/components/SponsorUploadSection";
 import { UserApprovalsSection } from "@/components/UserApprovalsSection";
 import { EntryPairingSection } from "@/components/EntryPairingSection";
+import { LocationSelect } from "@/components/LocationSelect";
 import { TournamentTypesSection } from "@/components/TournamentTypesSection";
 import {
   createResultAction,
@@ -159,7 +160,7 @@ export function AdminPanel({
             <h3 className="sm:col-span-2 font-semibold text-primary-dark">Create Tournament</h3>
             <input name="name" placeholder="Tournament name" required className="input" />
             <input name="date" type="date" required className="input" />
-            <input name="location" placeholder="Location" required className="input" />
+            <LocationSelect className="input" />
             <select
               name="tournamentTypeId"
               required

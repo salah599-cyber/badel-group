@@ -105,10 +105,13 @@ export async function createTournamentAction(formData: FormData) {
   const tournamentTypeId = formData.get("tournamentTypeId") as string;
   if (!tournamentTypeId) throw new Error("Tournament type is required");
 
+  const location = (formData.get("location") as string)?.trim();
+  if (!location) throw new Error("Location is required");
+
   await db.insert(tournaments).values({
     name: formData.get("name") as string,
     date: formData.get("date") as string,
-    location: formData.get("location") as string,
+    location,
     tournamentTypeId,
     description: formData.get("description") as string,
     maxPlayers: Number(formData.get("maxPlayers")),
