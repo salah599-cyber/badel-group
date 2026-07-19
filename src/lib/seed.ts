@@ -1,0 +1,95 @@
+import type {
+  GalleryPhoto,
+  Sponsor,
+  SponsorTier,
+  Tournament,
+  TournamentResult,
+} from "./types";
+
+export const seedTournaments: Tournament[] = [
+  {
+    id: "t1",
+    name: "Badel Spring Open 2026",
+    date: "2026-04-12",
+    location: "Dubai Sports City",
+    format: "doubles",
+    status: "upcoming",
+    description:
+      "Our flagship doubles tournament. Open to all skill levels — sign up as a pair and compete for the Badel Group trophy.",
+    maxPlayers: 32,
+    registeredCount: 0,
+  },
+  {
+    id: "t2",
+    name: "Community Cup",
+    date: "2026-05-03",
+    location: "Abu Dhabi Padel Club",
+    format: "singles",
+    status: "upcoming",
+    description:
+      "A friendly singles tournament celebrating our growing padel community. Admin approval required after signup.",
+    maxPlayers: 16,
+    registeredCount: 0,
+  },
+];
+
+export const seedSponsors: Sponsor[] = [
+  {
+    id: "1",
+    name: "Padel Pro UAE",
+    tier: "platinum",
+    logoUrl: "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=200&h=100&fit=crop",
+    website: "#",
+  },
+  {
+    id: "2",
+    name: "SportZone",
+    tier: "gold",
+    logoUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=200&h=100&fit=crop",
+    website: "#",
+  },
+  {
+    id: "3",
+    name: "Elite Courts",
+    tier: "gold",
+    logoUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=100&fit=crop",
+    website: "#",
+  },
+  {
+    id: "4",
+    name: "Racket House",
+    tier: "silver",
+    logoUrl: "https://images.unsplash.com/photo-1626224583764-f87db74ac163?w=200&h=100&fit=crop",
+    website: "#",
+  },
+  {
+    id: "5",
+    name: "Court Masters",
+    tier: "bronze",
+    logoUrl: "https://images.unsplash.com/photo-1595435934249-5df7ed4770de?w=200&h=100&fit=crop",
+    website: "#",
+  },
+];
+
+export const seedGallery: GalleryPhoto[] = [
+  {
+    id: "g1",
+    tournamentId: null,
+    tournamentName: "Winter Classic 2025",
+    imageUrl: "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=600&h=400&fit=crop",
+    caption: "Final match action",
+  },
+  {
+    id: "g2",
+    tournamentId: null,
+    tournamentName: "Winter Classic 2025",
+    imageUrl: "https://images.unsplash.com/photo-1626224583764-f87db74ac163?w=600&h=400&fit=crop",
+    caption: "Winners celebration",
+  },
+];
+
+export const seedResults: TournamentResult[] = [];
+
+export function getSeedSponsorsByTier(tier: SponsorTier) {
+  return seedSponsors.filter((s) => s.tier === tier);
+}
