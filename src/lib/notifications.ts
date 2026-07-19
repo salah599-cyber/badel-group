@@ -20,58 +20,80 @@ export async function createNotification(input: {
 }) {
   if (!db) return;
 
-  await db.insert(notifications).values({
-    userId: input.userId,
-    type: input.type,
-    title: input.title,
-    message: input.message,
-    href: input.href ?? "/signup",
-  });
+  try {
+    await db.insert(notifications).values({
+      userId: input.userId,
+      type: input.type,
+      title: input.title,
+      message: input.message,
+      href: input.href ?? "/signup",
+    });
+  } catch (error) {
+    console.error("[notifications] Failed to create notification:", error);
+  }
 }
 
 export async function getUnreadNotifications(userId: string): Promise<AppNotification[]> {
   if (!db) return [];
 
-  return db
-    .select({
-      id: notifications.id,
-      type: notifications.type,
-      title: notifications.title,
-      message: notifications.message,
-      href: notifications.href,
-      createdAt: notifications.createdAt,
-    })
-    .from(notifications)
-    .where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
-    .orderBy(desc(notifications.createdAt))
-    .limit(10);
+  try {
+    return await db
+      .select({
+        id: notifications.id,
+        type: notifications.type,
+        title: notifications.title,
+        message: notifications.message,
+        href: notifications.href,
+        createdAt: notifications.createdAt,
+      })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.read, false)))
+      .orderBy(desc(notifications.createdAt))
+      .limit(10);
+  } catch (error) {
+    console.error("[notifications] Failed to load notifications:", error);
+    return [];
+  }
 }
 
 export async function getUnreadNotificationCount(userId: string) {
   if (!db) return 0;
 
-  const [{ value }] = await db
-    .select({ value: count() })
-    .from(notifications)
-    .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+  try {
+    const [{ value }] = await db
+      .select({ value: count() })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
 
-  return Number(value);
+    return Number(value);
+  } catch (error) {
+    console.error("[notifications] Failed to count notifications:", error);
+    return 0;
+  }
 }
 
 export async function markNotificationRead(notificationId: string, userId: string) {
   if (!db) return;
 
-  await db
-    .update(notifications)
-    .set({ read: true })
-    .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
+  try {
+    await db
+      .update(notifications)
+      .set({ read: true })
+      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
+  } catch (error) {
+    console.error("[notifications] Failed to mark notification read:", error);
+  }
 }
 
 export async function markAllNotificationsRead(userId: string) {
   if (!db) return;
 
-  await db
-    .update(notifications)
-    .set({ read: true })
-    .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+  try {
+    await db
+      .update(notifications)
+      .set({ read: true })
+      .where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+  } catch (error) {
+    console.error("[notifications] Failed to mark all notifications read:", error);
+  }
 }
