@@ -178,10 +178,6 @@ export async function createEntryAction(formData: FormData) {
   if (!db) throw new Error("Database not configured");
 
   const tournamentId = formData.get("tournamentId") as string;
-  const signupMode = (formData.get("signupMode") as "solo" | "with_partner") || "solo";
-  const partnerType = formData.get("partnerType") as "registered" | "unregistered" | null;
-  const partnerEmail = (formData.get("partnerEmail") as string | null)?.trim().toLowerCase() || null;
-  const partnerName = (formData.get("partnerName") as string | null)?.trim() || null;
   const email = (formData.get("email") as string).trim().toLowerCase();
   const userEmail = user.emailAddresses[0]?.emailAddress?.toLowerCase();
   const playingSide = parsePlayingSide(formData.get("playingSide"));
@@ -203,12 +199,16 @@ export async function createEntryAction(formData: FormData) {
 
   if (!tournament) throw new Error("Tournament not found");
 
+  const signupMode =
+    tournament.pairingMode === "random"
+      ? "solo"
+      : ((formData.get("signupMode") as "solo" | "with_partner") || "solo");
+  const partnerType = formData.get("partnerType") as "registered" | "unregistered" | null;
+  const partnerEmail = (formData.get("partnerEmail") as string | null)?.trim().toLowerCase() || null;
+  const partnerName = (formData.get("partnerName") as string | null)?.trim() || null;
+
   if (await hasExistingEntry(tournamentId, email, user.id)) {
     throw new Error("You are already registered for this tournament");
-  }
-
-  if (signupMode === "with_partner" && tournament.pairingMode === "random") {
-    throw new Error("This tournament assigns partners randomly — please sign up solo");
   }
 
   let partnershipStatus: "not_applicable" | "pending_partner" | "pending_admin" | "approved" =

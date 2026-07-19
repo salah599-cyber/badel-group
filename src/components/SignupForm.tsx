@@ -39,7 +39,7 @@ export function SignupForm({
   const [partnerType, setPartnerType] = useState<"registered" | "unregistered">("registered");
 
   const selectedTournament = tournaments.find((t) => t.id === selectedId);
-  const partnerChoiceDisabled = selectedTournament?.pairingMode === "random";
+  const isSoloOnlyTournament = selectedTournament?.pairingMode === "random";
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -115,50 +115,56 @@ export function SignupForm({
         )}
       </div>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-gray-700">How are you signing up?</legend>
-        <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
-          <input
-            type="radio"
-            name="signupMode"
-            value="solo"
-            checked={signupMode === "solo"}
-            onChange={() => setSignupMode("solo")}
-            className="mt-1"
-          />
-          <span>
-            <span className="block text-sm font-semibold text-gray-900">Sign up solo</span>
-            <span className="block text-xs text-gray-500">
-              Join on your own and get paired later if needed.
+      {isSoloOnlyTournament ? (
+        <>
+          <input type="hidden" name="signupMode" value="solo" />
+          <div className="rounded-xl border border-secondary/30 bg-secondary/10 px-4 py-3 text-sm text-primary-dark">
+            <p className="font-semibold">Solo registration only</p>
+            <p className="mt-1 text-primary-dark/80">
+              This tournament uses random team selection. You will be paired with another player
+              after registration closes.
+            </p>
+          </div>
+        </>
+      ) : (
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium text-gray-700">How are you signing up?</legend>
+          <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+            <input
+              type="radio"
+              name="signupMode"
+              value="solo"
+              checked={signupMode === "solo"}
+              onChange={() => setSignupMode("solo")}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-gray-900">Sign up solo</span>
+              <span className="block text-xs text-gray-500">
+                Join on your own and get paired later if needed.
+              </span>
             </span>
-          </span>
-        </label>
-        <label
-          className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
-            partnerChoiceDisabled
-              ? "cursor-not-allowed border-gray-100 bg-gray-50 opacity-60"
-              : "border-gray-200 bg-white"
-          }`}
-        >
-          <input
-            type="radio"
-            name="signupMode"
-            value="with_partner"
-            checked={signupMode === "with_partner"}
-            disabled={partnerChoiceDisabled}
-            onChange={() => setSignupMode("with_partner")}
-            className="mt-1"
-          />
-          <span>
-            <span className="block text-sm font-semibold text-gray-900">Sign up with a partner</span>
-            <span className="block text-xs text-gray-500">
-              Choose a registered member or someone not yet on the platform.
+          </label>
+          <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+            <input
+              type="radio"
+              name="signupMode"
+              value="with_partner"
+              checked={signupMode === "with_partner"}
+              onChange={() => setSignupMode("with_partner")}
+              className="mt-1"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-gray-900">Sign up with a partner</span>
+              <span className="block text-xs text-gray-500">
+                Choose a registered member or someone not yet on the platform.
+              </span>
             </span>
-          </span>
-        </label>
-      </fieldset>
+          </label>
+        </fieldset>
+      )}
 
-      {signupMode === "with_partner" && (
+      {!isSoloOnlyTournament && signupMode === "with_partner" && (
         <fieldset className="space-y-3 rounded-xl border border-primary/10 bg-primary/5 p-4">
           <legend className="px-1 text-sm font-medium text-gray-700">Partner details</legend>
 
