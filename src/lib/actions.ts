@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
 import {
@@ -10,7 +10,7 @@ import {
   requireSuperAdmin,
 } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { countTournamentsByType } from "@/lib/db/queries";
+import { countTournamentsByType, getEntryById, hasExistingEntry } from "@/lib/db/queries";
 import {
   entries,
   galleryPhotos,
@@ -19,6 +19,17 @@ import {
   tournamentTypes,
   tournaments,
 } from "@/lib/db/schema";
+import { canAdminApproveEntry } from "@/lib/partnerships";
+import {
+  createNotification,
+  getUnreadNotificationCount,
+  getUnreadNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type AppNotification,
+} from "@/lib/notifications";
+import { hasAdminAccess } from "@/lib/permissions";
+import type { AdminMetadata } from "@/lib/permissions";
 import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
   canManageTournament,
@@ -48,6 +59,42 @@ function slugify(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+async function notifyUserSafe(
+  userId: string | null | undefined,
+  input: {
+    type: string;
+    title: string;
+    message: string;
+    href?: string;
+  },
+) {
+  if (!userId) return;
+
+  try {
+    await createNotification({ userId, ...input });
+  } catch (error) {
+    console.error("[notifications] Failed to create notification:", error);
+  }
+}
+
+async function resolveEntryUserId(entry: { userId?: string | null; email: string }) {
+  if (entry.userId) return entry.userId;
+  const user = await findUserByEmail(entry.email);
+  return user?.id ?? null;
+}
+
+function getPartnerDisplayName(user: {
+  firstName: string | null;
+  lastName: string | null;
+  emailAddresses: { emailAddress: string }[];
+}) {
+  return (
+    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+    user.emailAddresses[0]?.emailAddress ||
+    "Your partner"
+  );
 }
 
 export async function createTournamentAction(formData: FormData) {
@@ -124,30 +171,179 @@ export async function deleteTournamentTypeAction(typeId: string) {
 }
 
 export async function createEntryAction(formData: FormData) {
+  const user = await currentUser();
+  if (!user) throw new Error("You must be signed in to register");
+
   if (!db) throw new Error("Database not configured");
 
   const tournamentId = formData.get("tournamentId") as string;
+  const signupMode = (formData.get("signupMode") as "solo" | "with_partner") || "solo";
+  const partnerType = formData.get("partnerType") as "registered" | "unregistered" | null;
+  const partnerEmail = (formData.get("partnerEmail") as string | null)?.trim().toLowerCase() || null;
+  const partnerName = (formData.get("partnerName") as string | null)?.trim() || null;
+  const email = (formData.get("email") as string).trim().toLowerCase();
+  const userEmail = user.emailAddresses[0]?.emailAddress?.toLowerCase();
+
+  if (userEmail && email !== userEmail) {
+    throw new Error("Email must match your account email");
+  }
 
   const [tournament] = await db
-    .select({ id: tournaments.id })
+    .select({
+      id: tournaments.id,
+      name: tournaments.name,
+      pairingMode: tournamentTypes.pairingMode,
+    })
     .from(tournaments)
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
     .where(eq(tournaments.id, tournamentId))
     .limit(1);
 
   if (!tournament) throw new Error("Tournament not found");
 
+  if (await hasExistingEntry(tournamentId, email, user.id)) {
+    throw new Error("You are already registered for this tournament");
+  }
+
+  if (signupMode === "with_partner" && tournament.pairingMode === "random") {
+    throw new Error("This tournament assigns partners randomly — please sign up solo");
+  }
+
+  let partnershipStatus: "not_applicable" | "pending_partner" | "pending_admin" | "approved" =
+    "not_applicable";
+  let partnerUserId: string | null = null;
+  let resolvedPartnerName: string | null = null;
+  let resolvedPartnerEmail: string | null = null;
+
+  if (signupMode === "with_partner") {
+    if (partnerType === "registered") {
+      if (!partnerEmail) throw new Error("Partner email is required");
+
+      if (partnerEmail === email) {
+        throw new Error("You cannot select yourself as your partner");
+      }
+
+      const partnerUser = await findUserByEmail(partnerEmail);
+      if (!partnerUser) {
+        throw new Error(
+          "No registered member found with that email. Choose “Not registered yet” instead.",
+        );
+      }
+
+      const partnerMeta = partnerUser.publicMetadata as AdminMetadata;
+      if (!hasAdminAccess(partnerMeta) && partnerMeta?.approved !== true) {
+        throw new Error("Your partner must be a registered and approved member");
+      }
+
+      partnerUserId = partnerUser.id;
+      resolvedPartnerEmail = partnerEmail;
+      resolvedPartnerName = [partnerUser.firstName, partnerUser.lastName]
+        .filter(Boolean)
+        .join(" ") || partnerEmail;
+      partnershipStatus = "pending_partner";
+    } else {
+      if (!partnerName) throw new Error("Partner name is required");
+      resolvedPartnerName = partnerName;
+      partnershipStatus = "pending_admin";
+    }
+  }
+
   await db.insert(entries).values({
     tournamentId,
+    userId: user.id,
     name: formData.get("name") as string,
-    email: formData.get("email") as string,
+    email,
     phone: formData.get("phone") as string,
+    signupMode,
+    partnerName: resolvedPartnerName,
+    partnerEmail: resolvedPartnerEmail,
+    partnerUserId,
+    partnershipStatus,
     skillLevel: formData.get("skillLevel") as string,
     notes: (formData.get("notes") as string) || null,
     status: "pending",
   });
 
+  if (partnershipStatus === "pending_partner" && partnerUserId) {
+    await notifyUserSafe(partnerUserId, {
+      type: "partnership_invite",
+      title: "New partnership request",
+      message: `${formData.get("name") as string} invited you to partner for ${tournament.name}.`,
+      href: "/signup",
+    });
+  }
+
   revalidatePath("/admin");
   revalidatePath("/signup");
+}
+
+async function assertPartnershipAccess(entryId: string) {
+  const user = await currentUser();
+  if (!user) throw new Error("You must be signed in");
+
+  const entry = await getEntryById(entryId);
+  if (!entry) throw new Error("Partnership request not found");
+
+  const userEmail = user.emailAddresses[0]?.emailAddress?.toLowerCase();
+  const isPartner =
+    entry.partnerUserId === user.id ||
+    (userEmail && entry.partnerEmail?.toLowerCase() === userEmail);
+
+  if (!isPartner) {
+    throw new Error("You are not authorized to respond to this request");
+  }
+
+  if (entry.partnershipStatus !== "pending_partner") {
+    throw new Error("This partnership request is no longer pending");
+  }
+
+  return entry;
+}
+
+export async function approvePartnershipAction(entryId: string) {
+  const entry = await assertPartnershipAccess(entryId);
+  const partner = await currentUser();
+  if (!db) throw new Error("Database not configured");
+
+  await db
+    .update(entries)
+    .set({ partnershipStatus: "approved" })
+    .where(eq(entries.id, entryId));
+
+  if (partner) {
+    await notifyUserSafe(await resolveEntryUserId(entry), {
+      type: "partnership_accepted",
+      title: "Partnership accepted",
+      message: `${getPartnerDisplayName(partner)} accepted your partnership request for ${entry.tournamentName}.`,
+      href: "/signup",
+    });
+  }
+
+  revalidatePath("/signup");
+  revalidatePath("/admin");
+}
+
+export async function rejectPartnershipAction(entryId: string) {
+  const entry = await assertPartnershipAccess(entryId);
+  const partner = await currentUser();
+  if (!db) throw new Error("Database not configured");
+
+  await db
+    .update(entries)
+    .set({ partnershipStatus: "rejected", status: "rejected" })
+    .where(eq(entries.id, entryId));
+
+  if (partner) {
+    await notifyUserSafe(await resolveEntryUserId(entry), {
+      type: "partnership_declined",
+      title: "Partnership declined",
+      message: `${getPartnerDisplayName(partner)} declined your partnership request for ${entry.tournamentName}.`,
+      href: "/signup",
+    });
+  }
+
+  revalidatePath("/signup");
+  revalidatePath("/admin");
 }
 
 async function assertEntryPairingAccess(entryId: string) {
@@ -265,8 +461,55 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
   await assertEntryAccess(entryId);
   if (!db) throw new Error("Database not configured");
 
-  await db.update(entries).set({ status }).where(eq(entries.id, entryId));
+  const entry = await getEntryById(entryId);
+  if (!entry) throw new Error("Entry not found");
+
+  if (status === "approved" && !canAdminApproveEntry(entry.partnershipStatus ?? "not_applicable")) {
+    if (entry.partnershipStatus === "pending_partner") {
+      throw new Error("This entry is waiting for the registered partner to approve");
+    }
+    throw new Error("This partnership was rejected and cannot be approved");
+  }
+
+  const updates =
+    status === "approved" && entry.partnershipStatus === "pending_admin"
+      ? { status, partnershipStatus: "approved" as const }
+      : { status };
+
+  await db.update(entries).set(updates).where(eq(entries.id, entryId));
+
+  if (status === "approved") {
+    const playerUserId = await resolveEntryUserId(entry);
+
+    if (entry.partnershipStatus === "pending_admin" && entry.partnerName) {
+      await notifyUserSafe(playerUserId, {
+        type: "entry_approved",
+        title: "Tournament entry approved",
+        message: `Your entry for ${entry.tournamentName} with ${entry.partnerName} has been approved.`,
+        href: "/signup",
+      });
+    } else {
+      const partnerLabel = entry.partnerName ?? entry.partnerPlayerName;
+      await notifyUserSafe(playerUserId, {
+        type: "entry_approved",
+        title: "Tournament entry approved",
+        message: partnerLabel
+          ? `Your entry for ${entry.tournamentName} with ${partnerLabel} has been approved.`
+          : `Your entry for ${entry.tournamentName} has been approved.`,
+        href: "/signup",
+      });
+    }
+  } else if (status === "rejected") {
+    await notifyUserSafe(await resolveEntryUserId(entry), {
+      type: "entry_rejected",
+      title: "Tournament entry not approved",
+      message: `Your entry for ${entry.tournamentName} was not approved.`,
+      href: "/signup",
+    });
+  }
+
   revalidatePath("/admin");
+  revalidatePath("/signup");
 }
 
 export async function createSponsorAction(input: {
@@ -575,4 +818,28 @@ export async function getCurrentAdminPermissionsAction() {
     tournamentIds: ctx.tournamentIds,
     isSuperAdmin: ctx.isSuperAdmin,
   };
+}
+
+export async function fetchUnreadNotificationsAction(): Promise<AppNotification[]> {
+  const user = await currentUser();
+  if (!user) return [];
+  return getUnreadNotifications(user.id);
+}
+
+export async function fetchUnreadNotificationCountAction() {
+  const user = await currentUser();
+  if (!user) return 0;
+  return getUnreadNotificationCount(user.id);
+}
+
+export async function dismissNotificationAction(notificationId: string) {
+  const user = await currentUser();
+  if (!user) throw new Error("You must be signed in");
+  await markNotificationRead(notificationId, user.id);
+}
+
+export async function dismissAllNotificationsAction() {
+  const user = await currentUser();
+  if (!user) throw new Error("You must be signed in");
+  await markAllNotificationsRead(user.id);
 }

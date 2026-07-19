@@ -1,5 +1,12 @@
 export type SponsorTier = "platinum" | "gold" | "silver" | "bronze";
 export type PairingMode = "manual" | "random";
+export type SignupMode = "solo" | "with_partner";
+export type PartnershipStatus =
+  | "not_applicable"
+  | "pending_partner"
+  | "pending_admin"
+  | "approved"
+  | "rejected";
 
 export interface TournamentType {
   id: string;
@@ -56,9 +63,14 @@ export interface Entry {
   name: string;
   email: string;
   phone?: string;
+  userId?: string | null;
+  signupMode?: SignupMode;
   partnerName?: string | null;
+  partnerEmail?: string | null;
+  partnerUserId?: string | null;
   partnerEntryId?: string | null;
   partnerPlayerName?: string | null;
+  partnershipStatus?: PartnershipStatus;
   skillLevel?: string;
   status: string;
   tournamentId?: string;

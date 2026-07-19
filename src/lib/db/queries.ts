@@ -1,4 +1,4 @@
-import { count, desc, eq, ne } from "drizzle-orm";
+import { and, count, desc, eq, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "./index";
 import {
@@ -106,26 +106,37 @@ export async function getResults() {
   return db.select().from(results).orderBy(desc(results.date));
 }
 
+function entrySelect() {
+  const partnerEntry = alias(entries, "partner_entry");
+
+  return {
+    id: entries.id,
+    userId: entries.userId,
+    name: entries.name,
+    email: entries.email,
+    phone: entries.phone,
+    signupMode: entries.signupMode,
+    partnerName: entries.partnerName,
+    partnerEmail: entries.partnerEmail,
+    partnerUserId: entries.partnerUserId,
+    partnerEntryId: entries.partnerEntryId,
+    partnerPlayerName: partnerEntry.name,
+    partnershipStatus: entries.partnershipStatus,
+    skillLevel: entries.skillLevel,
+    status: entries.status,
+    createdAt: entries.createdAt,
+    tournamentId: entries.tournamentId,
+    tournamentName: tournaments.name,
+    pairingMode: tournamentTypes.pairingMode,
+  };
+}
+
 export async function getPendingEntries() {
   if (!db) return [];
   const partnerEntry = alias(entries, "partner_entry");
 
   return db
-    .select({
-      id: entries.id,
-      name: entries.name,
-      email: entries.email,
-      phone: entries.phone,
-      partnerName: entries.partnerName,
-      partnerEntryId: entries.partnerEntryId,
-      partnerPlayerName: partnerEntry.name,
-      skillLevel: entries.skillLevel,
-      status: entries.status,
-      createdAt: entries.createdAt,
-      tournamentId: entries.tournamentId,
-      tournamentName: tournaments.name,
-      pairingMode: tournamentTypes.pairingMode,
-    })
+    .select(entrySelect())
     .from(entries)
     .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
     .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
@@ -139,26 +150,79 @@ export async function getManageableEntries() {
   const partnerEntry = alias(entries, "partner_entry");
 
   return db
-    .select({
-      id: entries.id,
-      name: entries.name,
-      email: entries.email,
-      phone: entries.phone,
-      partnerEntryId: entries.partnerEntryId,
-      partnerPlayerName: partnerEntry.name,
-      skillLevel: entries.skillLevel,
-      status: entries.status,
-      createdAt: entries.createdAt,
-      tournamentId: entries.tournamentId,
-      tournamentName: tournaments.name,
-      pairingMode: tournamentTypes.pairingMode,
-    })
+    .select(entrySelect())
     .from(entries)
     .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
     .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
     .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
     .where(ne(entries.status, "rejected"))
     .orderBy(desc(entries.createdAt));
+}
+
+export async function getPartnershipRequestsForUser(email: string) {
+  if (!db) return [];
+  const normalizedEmail = email.trim().toLowerCase();
+
+  return db
+    .select({
+      id: entries.id,
+      name: entries.name,
+      email: entries.email,
+      partnerName: entries.partnerName,
+      partnerEmail: entries.partnerEmail,
+      partnershipStatus: entries.partnershipStatus,
+      tournamentId: entries.tournamentId,
+      tournamentName: tournaments.name,
+      createdAt: entries.createdAt,
+    })
+    .from(entries)
+    .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
+    .where(
+      and(
+        sql`lower(${entries.partnerEmail}) = ${normalizedEmail}`,
+        eq(entries.partnershipStatus, "pending_partner"),
+      ),
+    )
+    .orderBy(desc(entries.createdAt));
+}
+
+export async function getEntryById(entryId: string) {
+  if (!db) return null;
+  const partnerEntry = alias(entries, "partner_entry");
+
+  const rows = await db
+    .select(entrySelect())
+    .from(entries)
+    .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
+    .where(eq(entries.id, entryId))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+export async function hasExistingEntry(tournamentId: string, email: string, userId?: string) {
+  if (!db) return false;
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const identityMatch = userId
+    ? or(eq(entries.userId, userId), sql`lower(${entries.email}) = ${normalizedEmail}`)
+    : sql`lower(${entries.email}) = ${normalizedEmail}`;
+
+  const rows = await db
+    .select({ id: entries.id })
+    .from(entries)
+    .where(
+      and(
+        eq(entries.tournamentId, tournamentId),
+        identityMatch,
+        ne(entries.status, "rejected"),
+      ),
+    )
+    .limit(1);
+
+  return rows.length > 0;
 }
 
 export async function getAllEntries() {

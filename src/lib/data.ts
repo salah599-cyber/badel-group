@@ -2,6 +2,7 @@ import { hasDatabase } from "@/lib/db";
 import {
   getGalleryPhotos,
   getManageableEntries,
+  getPartnershipRequestsForUser,
   getPendingEntries,
   getResults,
   getSponsors,
@@ -57,5 +58,10 @@ export async function fetchManageableEntries() {
 
 export async function fetchPendingEntries() {
   if (hasDatabase()) return getPendingEntries();
+  return [];
+}
+
+export async function fetchPartnershipRequests(email: string) {
+  if (hasDatabase()) return getPartnershipRequestsForUser(email);
   return [];
 }

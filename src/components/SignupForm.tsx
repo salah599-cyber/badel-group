@@ -2,32 +2,50 @@
 
 import { useState, useTransition } from "react";
 import { createEntryAction } from "@/lib/actions";
-import type { Tournament } from "@/lib/types";
+import type { SignupMode, Tournament } from "@/lib/types";
 
-function signupHint(tournament: Tournament | undefined) {
+type SignupFormProps = {
+  tournaments: Tournament[];
+  defaultName: string;
+  defaultEmail: string;
+};
+
+function signupHint(tournament: Tournament | undefined, signupMode: SignupMode) {
   if (!tournament) return null;
   if (tournament.pairingMode === "random") {
     return "Sign up solo — teams will be assigned randomly.";
   }
-  return "Sign up individually — an admin will assign your partner.";
+  if (signupMode === "solo") {
+    return "Sign up solo — an admin can assign you a partner later.";
+  }
+  return "Registered partners must approve your request. Unregistered partners require admin approval.";
 }
 
-export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
+export function SignupForm({ tournaments, defaultName, defaultEmail }: SignupFormProps) {
   const [submitted, setSubmitted] = useState(false);
+  const [submittedMode, setSubmittedMode] = useState<SignupMode>("solo");
+  const [submittedPartnerType, setSubmittedPartnerType] = useState<"registered" | "unregistered" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState(tournaments[0]?.id ?? "");
+  const [signupMode, setSignupMode] = useState<SignupMode>("solo");
+  const [partnerType, setPartnerType] = useState<"registered" | "unregistered">("registered");
 
   const selectedTournament = tournaments.find((t) => t.id === selectedId);
+  const partnerChoiceDisabled = selectedTournament?.pairingMode === "random";
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const formData = new FormData(e.currentTarget);
+    const mode = (formData.get("signupMode") as SignupMode) || "solo";
+    const type = formData.get("partnerType") as "registered" | "unregistered" | null;
 
     startTransition(async () => {
       try {
         await createEntryAction(formData);
+        setSubmittedMode(mode);
+        setSubmittedPartnerType(type);
         setSubmitted(true);
       } catch (err) {
         setError(
@@ -45,8 +63,11 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
         <div className="mb-4 text-4xl text-brand-green">✓</div>
         <h2 className="mb-2 text-2xl font-bold text-gray-900">Registration Submitted</h2>
         <p className="text-gray-600">
-          Your signup has been received and is pending admin approval. You&apos;ll be
-          notified by email once approved.
+          {submittedMode === "with_partner" && submittedPartnerType === "registered"
+            ? "Your registration is pending. Your partner must approve the partnership before an admin can finalize your entry."
+            : submittedMode === "with_partner" && submittedPartnerType === "unregistered"
+              ? "Your registration is pending. An admin must approve your unregistered partner before your entry is confirmed."
+              : "Your signup has been received and is pending admin approval."}
         </p>
       </div>
     );
@@ -67,7 +88,13 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
           name="tournamentId"
           required
           value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
+          onChange={(e) => {
+            setSelectedId(e.target.value);
+            const tournament = tournaments.find((t) => t.id === e.target.value);
+            if (tournament?.pairingMode === "random") {
+              setSignupMode("solo");
+            }
+          }}
           className="input"
         >
           {tournaments.map((t) => (
@@ -76,23 +103,147 @@ export function SignupForm({ tournaments }: { tournaments: Tournament[] }) {
             </option>
           ))}
         </select>
-        {signupHint(selectedTournament) && (
-          <p className="mt-1 text-xs text-gray-500">{signupHint(selectedTournament)}</p>
+        {signupHint(selectedTournament, signupMode) && (
+          <p className="mt-1 text-xs text-gray-500">{signupHint(selectedTournament, signupMode)}</p>
         )}
       </div>
+
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-medium text-gray-700">How are you signing up?</legend>
+        <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+          <input
+            type="radio"
+            name="signupMode"
+            value="solo"
+            checked={signupMode === "solo"}
+            onChange={() => setSignupMode("solo")}
+            className="mt-1"
+          />
+          <span>
+            <span className="block text-sm font-semibold text-gray-900">Sign up solo</span>
+            <span className="block text-xs text-gray-500">
+              Join on your own and get paired later if needed.
+            </span>
+          </span>
+        </label>
+        <label
+          className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+            partnerChoiceDisabled
+              ? "cursor-not-allowed border-gray-100 bg-gray-50 opacity-60"
+              : "border-gray-200 bg-white"
+          }`}
+        >
+          <input
+            type="radio"
+            name="signupMode"
+            value="with_partner"
+            checked={signupMode === "with_partner"}
+            disabled={partnerChoiceDisabled}
+            onChange={() => setSignupMode("with_partner")}
+            className="mt-1"
+          />
+          <span>
+            <span className="block text-sm font-semibold text-gray-900">Sign up with a partner</span>
+            <span className="block text-xs text-gray-500">
+              Choose a registered member or someone not yet on the platform.
+            </span>
+          </span>
+        </label>
+      </fieldset>
+
+      {signupMode === "with_partner" && (
+        <fieldset className="space-y-3 rounded-xl border border-primary/10 bg-primary/5 p-4">
+          <legend className="px-1 text-sm font-medium text-gray-700">Partner details</legend>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+              <input
+                type="radio"
+                name="partnerType"
+                value="registered"
+                checked={partnerType === "registered"}
+                onChange={() => setPartnerType("registered")}
+              />
+              Registered member
+            </label>
+            <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+              <input
+                type="radio"
+                name="partnerType"
+                value="unregistered"
+                checked={partnerType === "unregistered"}
+                onChange={() => setPartnerType("unregistered")}
+              />
+              Not registered yet
+            </label>
+          </div>
+
+          {partnerType === "registered" ? (
+            <div>
+              <label htmlFor="partnerEmail" className="mb-1 block text-sm font-medium text-gray-700">
+                Partner email
+              </label>
+              <input
+                id="partnerEmail"
+                name="partnerEmail"
+                type="email"
+                required
+                placeholder="partner@email.com"
+                className="input"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                They must already be a registered and approved member. They will need to accept your
+                invite.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="partnerName" className="mb-1 block text-sm font-medium text-gray-700">
+                Partner full name
+              </label>
+              <input
+                id="partnerName"
+                name="partnerName"
+                type="text"
+                required
+                placeholder="Partner's full name"
+                className="input"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Because they are not registered, an admin must approve this partnership.
+              </p>
+            </div>
+          )}
+        </fieldset>
+      )}
 
       <div>
         <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
           Full Name
         </label>
-        <input id="name" name="name" type="text" required className="input" />
+        <input
+          id="name"
+          name="name"
+          type="text"
+          required
+          defaultValue={defaultName}
+          className="input"
+        />
       </div>
 
       <div>
         <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
           Email
         </label>
-        <input id="email" name="email" type="email" required className="input" />
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          readOnly
+          defaultValue={defaultEmail}
+          className="input bg-gray-50"
+        />
       </div>
 
       <div>

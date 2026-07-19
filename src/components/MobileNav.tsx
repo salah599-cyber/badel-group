@@ -10,9 +10,10 @@ type NavLink = { href: string; label: string };
 type MobileNavProps = {
   links: NavLink[];
   isAdmin: boolean;
+  pendingCount?: number;
 };
 
-export function MobileNav({ links, isAdmin }: MobileNavProps) {
+export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const { isSignedIn } = useAuth();
 
@@ -114,9 +115,14 @@ export function MobileNav({ links, isAdmin }: MobileNavProps) {
           <Link
             href="/signup"
             onClick={() => setOpen(false)}
-            className="btn-primary block w-full py-3 text-center"
+            className="btn-primary relative block w-full py-3 text-center"
           >
             Sign Up
+            {pendingCount > 0 && (
+              <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/20 px-1 text-[10px] font-bold">
+                {pendingCount}
+              </span>
+            )}
           </Link>
           {!isSignedIn && (
             <Link

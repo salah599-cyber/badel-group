@@ -13,6 +13,7 @@ import {
   updateEntryStatusAction,
 } from "@/lib/actions";
 import type { AdminMember, SiteMember } from "@/lib/admin-members";
+import { partnershipStatusLabels } from "@/lib/partnerships";
 import type { Permission } from "@/lib/permissions";
 import type { Entry, Sponsor, Tournament, TournamentType } from "@/lib/types";
 import type { PendingUser } from "@/lib/clerk-users";
@@ -199,7 +200,26 @@ export function AdminPanel({
           </h2>
           {visibleEntries.length > 0 ? (
             <div className="space-y-3">
-              {visibleEntries.map((entry) => (
+              {visibleEntries.map((entry) => {
+                const partnershipLabel = entry.partnershipStatus
+                  ? partnershipStatusLabels[entry.partnershipStatus]
+                  : null;
+                const partnerLabel =
+                  entry.signupMode === "with_partner"
+                    ? entry.partnerEmail
+                      ? `Partner: ${entry.partnerName ?? entry.partnerEmail} (${entry.partnerEmail})`
+                      : entry.partnerName
+                        ? `Partner: ${entry.partnerName} (unregistered)`
+                        : "With partner"
+                    : entry.pairingMode === "manual"
+                      ? "Solo signup"
+                      : null;
+                const canApprove =
+                  entry.partnershipStatus === "not_applicable" ||
+                  entry.partnershipStatus === "approved" ||
+                  entry.partnershipStatus === "pending_admin";
+
+                return (
                 <div
                   key={entry.id}
                   className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -208,21 +228,25 @@ export function AdminPanel({
                     <p className="font-medium">{entry.name}</p>
                     <p className="text-sm text-gray-500">
                       {entry.tournamentName} · {entry.email}
+                      {partnerLabel ? ` · ${partnerLabel}` : ""}
                       {entry.partnerPlayerName
                         ? ` · Paired with ${entry.partnerPlayerName}`
-                        : entry.pairingMode === "manual"
+                        : entry.pairingMode === "manual" && entry.signupMode !== "with_partner"
                           ? " · Awaiting partner"
                           : ""}
                     </p>
+                    {partnershipLabel && (
+                      <p className="mt-1 text-xs font-medium text-primary-dark">{partnershipLabel}</p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      disabled={isPending}
+                      disabled={isPending || !canApprove}
                       onClick={() =>
                         wrapAction(() => updateEntryStatusAction(entry.id, "approved"))
                       }
-                      className="rounded-lg bg-brand-green px-3 py-1.5 text-sm font-semibold text-white"
+                      className="rounded-lg bg-brand-green px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
                     >
                       Approve
                     </button>
@@ -238,7 +262,8 @@ export function AdminPanel({
                     </button>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           ) : (
             <p className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-gray-500">

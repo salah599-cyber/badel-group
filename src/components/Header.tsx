@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { currentUser } from "@clerk/nextjs/server";
 import { AuthNav } from "@/components/AuthNav";
 import { Logo } from "@/components/Logo";
 import { MobileNav } from "@/components/MobileNav";
 import { isAdmin } from "@/lib/auth";
+import { getUnreadNotificationCount } from "@/lib/notifications";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -11,8 +13,25 @@ const navLinks = [
   { href: "/sponsors", label: "Sponsors" },
 ];
 
+function SignupLink({ pendingCount }: { pendingCount: number }) {
+  return (
+    <Link
+      href="/signup"
+      className="relative hidden rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark md:inline-flex"
+    >
+      Sign Up
+      {pendingCount > 0 && (
+        <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-bold text-white">
+          {pendingCount}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export async function Header() {
-  const admin = await isAdmin();
+  const [admin, user] = await Promise.all([isAdmin(), currentUser()]);
+  const pendingCount = user?.id ? await getUnreadNotificationCount(user.id) : 0;
 
   return (
     <header className="sticky top-0 z-50 border-b border-primary/10 bg-cream/90 shadow-sm backdrop-blur-md">
@@ -46,14 +65,9 @@ export async function Header() {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <Link
-            href="/signup"
-            className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark md:inline-flex"
-          >
-            Sign Up
-          </Link>
+          <SignupLink pendingCount={pendingCount} />
           <AuthNav />
-          <MobileNav links={navLinks} isAdmin={admin} />
+          <MobileNav links={navLinks} isAdmin={admin} pendingCount={pendingCount} />
         </div>
       </div>
     </header>

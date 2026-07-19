@@ -12,6 +12,14 @@ import {
 
 export const tournamentStatusEnum = pgEnum("tournament_status", ["upcoming", "completed"]);
 export const entryStatusEnum = pgEnum("entry_status", ["pending", "approved", "rejected"]);
+export const signupModeEnum = pgEnum("signup_mode", ["solo", "with_partner"]);
+export const partnershipStatusEnum = pgEnum("partnership_status", [
+  "not_applicable",
+  "pending_partner",
+  "pending_admin",
+  "approved",
+  "rejected",
+]);
 export const pairingModeEnum = pgEnum("pairing_mode", ["manual", "random"]);
 export const sponsorTierEnum = pgEnum("sponsor_tier", [
   "platinum",
@@ -50,13 +58,20 @@ export const entries = pgTable("entries", {
   tournamentId: uuid("tournament_id")
     .notNull()
     .references(() => tournaments.id, { onDelete: "cascade" }),
+  userId: text("user_id"),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
+  signupMode: signupModeEnum("signup_mode").notNull().default("solo"),
   partnerName: text("partner_name"),
+  partnerEmail: text("partner_email"),
+  partnerUserId: text("partner_user_id"),
   partnerEntryId: uuid("partner_entry_id").references((): AnyPgColumn => entries.id, {
     onDelete: "set null",
   }),
+  partnershipStatus: partnershipStatusEnum("partnership_status")
+    .notNull()
+    .default("not_applicable"),
   skillLevel: text("skill_level").notNull().default("intermediate"),
   notes: text("notes"),
   status: entryStatusEnum("status").notNull().default("pending"),
@@ -91,5 +106,16 @@ export const results = pgTable("results", {
   tournamentName: text("tournament_name").notNull(),
   date: text("date").notNull(),
   winners: jsonb("winners").$type<{ place: string; names: string }[]>().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  href: text("href"),
+  read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
