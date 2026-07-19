@@ -1,5 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { hasAdminAccess } from "@/lib/permissions";
+import type { AdminMetadata } from "@/lib/permissions";
 
 export default async function AdminLayout({
   children,
@@ -9,8 +11,7 @@ export default async function AdminLayout({
   const user = await currentUser();
   if (!user) redirect("/sign-in?redirect_url=/admin");
 
-  const role = user.publicMetadata?.role as string | undefined;
-  if (role !== "admin") {
+  if (!hasAdminAccess(user.publicMetadata as AdminMetadata)) {
     redirect("/?error=unauthorized");
   }
 

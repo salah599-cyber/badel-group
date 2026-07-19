@@ -1,6 +1,6 @@
 import { getDownloadUrl } from "@vercel/blob";
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { getAdminContext } from "@/lib/auth";
 import { isBlobUrl, isPublicMediaPath } from "@/lib/media";
 
 export async function GET(request: Request) {
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   }
 
   if (!isPublicMediaPath(url)) {
-    const admin = await requireAdmin();
+    const admin = await getAdminContext();
     if (!admin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

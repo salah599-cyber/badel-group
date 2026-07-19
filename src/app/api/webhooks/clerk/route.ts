@@ -1,6 +1,9 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { clerkClient } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
+import { SUPER_ADMIN_EMAIL } from "@/lib/permissions";
+import { hasAdminAccess } from "@/lib/permissions";
+import type { AdminMetadata } from "@/lib/permissions";
 
 export async function POST(req: NextRequest) {
   let event;
@@ -14,22 +17,33 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "user.created") {
     const user = event.data;
-    const existingRole = user.public_metadata?.role as string | undefined;
+    const email = user.email_addresses[0]?.email_address?.toLowerCase();
+    const existingMeta = user.public_metadata as AdminMetadata;
+    const existingRole = existingMeta?.role;
 
-    if (existingRole !== "admin") {
+    if (email === SUPER_ADMIN_EMAIL.toLowerCase()) {
       await client.users.updateUserMetadata(user.id, {
         publicMetadata: {
-          ...user.public_metadata,
-          approved: false,
-          status: "pending",
+          ...existingMeta,
+          role: "super_admin",
+          approved: true,
+          status: "approved",
+        },
+      });
+    } else if (hasAdminAccess({ role: existingRole })) {
+      await client.users.updateUserMetadata(user.id, {
+        publicMetadata: {
+          ...existingMeta,
+          approved: true,
+          status: "approved",
         },
       });
     } else {
       await client.users.updateUserMetadata(user.id, {
         publicMetadata: {
-          ...user.public_metadata,
-          approved: true,
-          status: "approved",
+          ...existingMeta,
+          approved: false,
+          status: "pending",
         },
       });
     }

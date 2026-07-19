@@ -1,18 +1,15 @@
-type AccessMetadata = {
-  role?: string;
-  approved?: boolean;
-  status?: string;
-};
+import type { AdminMetadata } from "@/lib/permissions";
+import { hasAdminAccess } from "@/lib/permissions";
 
 export function getAccessFromClaims(
   sessionClaims: Record<string, unknown> | null | undefined,
 ) {
   const meta = (sessionClaims?.metadata ?? sessionClaims?.public_metadata) as
-    | AccessMetadata
+    | AdminMetadata
     | undefined;
 
-  const isAdmin = meta?.role === "admin";
-  const isApproved = isAdmin || meta?.approved === true;
+  const isAdminUser = hasAdminAccess(meta);
+  const isApproved = isAdminUser || meta?.approved === true;
 
-  return { isAdmin, isApproved, meta };
+  return { isAdmin: isAdminUser, isApproved, meta };
 }

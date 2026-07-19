@@ -1,6 +1,6 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminContext } from "@/lib/auth";
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -13,8 +13,9 @@ const ALLOWED_TYPES = new Set([
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export async function POST(request: Request) {
-  const admin = await requireAdmin();
-  if (!admin) {
+  try {
+    await requireAdminContext();
+  } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

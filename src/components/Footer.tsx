@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { getInstagramProfileLabel, getInstagramProfileUrl } from "@/lib/instagram";
 
 export function Footer() {
   return (
@@ -32,8 +33,8 @@ export function Footer() {
                   </a>
                 </li>
                 <li>
-                  <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-white">
-                    Instagram
+                  <a href={getInstagramProfileUrl()} target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                    {getInstagramProfileLabel()}
                   </a>
                 </li>
                 <li>

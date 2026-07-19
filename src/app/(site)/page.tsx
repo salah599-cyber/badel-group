@@ -1,6 +1,8 @@
 import { GalleryPreview } from "@/components/GalleryGrid";
 import { Hero } from "@/components/Hero";
+import { InstagramFeed } from "@/components/InstagramFeed";
 import { SectionHeading } from "@/components/SectionHeading";
+import { getInstagramProfileUrl } from "@/lib/instagram";
 import { SponsorTierSection } from "@/components/SponsorSection";
 import { TournamentCard } from "@/components/TournamentCard";
 import {
@@ -39,6 +41,8 @@ export default async function HomePage() {
 
         <GalleryPreview photos={galleryPhotos} />
 
+        <InstagramFeed />
+
         <section className="section-shell">
           <SectionHeading
             title="Our Sponsors"
@@ -72,7 +76,7 @@ export default async function HomePage() {
                 info@badelgroup.com
               </a>
               <a
-                href="https://instagram.com"
+                href={getInstagramProfileUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-xl border border-white/40 bg-white/10 px-7 py-3.5 font-semibold backdrop-blur-sm transition hover:bg-white/20"

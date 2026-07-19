@@ -81,6 +81,7 @@ export async function getPendingEntries() {
       skillLevel: entries.skillLevel,
       status: entries.status,
       createdAt: entries.createdAt,
+      tournamentId: entries.tournamentId,
       tournamentName: tournaments.name,
     })
     .from(entries)

@@ -44,6 +44,7 @@ export interface Entry {
   partnerName?: string | null;
   skillLevel?: string;
   status: string;
+  tournamentId?: string;
   tournamentName: string;
   createdAt?: Date;
 }
