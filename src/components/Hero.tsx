@@ -17,10 +17,7 @@ export function Hero() {
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[auto_1fr] lg:gap-14 lg:py-24">
         <div className="mx-auto flex justify-center lg:mx-0">
-          <div className="relative">
-            <div className="absolute inset-0 scale-110 rounded-full bg-white/20 blur-2xl" />
-            <Logo size="xl" className="relative drop-shadow-2xl" />
-          </div>
+          <Logo size="xl" className="drop-shadow-2xl" />
         </div>
 
         <div className="text-center lg:text-left">
