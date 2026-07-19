@@ -32,6 +32,7 @@ export function SignupForm({
   const [submitted, setSubmitted] = useState(false);
   const [submittedMode, setSubmittedMode] = useState<SignupMode>("solo");
   const [submittedPartnerType, setSubmittedPartnerType] = useState<"registered" | "unregistered" | null>(null);
+  const [submittedWaitlisted, setSubmittedWaitlisted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState(tournaments[0]?.id ?? "");
@@ -50,9 +51,10 @@ export function SignupForm({
 
     startTransition(async () => {
       try {
-        await createEntryAction(formData);
+        const result = await createEntryAction(formData);
         setSubmittedMode(mode);
         setSubmittedPartnerType(type);
+        setSubmittedWaitlisted(result.status === "waitlisted");
         setSubmitted(true);
       } catch (err) {
         setError(
@@ -70,11 +72,13 @@ export function SignupForm({
         <div className="mb-4 text-4xl text-brand-green">✓</div>
         <h2 className="mb-2 text-2xl font-bold text-gray-900">Registration Submitted</h2>
         <p className="text-gray-600">
-          {submittedMode === "with_partner" && submittedPartnerType === "registered"
-            ? "Your registration is pending. Your partner must approve the partnership before an admin can finalize your entry."
-            : submittedMode === "with_partner" && submittedPartnerType === "unregistered"
-              ? "Your registration is pending. An admin must approve your unregistered partner before your entry is confirmed."
-              : "Your signup has been received and is pending admin approval."}
+          {submittedWaitlisted
+            ? "This tournament is full. You have been added to the waiting list and will be notified if a spot opens."
+            : submittedMode === "with_partner" && submittedPartnerType === "registered"
+              ? "Your registration is pending. Your partner must approve the partnership before an admin can finalize your entry."
+              : submittedMode === "with_partner" && submittedPartnerType === "unregistered"
+                ? "Your registration is pending. An admin must approve your unregistered partner before your entry is confirmed."
+                : "Your signup has been received and is pending admin approval."}
         </p>
       </div>
     );
@@ -104,14 +108,27 @@ export function SignupForm({
           }}
           className="input"
         >
-          {tournaments.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name} — {new Date(t.date).toLocaleDateString()} ({t.typeName})
-            </option>
-          ))}
+          {tournaments.map((t) => {
+            const spotsLeft = t.maxPlayers - t.registeredCount;
+            const capacityLabel =
+              spotsLeft > 0
+                ? `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`
+                : `Full — waitlist open (${t.waitlistCount} waiting)`;
+
+            return (
+              <option key={t.id} value={t.id}>
+                {t.name} — {new Date(t.date).toLocaleDateString()} ({t.typeName}) · {capacityLabel}
+              </option>
+            );
+          })}
         </select>
         {signupHint(selectedTournament, signupMode) && (
           <p className="mt-1 text-xs text-gray-500">{signupHint(selectedTournament, signupMode)}</p>
+        )}
+        {selectedTournament && selectedTournament.registeredCount >= selectedTournament.maxPlayers && (
+          <p className="mt-1 text-xs font-medium text-amber-700">
+            This tournament is full. New sign-ups will be added to the waiting list.
+          </p>
         )}
       </div>
 

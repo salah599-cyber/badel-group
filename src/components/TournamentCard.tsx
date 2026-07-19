@@ -3,7 +3,11 @@ import type { Tournament } from "@/lib/types";
 
 export function TournamentCard({ tournament }: { tournament: Tournament }) {
   const spotsLeft = tournament.maxPlayers - tournament.registeredCount;
-  const fillPercent = Math.round((tournament.registeredCount / tournament.maxPlayers) * 100);
+  const isFull = spotsLeft <= 0;
+  const fillPercent = Math.min(
+    100,
+    Math.round((tournament.registeredCount / tournament.maxPlayers) * 100),
+  );
   const dateFormatted = new Date(tournament.date).toLocaleDateString("en-US", {
     weekday: "short",
     month: "long",
@@ -36,10 +40,14 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between text-xs font-medium">
             <span className="text-gray-500">
-              {tournament.registeredCount}/{tournament.maxPlayers} registered
+              {tournament.registeredCount}/{tournament.maxPlayers} confirmed
             </span>
-            <span className={spotsLeft <= 4 ? "text-brand-red" : "text-brand-green"}>
-              {spotsLeft} spots left
+            <span className={isFull ? "text-amber-700" : spotsLeft <= 4 ? "text-brand-red" : "text-brand-green"}>
+              {isFull
+                ? tournament.waitlistCount > 0
+                  ? `Full · ${tournament.waitlistCount} waiting`
+                  : "Full · waitlist open"
+                : `${spotsLeft} spots left`}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-cream-dark">
@@ -54,7 +62,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
           href="/signup"
           className="rounded-xl bg-primary py-3 text-center text-sm font-semibold text-white transition hover:bg-primary-dark"
         >
-          Sign Up
+          {isFull ? "Join Waitlist" : "Sign Up"}
         </Link>
       </div>
     </article>

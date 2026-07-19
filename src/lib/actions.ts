@@ -11,7 +11,7 @@ import {
   requireSuperAdmin,
 } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { countTournamentsByType, getEntryById, hasExistingEntry } from "@/lib/db/queries";
+import { countTournamentsByType, getEntryById, getTournamentCapacity, hasExistingEntry } from "@/lib/db/queries";
 import {
   entries,
   galleryPhotos,
@@ -195,6 +195,7 @@ export async function createEntryAction(formData: FormData) {
       id: tournaments.id,
       name: tournaments.name,
       pairingMode: tournamentTypes.pairingMode,
+      maxPlayers: tournaments.maxPlayers,
     })
     .from(tournaments)
     .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
@@ -202,6 +203,9 @@ export async function createEntryAction(formData: FormData) {
     .limit(1);
 
   if (!tournament) throw new Error("Tournament not found");
+
+  const capacity = await getTournamentCapacity(tournamentId);
+  if (!capacity) throw new Error("Tournament not found");
 
   const signupMode =
     tournament.pairingMode === "random"
@@ -254,6 +258,8 @@ export async function createEntryAction(formData: FormData) {
     }
   }
 
+  const entryStatus = capacity.isFull ? "waitlisted" : "pending";
+
   await db.insert(entries).values({
     tournamentId,
     userId: user.id,
@@ -268,7 +274,7 @@ export async function createEntryAction(formData: FormData) {
     playingSide,
     skillLevel: formData.get("skillLevel") as string,
     notes: (formData.get("notes") as string) || null,
-    status: "pending",
+    status: entryStatus,
   });
 
   if (partnershipStatus === "pending_partner" && partnerUserId) {
@@ -288,8 +294,20 @@ export async function createEntryAction(formData: FormData) {
     },
   });
 
+  if (entryStatus === "waitlisted") {
+    await notifyUserSafe(user.id, {
+      type: "entry_waitlisted",
+      title: "Added to waiting list",
+      message: `${tournament.name} is full. You have been added to the waiting list and will be notified if a spot opens.`,
+      href: "/signup",
+    });
+  }
+
   revalidatePath("/admin");
   revalidatePath("/signup");
+  revalidatePath("/");
+
+  return { status: entryStatus };
 }
 
 async function assertPartnershipAccess(entryId: string) {
@@ -377,11 +395,11 @@ async function assertEntryPairingAccess(entryId: string) {
     .limit(1);
 
   if (!entry) throw new Error("Entry not found");
+  if (entry.status !== "approved") {
+    throw new Error("Only confirmed players can be paired");
+  }
   if (!canManageTournament(ctx, entry.tournamentId)) {
     throw new Error("You do not have access to this tournament");
-  }
-  if (entry.status === "rejected") {
-    throw new Error("Cannot pair a rejected entry");
   }
   if (entry.pairingMode !== "manual") {
     throw new Error("This tournament type does not use manual pairing");
@@ -485,6 +503,32 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
     throw new Error("This partnership was rejected and cannot be approved");
   }
 
+  if (status === "approved" && entry.tournamentId) {
+    const capacity = await getTournamentCapacity(entry.tournamentId);
+    if (capacity?.isFull) {
+      await db
+        .update(entries)
+        .set(
+          entry.partnershipStatus === "pending_admin"
+            ? { status: "waitlisted", partnershipStatus: "approved" as const }
+            : { status: "waitlisted" },
+        )
+        .where(eq(entries.id, entryId));
+
+      await notifyUserSafe(await resolveEntryUserId(entry), {
+        type: "entry_waitlisted",
+        title: "Added to waiting list",
+        message: `${entry.tournamentName} is full. Your entry has been placed on the waiting list.`,
+        href: "/signup",
+      });
+
+      revalidatePath("/admin");
+      revalidatePath("/signup");
+      revalidatePath("/");
+      return;
+    }
+  }
+
   const updates =
     status === "approved" && entry.partnershipStatus === "pending_admin"
       ? { status, partnershipStatus: "approved" as const }
@@ -524,6 +568,96 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
 
   revalidatePath("/admin");
   revalidatePath("/signup");
+  revalidatePath("/");
+}
+
+async function clearEntryPairing(entryId: string) {
+  if (!db) throw new Error("Database not configured");
+
+  const [entry] = await db
+    .select({ partnerEntryId: entries.partnerEntryId })
+    .from(entries)
+    .where(eq(entries.id, entryId))
+    .limit(1);
+
+  if (!entry) throw new Error("Entry not found");
+
+  const partnerId = entry.partnerEntryId;
+
+  await db.update(entries).set({ partnerEntryId: null }).where(eq(entries.id, entryId));
+
+  if (partnerId) {
+    await db.update(entries).set({ partnerEntryId: null }).where(eq(entries.id, partnerId));
+  } else {
+    await db
+      .update(entries)
+      .set({ partnerEntryId: null })
+      .where(eq(entries.partnerEntryId, entryId));
+  }
+}
+
+export async function demoteEntryToWaitlistAction(entryId: string) {
+  await assertEntryAccess(entryId);
+  if (!db) throw new Error("Database not configured");
+
+  const entry = await getEntryById(entryId);
+  if (!entry) throw new Error("Entry not found");
+  if (entry.status !== "approved") {
+    throw new Error("Only confirmed players can be moved to the waiting list");
+  }
+
+  await clearEntryPairing(entryId);
+
+  await db.update(entries).set({ status: "waitlisted" }).where(eq(entries.id, entryId));
+
+  await notifyUserSafe(await resolveEntryUserId(entry), {
+    type: "entry_waitlisted",
+    title: "Moved to waiting list",
+    message: `Your confirmed spot for ${entry.tournamentName} has been moved to the waiting list.`,
+    href: "/signup",
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/");
+}
+
+export async function promoteEntryFromWaitlistAction(entryId: string) {
+  await assertEntryAccess(entryId);
+  if (!db) throw new Error("Database not configured");
+
+  const entry = await getEntryById(entryId);
+  if (!entry) throw new Error("Entry not found");
+  if (entry.status !== "waitlisted") {
+    throw new Error("Only waiting-list players can be confirmed");
+  }
+
+  if (!canAdminApproveEntry(entry.partnershipStatus ?? "not_applicable")) {
+    if (entry.partnershipStatus === "pending_partner") {
+      throw new Error("This entry is waiting for the registered partner to approve");
+    }
+    throw new Error("This partnership was rejected and cannot be confirmed");
+  }
+
+  if (!entry.tournamentId) throw new Error("Tournament not found");
+
+  const capacity = await getTournamentCapacity(entry.tournamentId);
+  if (!capacity || capacity.isFull) {
+    throw new Error("Tournament is full. Remove a confirmed player first.");
+  }
+
+  await db.update(entries).set({ status: "approved" }).where(eq(entries.id, entryId));
+
+  await notifyUserSafe(await resolveEntryUserId(entry), {
+    type: "entry_approved",
+    title: "Spot confirmed",
+    message: `A spot opened up for ${entry.tournamentName}. You are now confirmed to play.`,
+    href: "/signup",
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/");
 }
 
 export async function createSponsorAction(input: {

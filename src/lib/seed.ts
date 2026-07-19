@@ -53,6 +53,7 @@ export const seedTournaments: Tournament[] = [
       "Our flagship doubles tournament. Open to all skill levels — sign up as a pair and compete for the Badel Group trophy.",
     maxPlayers: 32,
     registeredCount: 0,
+    waitlistCount: 0,
   },
   {
     id: "t2",
@@ -69,6 +70,7 @@ export const seedTournaments: Tournament[] = [
       "A friendly mixed doubles tournament celebrating our growing padel community. Admin approval required after signup.",
     maxPlayers: 16,
     registeredCount: 0,
+    waitlistCount: 0,
   },
 ];
 

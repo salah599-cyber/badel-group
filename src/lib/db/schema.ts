@@ -11,7 +11,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const tournamentStatusEnum = pgEnum("tournament_status", ["upcoming", "completed"]);
-export const entryStatusEnum = pgEnum("entry_status", ["pending", "approved", "rejected"]);
+export const entryStatusEnum = pgEnum("entry_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "waitlisted",
+]);
 export const signupModeEnum = pgEnum("signup_mode", ["solo", "with_partner"]);
 export const partnershipStatusEnum = pgEnum("partnership_status", [
   "not_applicable",

@@ -66,16 +66,57 @@ export async function getTournamentById(id: string) {
   return rows[0] ?? null;
 }
 
+export async function countConfirmedEntries(tournamentId: string) {
+  if (!db) return 0;
+
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(entries)
+    .where(and(eq(entries.tournamentId, tournamentId), eq(entries.status, "approved")));
+
+  return Number(value);
+}
+
+export async function countWaitlistedEntries(tournamentId: string) {
+  if (!db) return 0;
+
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(entries)
+    .where(and(eq(entries.tournamentId, tournamentId), eq(entries.status, "waitlisted")));
+
+  return Number(value);
+}
+
+export async function getTournamentCapacity(tournamentId: string) {
+  if (!db) return null;
+
+  const [tournament] = await db
+    .select({ maxPlayers: tournaments.maxPlayers })
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament) return null;
+
+  const confirmedCount = await countConfirmedEntries(tournamentId);
+
+  return {
+    maxPlayers: tournament.maxPlayers,
+    confirmedCount,
+    spotsLeft: Math.max(0, tournament.maxPlayers - confirmedCount),
+    isFull: confirmedCount >= tournament.maxPlayers,
+  };
+}
+
 export async function getTournamentWithCounts() {
   if (!db) return [];
   const all = await getTournaments();
   const counts = await Promise.all(
     all.map(async (t) => {
-      const [{ value }] = await db!
-        .select({ value: count() })
-        .from(entries)
-        .where(eq(entries.tournamentId, t.id));
-      return { ...t, registeredCount: Number(value) };
+      const registeredCount = await countConfirmedEntries(t.id);
+      const waitlistCount = await countWaitlistedEntries(t.id);
+      return { ...t, registeredCount, waitlistCount };
     }),
   );
   return counts;
@@ -218,7 +259,11 @@ export async function hasExistingEntry(tournamentId: string, email: string, user
       and(
         eq(entries.tournamentId, tournamentId),
         identityMatch,
-        ne(entries.status, "rejected"),
+        or(
+          eq(entries.status, "pending"),
+          eq(entries.status, "approved"),
+          eq(entries.status, "waitlisted"),
+        ),
       ),
     )
     .limit(1);

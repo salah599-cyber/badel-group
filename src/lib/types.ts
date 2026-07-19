@@ -33,6 +33,7 @@ export interface Tournament {
   description: string;
   maxPlayers: number;
   registeredCount: number;
+  waitlistCount: number;
 }
 
 export interface Sponsor {

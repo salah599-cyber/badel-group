@@ -7,6 +7,7 @@ import { SponsorUploadSection } from "@/components/SponsorUploadSection";
 import { UserApprovalsSection } from "@/components/UserApprovalsSection";
 import { EntryPairingSection } from "@/components/EntryPairingSection";
 import { LocationSelect } from "@/components/LocationSelect";
+import { TournamentRosterSection } from "@/components/TournamentRosterSection";
 import { TournamentTypesSection } from "@/components/TournamentTypesSection";
 import {
   createResultAction,
@@ -117,6 +118,7 @@ export function AdminPanel({
           <EntryPairingSection
             tournaments={visibleTournaments}
             entries={manageableEntries.filter((entry) => {
+              if (entry.status !== "approved") return false;
               if (isSuperAdmin || role === "admin") return true;
               if (!entry.tournamentId) return false;
               return scopedTournamentIds.includes(entry.tournamentId);
@@ -142,6 +144,7 @@ export function AdminPanel({
                     <td className="px-4 py-3 text-gray-600">{t.date}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {t.registeredCount}/{t.maxPlayers}
+                      {t.waitlistCount > 0 ? ` (+${t.waitlistCount} waiting)` : ""}
                     </td>
                   </tr>
                 ))}
@@ -197,6 +200,16 @@ export function AdminPanel({
 
       {canAccess(permissions, "entries:manage", isSuperAdmin) && (
         <section id="entries">
+          <TournamentRosterSection
+            tournaments={visibleTournaments}
+            entries={manageableEntries.filter((entry) => {
+              if (isSuperAdmin || role === "admin") return true;
+              if (!entry.tournamentId) return false;
+              return scopedTournamentIds.includes(entry.tournamentId);
+            })}
+            onComplete={() => window.location.reload()}
+          />
+
           <h2 className="mb-4 text-xl font-bold text-gray-900">
             Pending Entries ({visibleEntries.length})
           </h2>
