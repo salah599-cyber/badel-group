@@ -11,7 +11,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
-const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
+const isAdminRoute = createRouteMatcher(["/admin(.*)", "/api/upload(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;

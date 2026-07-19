@@ -1,12 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
+import { GalleryUploadSection } from "@/components/GalleryUploadSection";
+import { SponsorUploadSection } from "@/components/SponsorUploadSection";
 import {
-  createGalleryPhotoAction,
   createResultAction,
-  createSponsorAction,
   createTournamentAction,
-  deleteSponsorAction,
   updateEntryStatusAction,
 } from "@/lib/actions";
 import type { Entry, Sponsor, Tournament } from "@/lib/types";
@@ -128,72 +127,15 @@ export function AdminPanel({
         )}
       </section>
 
-      <section id="sponsors">
-        <h2 className="mb-4 text-xl font-bold text-gray-900">Sponsors ({sponsors.length})</h2>
-        <ul className="mb-4 space-y-2">
-          {sponsors.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-4 py-3"
-            >
-              <span className="font-medium">{s.name}</span>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-primary uppercase">{s.tier}</span>
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => wrapAction(() => deleteSponsorAction(s.id))}
-                  className="text-xs text-brand-red hover:underline"
-                >
-                  Remove
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+      <SponsorUploadSection
+        sponsors={sponsors}
+        onComplete={() => window.location.reload()}
+      />
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            wrapAction(() => createSponsorAction(new FormData(e.currentTarget)));
-            e.currentTarget.reset();
-          }}
-          className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-2"
-        >
-          <h3 className="sm:col-span-2 font-semibold text-primary-dark">Add Sponsor</h3>
-          <input name="name" placeholder="Sponsor name" required className="input" />
-          <select name="tier" className="input">
-            <option value="platinum">Platinum</option>
-            <option value="gold">Gold</option>
-            <option value="silver">Silver</option>
-            <option value="bronze">Bronze</option>
-          </select>
-          <input name="logoUrl" placeholder="Logo image URL" required className="input sm:col-span-2" />
-          <input name="website" placeholder="Website URL (optional)" className="input sm:col-span-2" />
-          <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
-            + Add Sponsor
-          </button>
-        </form>
-      </section>
-
-      <section id="gallery">
-        <h2 className="mb-4 text-xl font-bold text-gray-900">Gallery Uploads</h2>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            wrapAction(() => createGalleryPhotoAction(new FormData(e.currentTarget)));
-            e.currentTarget.reset();
-          }}
-          className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-2"
-        >
-          <input name="tournamentName" placeholder="Tournament name" required className="input" />
-          <input name="imageUrl" placeholder="Image URL" required className="input" />
-          <input name="caption" placeholder="Caption" required className="input sm:col-span-2" />
-          <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
-            + Add Photo
-          </button>
-        </form>
-      </section>
+      <GalleryUploadSection
+        tournaments={tournaments}
+        onComplete={() => window.location.reload()}
+      />
 
       <section id="results">
         <h2 className="mb-4 text-xl font-bold text-gray-900">Enter Results</h2>

@@ -96,6 +96,53 @@ export async function createGalleryPhotoAction(formData: FormData) {
   revalidatePath("/admin");
 }
 
+export async function createSponsorsBulkAction(
+  items: { name: string; tier: string; logoUrl: string; website?: string }[],
+) {
+  await assertAdmin();
+  if (!db) throw new Error("Database not configured");
+  if (items.length === 0) return;
+
+  await db.insert(sponsors).values(
+    items.map((item) => ({
+      name: item.name,
+      tier: item.tier as "platinum" | "gold" | "silver" | "bronze",
+      logoUrl: item.logoUrl,
+      website: item.website ?? null,
+    })),
+  );
+
+  revalidatePath("/sponsors");
+  revalidatePath("/");
+  revalidatePath("/admin");
+}
+
+export async function createGalleryPhotosBulkAction(
+  items: {
+    tournamentName: string;
+    imageUrl: string;
+    caption: string;
+    tournamentId?: string;
+  }[],
+) {
+  await assertAdmin();
+  if (!db) throw new Error("Database not configured");
+  if (items.length === 0) return;
+
+  await db.insert(galleryPhotos).values(
+    items.map((item) => ({
+      tournamentId: item.tournamentId ?? null,
+      tournamentName: item.tournamentName,
+      imageUrl: item.imageUrl,
+      caption: item.caption,
+    })),
+  );
+
+  revalidatePath("/gallery");
+  revalidatePath("/");
+  revalidatePath("/admin");
+}
+
 export async function createResultAction(formData: FormData) {
   await assertAdmin();
   if (!db) throw new Error("Database not configured");
