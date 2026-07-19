@@ -1,24 +1,18 @@
-import { put } from "@vercel/blob";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { requireAdminContext } from "@/lib/auth";
 
-const ALLOWED_TYPES = new Set([
+const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
   "image/svg+xml",
-]);
+];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export async function POST(request: Request) {
-  try {
-    await requireAdminContext();
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) {
     return NextResponse.json(
@@ -28,48 +22,36 @@ export async function POST(request: Request) {
   }
 
   try {
-    const formData = await request.formData();
-    const folder = (formData.get("folder") as string) || "uploads";
-    const files = formData.getAll("files").filter((item): item is File => item instanceof File);
+    const body = (await request.json()) as HandleUploadBody;
 
-    if (files.length === 0) {
-      return NextResponse.json({ error: "No files provided" }, { status: 400 });
-    }
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      token,
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        await requireAdminContext();
 
-    const uploaded: { name: string; url: string }[] = [];
+        const folder = clientPayload === "sponsors" || clientPayload === "gallery"
+          ? clientPayload
+          : "uploads";
 
-    for (const file of files) {
-      if (!ALLOWED_TYPES.has(file.type)) {
-        return NextResponse.json(
-          { error: `Unsupported file type: ${file.name}` },
-          { status: 400 },
-        );
-      }
+        if (!pathname.startsWith(`${folder}/`)) {
+          throw new Error("Invalid upload path");
+        }
 
-      if (file.size > MAX_FILE_SIZE) {
-        return NextResponse.json(
-          { error: `File too large (max 10MB): ${file.name}` },
-          { status: 400 },
-        );
-      }
+        return {
+          allowedContentTypes: ALLOWED_TYPES,
+          maximumSizeInBytes: MAX_FILE_SIZE,
+          addRandomSuffix: true,
+        };
+      },
+    });
 
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const pathname = `${folder}/${Date.now()}-${safeName}`;
-
-      // Store is configured as public — private access throws on this store.
-      const blob = await put(pathname, file, {
-        access: "public",
-        addRandomSuffix: true,
-        token,
-      });
-
-      uploaded.push({ name: file.name, url: blob.url });
-    }
-
-    return NextResponse.json({ files: uploaded });
+    return NextResponse.json(jsonResponse);
   } catch (error) {
     console.error("Upload failed:", error);
     const message = error instanceof Error ? error.message : "Upload failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message === "Unauthorized" ? 401 : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }

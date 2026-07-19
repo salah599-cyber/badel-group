@@ -34,7 +34,9 @@ export function SponsorUploadSection({
     setStatus(`Uploading ${files.length} logo${files.length > 1 ? "s" : ""}...`);
     startTransition(async () => {
       try {
-        const uploaded = await uploadFiles(files, "sponsors");
+        const uploaded = await uploadFiles(files, "sponsors", (completed, total) => {
+          setStatus(`Uploading ${completed}/${total} logos...`);
+        });
         await createSponsorsBulkAction(
           uploaded.map((file) => ({
             name: nameFromFilename(file.name),

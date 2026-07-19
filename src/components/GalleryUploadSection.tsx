@@ -26,7 +26,9 @@ export function GalleryUploadSection({
     setStatus(`Uploading ${files.length} photo${files.length > 1 ? "s" : ""}...`);
     startTransition(async () => {
       try {
-        const uploaded = await uploadFiles(files, "gallery");
+        const uploaded = await uploadFiles(files, "gallery", (completed, total) => {
+          setStatus(`Uploading ${completed}/${total} photos...`);
+        });
         const tournament = tournaments.find((t) => t.name === tournamentName);
 
         await createGalleryPhotosBulkAction(
