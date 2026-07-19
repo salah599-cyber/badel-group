@@ -6,6 +6,7 @@ import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
 import {
   getAdminContext,
+  requireApprovedUser,
   requirePermission,
   requireSuperAdmin,
 } from "@/lib/auth";
@@ -176,8 +177,7 @@ export async function deleteTournamentTypeAction(typeId: string) {
 }
 
 export async function createEntryAction(formData: FormData) {
-  const user = await currentUser();
-  if (!user) throw new Error("You must be signed in to register");
+  const user = await requireApprovedUser();
 
   if (!db) throw new Error("Database not configured");
 
@@ -293,8 +293,7 @@ export async function createEntryAction(formData: FormData) {
 }
 
 async function assertPartnershipAccess(entryId: string) {
-  const user = await currentUser();
-  if (!user) throw new Error("You must be signed in");
+  const user = await requireApprovedUser();
 
   const entry = await getEntryById(entryId);
   if (!entry) throw new Error("Partnership request not found");

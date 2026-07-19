@@ -1,14 +1,19 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
-import { requireAdminContext } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
+import type { Permission } from "@/lib/permissions";
 
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
 ];
+
+const UPLOAD_PERMISSIONS: Record<"sponsors" | "gallery", Permission> = {
+  sponsors: "sponsors:manage",
+  gallery: "gallery:manage",
+};
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -29,11 +34,13 @@ export async function POST(request: Request) {
       request,
       token,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        await requireAdminContext();
+        if (clientPayload !== "sponsors" && clientPayload !== "gallery") {
+          throw new Error("Invalid upload type");
+        }
 
-        const folder = clientPayload === "sponsors" || clientPayload === "gallery"
-          ? clientPayload
-          : "uploads";
+        await requirePermission(UPLOAD_PERMISSIONS[clientPayload]);
+
+        const folder = clientPayload;
 
         if (!pathname.startsWith(`${folder}/`)) {
           throw new Error("Invalid upload path");

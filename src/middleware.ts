@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { warnIfTestClerkKeysInProduction } from "@/lib/security";
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -16,6 +17,8 @@ const isPublicRoute = createRouteMatcher([
 const isAdminRoute = createRouteMatcher(["/admin(.*)", "/api/upload(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
+  warnIfTestClerkKeysInProduction();
+
   if (isPublicRoute(req)) return;
 
   if (isAdminRoute(req)) {

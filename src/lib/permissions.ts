@@ -31,7 +31,16 @@ export const TOURNAMENT_ADMIN_PERMISSIONS: Permission[] = [
   "results:manage",
 ];
 
-export const SUPER_ADMIN_EMAIL = "salah599@gmail.com";
+export function getSuperAdminEmail(): string {
+  const email = process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase();
+  if (email) return email;
+
+  if (process.env.NODE_ENV !== "production") {
+    return "salah599@gmail.com";
+  }
+
+  return "";
+}
 
 export type AdminMetadata = {
   role?: string;

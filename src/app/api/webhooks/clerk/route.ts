@@ -1,8 +1,7 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { clerkClient } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
-import { SUPER_ADMIN_EMAIL } from "@/lib/permissions";
-import { hasAdminAccess } from "@/lib/permissions";
+import { getSuperAdminEmail, hasAdminAccess } from "@/lib/permissions";
 import type { AdminMetadata } from "@/lib/permissions";
 
 export async function POST(req: NextRequest) {
@@ -21,7 +20,9 @@ export async function POST(req: NextRequest) {
     const existingMeta = user.public_metadata as AdminMetadata;
     const existingRole = existingMeta?.role;
 
-    if (email === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    const superAdminEmail = getSuperAdminEmail();
+
+    if (superAdminEmail && email === superAdminEmail) {
       await client.users.updateUserMetadata(user.id, {
         publicMetadata: {
           ...existingMeta,

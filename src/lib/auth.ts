@@ -54,3 +54,15 @@ export async function isApprovedUser() {
   if (hasAdminAccess(user.publicMetadata as AdminMetadata)) return true;
   return user.publicMetadata?.approved === true;
 }
+
+export async function requireApprovedUser() {
+  const user = await currentUser();
+  if (!user) throw new Error("You must be signed in");
+
+  if (hasAdminAccess(user.publicMetadata as AdminMetadata)) return user;
+  if (user.publicMetadata?.approved !== true) {
+    throw new Error("Your account must be approved before you can perform this action");
+  }
+
+  return user;
+}
