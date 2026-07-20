@@ -7,13 +7,13 @@ import {
   fetchSiteMembers,
 } from "@/lib/admin-members";
 import {
+  fetchAllTournaments,
   fetchManageableEntries,
   fetchPendingEntries,
   fetchPlayerProfiles,
   fetchSponsors,
   fetchTopRankings,
   fetchTournamentTypes,
-  fetchUpcomingTournaments,
 } from "@/lib/data";
 import { fetchPendingUsers } from "@/lib/clerk-users";
 import { getAdminContext } from "@/lib/auth";
@@ -28,7 +28,7 @@ export default async function AdminPage() {
   const ctx = await getAdminContext();
   if (!ctx) redirect("/?error=unauthorized");
 
-  const upcoming = await fetchUpcomingTournaments();
+  const allTournaments = await fetchAllTournaments();
   const tournamentTypes = await fetchTournamentTypes();
   const manageableEntries = await fetchManageableEntries();
   const sponsors = await fetchSponsors();
@@ -69,7 +69,7 @@ export default async function AdminPage() {
       )}
 
       <AdminPanel
-        tournaments={upcoming}
+        tournaments={allTournaments}
         tournamentTypes={tournamentTypes}
         manageableEntries={manageableEntries}
         sponsors={sponsors}

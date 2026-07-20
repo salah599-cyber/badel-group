@@ -126,6 +126,61 @@ export async function createTournamentAction(formData: FormData) {
   revalidatePath("/signup");
 }
 
+export async function updateTournamentAction(formData: FormData) {
+  const ctx = await requirePermission("tournaments:manage");
+  if (!db) throw new Error("Database not configured");
+
+  const id = formData.get("id") as string;
+  if (!id) throw new Error("Tournament ID is required");
+  if (!canManageTournament(ctx, id)) {
+    throw new Error("You do not have access to this tournament");
+  }
+
+  const tournamentTypeId = formData.get("tournamentTypeId") as string;
+  if (!tournamentTypeId) throw new Error("Tournament type is required");
+
+  const location = (formData.get("location") as string)?.trim();
+  if (!location) throw new Error("Location is required");
+
+  const status = formData.get("status") as string;
+  if (status !== "upcoming" && status !== "completed") {
+    throw new Error("Invalid tournament status");
+  }
+
+  await db
+    .update(tournaments)
+    .set({
+      name: formData.get("name") as string,
+      date: formData.get("date") as string,
+      location,
+      tournamentTypeId,
+      description: formData.get("description") as string,
+      maxPlayers: Number(formData.get("maxPlayers")),
+      status,
+    })
+    .where(eq(tournaments.id, id));
+
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/results");
+}
+
+export async function deleteTournamentAction(tournamentId: string) {
+  const ctx = await requirePermission("tournaments:manage");
+  if (!db) throw new Error("Database not configured");
+  if (!canManageTournament(ctx, tournamentId)) {
+    throw new Error("You do not have access to this tournament");
+  }
+
+  await db.delete(tournaments).where(eq(tournaments.id, tournamentId));
+
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/results");
+}
+
 export async function createTournamentTypeAction(formData: FormData) {
   await requirePermission("tournaments:manage");
   if (!db) throw new Error("Database not configured");

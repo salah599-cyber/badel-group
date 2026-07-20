@@ -8,12 +8,11 @@ import { GalleryUploadSection } from "@/components/GalleryUploadSection";
 import { SponsorUploadSection } from "@/components/SponsorUploadSection";
 import { UserApprovalsSection } from "@/components/UserApprovalsSection";
 import { EntryPairingSection } from "@/components/EntryPairingSection";
-import { LocationSelect } from "@/components/LocationSelect";
+import { TournamentsSection } from "@/components/TournamentsSection";
 import { TournamentRosterSection } from "@/components/TournamentRosterSection";
 import { TournamentTypesSection } from "@/components/TournamentTypesSection";
 import {
   createResultAction,
-  createTournamentAction,
   updateEntryStatusAction,
 } from "@/lib/actions";
 import type { AdminMember, SiteMember } from "@/lib/admin-members";
@@ -120,11 +119,15 @@ export function AdminPanel({
       )}
 
       {canAccess(permissions, "tournaments:manage", isSuperAdmin) && (
-        <section id="tournaments">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">Tournaments</h2>
-
+        <>
           <TournamentTypesSection
             types={tournamentTypes}
+            onComplete={() => window.location.reload()}
+          />
+
+          <TournamentsSection
+            tournaments={visibleTournaments}
+            tournamentTypes={tournamentTypes}
             onComplete={() => window.location.reload()}
           />
 
@@ -138,77 +141,7 @@ export function AdminPanel({
             })}
             onComplete={() => window.location.reload()}
           />
-
-          <div className="mb-4 table-scroll overflow-hidden rounded-2xl border border-gray-200 bg-white">
-            <table className="w-full min-w-[28rem] text-left text-sm">
-              <thead className="bg-cream-dark text-xs font-semibold uppercase text-gray-500">
-                <tr>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Entries</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {visibleTournaments.map((t) => (
-                  <tr key={t.id}>
-                    <td className="px-4 py-3 font-medium">{t.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{t.typeName}</td>
-                    <td className="px-4 py-3 text-gray-600">{t.date}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {t.registeredCount}/{t.maxPlayers}
-                      {t.waitlistCount > 0 ? ` (+${t.waitlistCount} waiting)` : ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              wrapAction(() => createTournamentAction(new FormData(e.currentTarget)));
-              e.currentTarget.reset();
-            }}
-            className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-2"
-          >
-            <h3 className="sm:col-span-2 font-semibold text-primary-dark">Create Tournament</h3>
-            <input name="name" placeholder="Tournament name" required className="input" />
-            <input name="date" type="date" required className="input" />
-            <LocationSelect className="input" />
-            <select
-              name="tournamentTypeId"
-              required
-              className="input"
-              defaultValue={tournamentTypes[0]?.id}
-            >
-              {tournamentTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
-            <input
-              name="maxPlayers"
-              type="number"
-              placeholder="Max players"
-              defaultValue={32}
-              required
-              className="input"
-            />
-            <textarea
-              name="description"
-              placeholder="Description"
-              required
-              className="input sm:col-span-2"
-              rows={2}
-            />
-            <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
-              + Create Tournament
-            </button>
-          </form>
-        </section>
+        </>
       )}
 
       {canAccess(permissions, "entries:manage", isSuperAdmin) && (

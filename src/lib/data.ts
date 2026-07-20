@@ -10,6 +10,7 @@ import {
   getSponsors,
   getSponsorsByTier,
   getTournamentTypes,
+  getTournamentWithCounts,
   getUpcomingWithCounts,
 } from "@/lib/db/queries";
 import { resolveSponsorLogos } from "@/lib/media";
@@ -32,6 +33,11 @@ export async function fetchTournamentTypes() {
 export async function fetchUpcomingTournaments() {
   if (hasDatabase()) return getUpcomingWithCounts();
   return seedTournaments.filter((t) => t.status === "upcoming");
+}
+
+export async function fetchAllTournaments() {
+  if (hasDatabase()) return getTournamentWithCounts();
+  return seedTournaments;
 }
 
 export async function fetchSponsors() {
