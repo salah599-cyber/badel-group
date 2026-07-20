@@ -100,7 +100,7 @@ export async function fetchAdminMembers(): Promise<AdminMember[]> {
 }
 
 export async function fetchSiteMembers(): Promise<SiteMember[]> {
-  await requireSuperAdmin();
+  await requirePermission("users:approve");
   const client = await clerkClient();
   const { data } = await client.users.getUserList({ limit: 100, orderBy: "-created_at" });
 

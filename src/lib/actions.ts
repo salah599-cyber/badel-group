@@ -866,23 +866,29 @@ export async function rejectUserAction(userId: string) {
   revalidatePath("/admin");
 }
 
-export async function removeMemberAction(userId: string) {
-  const ctx = await requireSuperAdmin();
-  if (ctx.userId === userId) throw new Error("You cannot remove yourself");
+export async function deleteUserAction(userId: string) {
+  const ctx = await requirePermission("users:approve");
+  if (ctx.userId === userId) throw new Error("You cannot delete yourself");
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
+  const meta = user.publicMetadata as AdminMetadata;
 
-  await client.users.updateUserMetadata(userId, {
-    publicMetadata: {
-      ...user.publicMetadata,
-      approved: false,
-      status: "removed",
-    },
-  });
+  if (hasAdminAccess(meta)) {
+    if (meta.role === "super_admin") {
+      throw new Error("Cannot delete a super admin");
+    }
+    if (!ctx.isSuperAdmin) {
+      throw new Error("Only super admins can delete admin accounts");
+    }
+  }
 
-  await client.users.banUser(userId);
+  await client.users.deleteUser(userId);
   revalidatePath("/admin");
+}
+
+export async function removeMemberAction(userId: string) {
+  await deleteUserAction(userId);
 }
 
 export async function promoteAdminAction(input: {

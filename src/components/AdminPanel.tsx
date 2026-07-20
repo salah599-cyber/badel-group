@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { PlayerPhotosSection } from "@/components/PlayerPhotosSection";
+import { SiteMembersSection } from "@/components/SiteMembersSection";
 import { AdminMembersSection } from "@/components/AdminMembersSection";
 import { GalleryUploadSection } from "@/components/GalleryUploadSection";
 import { SponsorUploadSection } from "@/components/SponsorUploadSection";
@@ -106,8 +107,14 @@ export function AdminPanel({
       {isSuperAdmin && (
         <AdminMembersSection
           adminMembers={adminMembers}
-          siteMembers={siteMembers}
           tournaments={tournaments}
+          onComplete={() => window.location.reload()}
+        />
+      )}
+
+      {canAccess(permissions, "users:approve", isSuperAdmin) && (
+        <SiteMembersSection
+          siteMembers={siteMembers}
           onComplete={() => window.location.reload()}
         />
       )}

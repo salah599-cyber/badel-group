@@ -4,10 +4,9 @@ import { useState, useTransition } from "react";
 import {
   demoteAdminAction,
   promoteAdminAction,
-  removeMemberAction,
   updateAdminAction,
 } from "@/lib/actions";
-import type { AdminMember, SiteMember } from "@/lib/admin-members";
+import type { AdminMember } from "@/lib/admin-members";
 import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
   PERMISSION_LABELS,
@@ -82,12 +81,10 @@ function TournamentSelect({
 
 export function AdminMembersSection({
   adminMembers,
-  siteMembers,
   tournaments,
   onComplete,
 }: {
   adminMembers: AdminMember[];
-  siteMembers: SiteMember[];
   tournaments: Tournament[];
   onComplete?: () => void;
 }) {
@@ -332,49 +329,6 @@ export function AdminMembersSection({
             Promote to admin
           </button>
         </form>
-      </section>
-
-      <section id="members">
-        <h2 className="mb-2 text-xl font-bold text-gray-900">
-          Site Members ({siteMembers.length})
-        </h2>
-        <p className="mb-4 text-sm text-gray-600">
-          Approved members with site access. Remove to revoke access and ban the account.
-        </p>
-
-        {siteMembers.length > 0 ? (
-          <div className="space-y-3">
-            {siteMembers.map((member) => (
-              <div
-                key={member.id}
-                className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium">{member.name}</p>
-                  <p className="text-sm text-gray-500">{member.email}</p>
-                </div>
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() =>
-                    run(async () => {
-                      if (confirm(`Remove ${member.email} from the site?`)) {
-                        await removeMemberAction(member.id);
-                      }
-                    })
-                  }
-                  className="rounded-lg bg-brand-red px-3 py-1.5 text-sm font-semibold text-white"
-                >
-                  Remove member
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-gray-500">
-            No approved site members yet.
-          </p>
-        )}
       </section>
     </div>
   );

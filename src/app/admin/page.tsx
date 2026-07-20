@@ -39,7 +39,10 @@ export default async function AdminPage() {
     ? await fetchPendingUsers()
     : [];
   const adminMembers = ctx.isSuperAdmin ? await fetchAdminMembers() : [];
-  const siteMembers = ctx.isSuperAdmin ? await fetchSiteMembers() : [];
+  const siteMembers =
+    ctx.permissions.includes("users:approve") || ctx.isSuperAdmin
+      ? await fetchSiteMembers()
+      : [];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">

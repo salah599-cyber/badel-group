@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { approveUserAction, rejectUserAction } from "@/lib/actions";
+import { approveUserAction, deleteUserAction, rejectUserAction } from "@/lib/actions";
 import type { PendingUser } from "@/lib/clerk-users";
 
 export function UserApprovalsSection({
@@ -60,9 +60,27 @@ export function UserApprovalsSection({
                   type="button"
                   disabled={isPending}
                   onClick={() => run(() => rejectUserAction(user.id))}
-                  className="rounded-lg bg-brand-red px-3 py-1.5 text-sm font-semibold text-white"
+                  className="rounded-lg border border-brand-red px-3 py-1.5 text-sm font-semibold text-brand-red"
                 >
                   Reject
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() =>
+                    run(async () => {
+                      if (
+                        confirm(
+                          `Permanently delete ${user.email}? This cannot be undone.`,
+                        )
+                      ) {
+                        await deleteUserAction(user.id);
+                      }
+                    })
+                  }
+                  className="rounded-lg bg-brand-red px-3 py-1.5 text-sm font-semibold text-white"
+                >
+                  Delete
                 </button>
               </div>
             </div>
