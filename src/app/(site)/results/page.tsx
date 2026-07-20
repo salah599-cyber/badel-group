@@ -45,7 +45,9 @@ export default async function ResultsPage() {
                           ? "bg-primary/15 text-primary"
                           : winner.place === "2nd"
                             ? "bg-secondary/20 text-primary-dark"
-                            : "bg-gray-100 text-gray-600"
+                            : winner.place === "3rd"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-gray-100 text-gray-600"
                       }`}
                     >
                       {winner.place}

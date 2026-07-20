@@ -4,6 +4,7 @@ import { db } from "./index";
 import {
   entries,
   galleryPhotos,
+  playerProfiles,
   results,
   sponsors,
   tournamentTypes,
@@ -145,6 +146,53 @@ export async function getGalleryPhotos() {
 export async function getResults() {
   if (!db) return [];
   return db.select().from(results).orderBy(desc(results.date));
+}
+
+export async function getPlayerProfiles() {
+  if (!db) return [];
+  return db.select().from(playerProfiles).orderBy(playerProfiles.displayName);
+}
+
+export async function upsertPlayerProfile(data: {
+  nameKey: string;
+  displayName: string;
+  photoUrl: string;
+}) {
+  if (!db) throw new Error("Database not configured");
+
+  const existing = await db
+    .select({ id: playerProfiles.id })
+    .from(playerProfiles)
+    .where(eq(playerProfiles.nameKey, data.nameKey))
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(playerProfiles)
+      .set({
+        displayName: data.displayName,
+        photoUrl: data.photoUrl,
+        updatedAt: new Date(),
+      })
+      .where(eq(playerProfiles.id, existing[0].id));
+    return existing[0].id;
+  }
+
+  const [row] = await db
+    .insert(playerProfiles)
+    .values({
+      nameKey: data.nameKey,
+      displayName: data.displayName,
+      photoUrl: data.photoUrl,
+    })
+    .returning({ id: playerProfiles.id });
+
+  return row.id;
+}
+
+export async function deletePlayerProfile(id: string) {
+  if (!db) throw new Error("Database not configured");
+  await db.delete(playerProfiles).where(eq(playerProfiles.id, id));
 }
 
 function entrySelect() {

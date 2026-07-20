@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { PlayerPhotosSection } from "@/components/PlayerPhotosSection";
 import { AdminMembersSection } from "@/components/AdminMembersSection";
 import { GalleryUploadSection } from "@/components/GalleryUploadSection";
 import { SponsorUploadSection } from "@/components/SponsorUploadSection";
@@ -18,7 +19,7 @@ import type { AdminMember, SiteMember } from "@/lib/admin-members";
 import { partnershipStatusLabels } from "@/lib/partnerships";
 import { playingSideLabels } from "@/lib/player-profile";
 import type { Permission } from "@/lib/permissions";
-import type { Entry, Sponsor, Tournament, TournamentType } from "@/lib/types";
+import type { Entry, PlayerProfile, PlayerRanking, Sponsor, Tournament, TournamentType } from "@/lib/types";
 import type { PendingUser } from "@/lib/clerk-users";
 
 type AdminPanelProps = {
@@ -26,6 +27,8 @@ type AdminPanelProps = {
   tournamentTypes: TournamentType[];
   manageableEntries: Entry[];
   sponsors: Sponsor[];
+  playerProfiles: PlayerProfile[];
+  rankedPlayers: PlayerRanking[];
   pendingEntries: Entry[];
   pendingUsers: PendingUser[];
   adminMembers: AdminMember[];
@@ -61,6 +64,8 @@ export function AdminPanel({
   tournamentTypes,
   manageableEntries,
   sponsors,
+  playerProfiles,
+  rankedPlayers,
   pendingEntries,
   pendingUsers,
   adminMembers,
@@ -325,14 +330,23 @@ export function AdminPanel({
                 fd.set("tournamentName", tournament.name);
                 fd.set("date", tournament.date);
               }
-              fd.set(
-                "winners",
-                JSON.stringify([
-                  { place: "1st", names: fd.get("first") as string },
-                  { place: "2nd", names: fd.get("second") as string },
-                  { place: "3rd", names: fd.get("third") as string },
-                ]),
-              );
+              const places = [
+                { place: "1st", field: "first", required: true },
+                { place: "2nd", field: "second", required: true },
+                { place: "3rd", field: "third", required: true },
+                { place: "4th", field: "fourth", required: false },
+                { place: "5th", field: "fifth", required: false },
+                { place: "6th", field: "sixth", required: false },
+              ] as const;
+
+              const winners = places
+                .map(({ place, field }) => ({
+                  place,
+                  names: (fd.get(field) as string)?.trim() ?? "",
+                }))
+                .filter((entry) => entry.names.length > 0);
+
+              fd.set("winners", JSON.stringify(winners));
               wrapAction(() => createResultAction(fd));
               e.currentTarget.reset();
             }}
@@ -346,14 +360,25 @@ export function AdminPanel({
                 </option>
               ))}
             </select>
-            <input name="first" placeholder="1st place" required className="input" />
-            <input name="second" placeholder="2nd place" required className="input" />
-            <input name="third" placeholder="3rd place" required className="input sm:col-span-2" />
+            <input name="first" placeholder="1st place (e.g. Player A & Player B)" required className="input" />
+            <input name="second" placeholder="2nd place (e.g. Player A & Player B)" required className="input" />
+            <input name="third" placeholder="3rd place (e.g. Player A & Player B)" required className="input sm:col-span-2" />
+            <input name="fourth" placeholder="4th place (optional)" className="input" />
+            <input name="fifth" placeholder="5th place (optional)" className="input" />
+            <input name="sixth" placeholder="6th place (optional)" className="input sm:col-span-2" />
             <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
               Publish Results
             </button>
           </form>
         </section>
+      )}
+
+      {canAccess(permissions, "results:manage", isSuperAdmin) && (
+        <PlayerPhotosSection
+          profiles={playerProfiles}
+          rankedPlayers={rankedPlayers}
+          onComplete={() => window.location.reload()}
+        />
       )}
     </div>
   );

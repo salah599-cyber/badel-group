@@ -13,7 +13,7 @@ export function isPublicMediaPath(url: string) {
   if (isPublicBlobUrl(url)) return true;
   try {
     const pathname = new URL(url).pathname;
-    return pathname.includes("/gallery/") || pathname.includes("/sponsors/");
+    return pathname.includes("/gallery/") || pathname.includes("/sponsors/") || pathname.includes("/players/");
   } catch {
     return false;
   }

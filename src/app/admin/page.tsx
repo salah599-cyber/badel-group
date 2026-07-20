@@ -9,7 +9,9 @@ import {
 import {
   fetchManageableEntries,
   fetchPendingEntries,
+  fetchPlayerProfiles,
   fetchSponsors,
+  fetchTopRankings,
   fetchTournamentTypes,
   fetchUpcomingTournaments,
 } from "@/lib/data";
@@ -30,6 +32,8 @@ export default async function AdminPage() {
   const tournamentTypes = await fetchTournamentTypes();
   const manageableEntries = await fetchManageableEntries();
   const sponsors = await fetchSponsors();
+  const playerProfiles = await fetchPlayerProfiles();
+  const rankedPlayers = await fetchTopRankings(50);
   const pendingEntries = await fetchPendingEntries();
   const pendingUsers = ctx.permissions.includes("users:approve") || ctx.isSuperAdmin
     ? await fetchPendingUsers()
@@ -66,6 +70,8 @@ export default async function AdminPage() {
         tournamentTypes={tournamentTypes}
         manageableEntries={manageableEntries}
         sponsors={sponsors}
+        playerProfiles={playerProfiles}
+        rankedPlayers={rankedPlayers}
         pendingEntries={pendingEntries}
         pendingUsers={pendingUsers}
         adminMembers={adminMembers}

@@ -19,7 +19,7 @@ function safeFilename(filename: string) {
   return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-async function compressImageIfNeeded(file: File): Promise<File> {
+async function compressImageIfNeeded(file: File, maxEdge = 2400): Promise<File> {
   if (!file.type.startsWith("image/") || file.type === "image/gif" || file.type === "image/svg+xml") {
     return file;
   }
@@ -29,7 +29,6 @@ async function compressImageIfNeeded(file: File): Promise<File> {
   }
 
   const bitmap = await createImageBitmap(file);
-  const maxEdge = 2400;
   const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
@@ -61,14 +60,15 @@ async function compressImageIfNeeded(file: File): Promise<File> {
 
 export async function uploadFiles(
   files: File[],
-  folder: "sponsors" | "gallery",
+  folder: "sponsors" | "gallery" | "players",
   onProgress?: (completed: number, total: number) => void,
 ): Promise<{ name: string; url: string }[]> {
   const uploaded: { name: string; url: string }[] = [];
+  const maxEdge = folder === "players" ? 600 : 2400;
 
   for (let index = 0; index < files.length; index++) {
     const original = files[index];
-    const file = await compressImageIfNeeded(original);
+    const file = await compressImageIfNeeded(original, maxEdge);
 
     if (file.size > MAX_UPLOAD_BYTES) {
       throw new Error(`File too large (max 10MB): ${original.name}`);

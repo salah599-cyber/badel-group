@@ -126,3 +126,12 @@ export const notifications = pgTable("notifications", {
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const playerProfiles = pgTable("player_profiles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  nameKey: text("name_key").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  photoUrl: text("photo_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

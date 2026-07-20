@@ -11,7 +11,7 @@ import {
   requireSuperAdmin,
 } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { countTournamentsByType, getEntryById, getTournamentCapacity, hasExistingEntry } from "@/lib/db/queries";
+import { countTournamentsByType, deletePlayerProfile, getEntryById, getTournamentCapacity, hasExistingEntry, upsertPlayerProfile } from "@/lib/db/queries";
 import {
   entries,
   galleryPhotos,
@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/schema";
 import { canAdminApproveEntry } from "@/lib/partnerships";
 import { parsePlayingSide } from "@/lib/player-profile";
+import { normalizePlayerKey } from "@/lib/rankings";
 import {
   createNotification,
   getUnreadNotificationCount,
@@ -795,7 +796,40 @@ export async function createResultAction(formData: FormData) {
     .where(eq(tournaments.id, tournamentId));
 
   revalidatePath("/results");
+  revalidatePath("/rankings");
   revalidatePath("/");
+  revalidatePath("/admin");
+}
+
+export async function upsertPlayerPhotoAction(input: {
+  displayName: string;
+  photoUrl: string;
+}) {
+  await requirePermission("results:manage");
+  if (!db) throw new Error("Database not configured");
+
+  const displayName = input.displayName?.trim();
+  const photoUrl = input.photoUrl?.trim();
+
+  if (!displayName) throw new Error("Player name is required");
+  if (!photoUrl) throw new Error("Player photo is required");
+
+  await upsertPlayerProfile({
+    nameKey: normalizePlayerKey(displayName),
+    displayName,
+    photoUrl,
+  });
+
+  revalidatePath("/rankings");
+  revalidatePath("/admin");
+}
+
+export async function deletePlayerPhotoAction(id: string) {
+  await requirePermission("results:manage");
+  if (!db) throw new Error("Database not configured");
+
+  await deletePlayerProfile(id);
+  revalidatePath("/rankings");
   revalidatePath("/admin");
 }
 

@@ -60,6 +60,23 @@ export interface TournamentResult {
   winners: { place: string; names: string }[];
 }
 
+export interface PlayerRanking {
+  rank: number;
+  name: string;
+  points: number;
+  placements: number;
+  photoUrl?: string | null;
+}
+
+export interface PlayerProfile {
+  id: string;
+  nameKey: string;
+  displayName: string;
+  photoUrl: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface Entry {
   id: string;
   name: string;

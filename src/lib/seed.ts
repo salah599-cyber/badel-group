@@ -1,5 +1,6 @@
 import type {
   GalleryPhoto,
+  PlayerProfile,
   Sponsor,
   SponsorTier,
   Tournament,
@@ -129,7 +130,55 @@ export const seedGallery: GalleryPhoto[] = [
   },
 ];
 
-export const seedResults: TournamentResult[] = [];
+export const seedResults: TournamentResult[] = [
+  {
+    id: "r1",
+    tournamentId: "t-past-1",
+    tournamentName: "Winter Classic 2025",
+    date: "2025-12-15",
+    winners: [
+      { place: "1st", names: "Ahmed Hassan & Sara Ali" },
+      { place: "2nd", names: "Omar Khan & Fatima Noor" },
+      { place: "3rd", names: "Yusuf Malik & Layla Ahmed" },
+      { place: "4th", names: "Khalid Rashid & Nadia Farouk" },
+      { place: "5th", names: "Tariq Salem & Hana Ibrahim" },
+      { place: "6th", names: "Faisal Qureshi & Mona El-Sayed" },
+    ],
+  },
+  {
+    id: "r2",
+    tournamentId: "t-past-2",
+    tournamentName: "Autumn Open 2025",
+    date: "2025-10-20",
+    winners: [
+      { place: "1st", names: "Omar Khan & Layla Ahmed" },
+      { place: "2nd", names: "Ahmed Hassan & Nadia Farouk" },
+      { place: "3rd", names: "Yusuf Malik & Sara Ali" },
+      { place: "4th", names: "Khalid Rashid & Hana Ibrahim" },
+    ],
+  },
+];
+
+export const seedPlayerProfiles: PlayerProfile[] = [
+  {
+    id: "pp1",
+    nameKey: "ahmed hassan",
+    displayName: "Ahmed Hassan",
+    photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop",
+  },
+  {
+    id: "pp2",
+    nameKey: "omar khan",
+    displayName: "Omar Khan",
+    photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=500&fit=crop",
+  },
+  {
+    id: "pp3",
+    nameKey: "sara ali",
+    displayName: "Sara Ali",
+    photoUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop",
+  },
+];
 
 export function getSeedSponsorsByTier(tier: SponsorTier) {
   return seedSponsors.filter((s) => s.tier === tier);

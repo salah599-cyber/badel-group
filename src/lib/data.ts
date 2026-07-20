@@ -1,9 +1,11 @@
 import { hasDatabase } from "@/lib/db";
+import { calculatePlayerRankings, normalizePlayerKey } from "@/lib/rankings";
 import {
   getGalleryPhotos,
   getManageableEntries,
   getPartnershipRequestsForUser,
   getPendingEntries,
+  getPlayerProfiles,
   getResults,
   getSponsors,
   getSponsorsByTier,
@@ -15,6 +17,7 @@ import {
   defaultTournamentTypes,
   getSeedSponsorsByTier,
   seedGallery,
+  seedPlayerProfiles,
   seedResults,
   seedSponsors,
   seedTournaments,
@@ -49,6 +52,21 @@ export async function fetchGalleryPhotos() {
 export async function fetchResults() {
   if (hasDatabase()) return getResults();
   return seedResults;
+}
+
+export async function fetchPlayerProfiles() {
+  if (hasDatabase()) return getPlayerProfiles();
+  return seedPlayerProfiles;
+}
+
+export async function fetchTopRankings(limit = 12) {
+  const [results, profiles] = await Promise.all([fetchResults(), fetchPlayerProfiles()]);
+  const photoMap = new Map(profiles.map((p) => [p.nameKey, p.photoUrl]));
+
+  return calculatePlayerRankings(results, limit).map((ranking) => ({
+    ...ranking,
+    photoUrl: photoMap.get(normalizePlayerKey(ranking.name)) ?? null,
+  }));
 }
 
 export async function fetchManageableEntries() {
