@@ -29,7 +29,9 @@ export function calculatePlayerRankings(
   const players = new Map<string, { name: string; points: number; placements: number }>();
 
   for (const result of results) {
-    for (const winner of result.winners) {
+    const winners = Array.isArray(result.winners) ? result.winners : [];
+    for (const winner of winners) {
+      if (!winner?.names || !winner?.place) continue;
       const points = PLACEMENT_POINTS[winner.place];
       if (!points) continue;
 

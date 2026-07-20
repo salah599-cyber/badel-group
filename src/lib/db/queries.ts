@@ -150,7 +150,12 @@ export async function getResults() {
 
 export async function getPlayerProfiles() {
   if (!db) return [];
-  return db.select().from(playerProfiles).orderBy(playerProfiles.displayName);
+  try {
+    return await db.select().from(playerProfiles).orderBy(playerProfiles.displayName);
+  } catch (error) {
+    console.error("Failed to load player profiles:", error);
+    return [];
+  }
 }
 
 export async function upsertPlayerProfile(data: {
