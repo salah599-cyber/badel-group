@@ -94,6 +94,7 @@ export function AdminPanel({
     startTransition(async () => {
       try {
         await action();
+        window.location.reload();
       } catch (err) {
         alert(err instanceof Error ? err.message : "Action failed");
       }

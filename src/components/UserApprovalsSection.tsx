@@ -13,6 +13,17 @@ export function UserApprovalsSection({
 }) {
   const [isPending, startTransition] = useTransition();
 
+  function run(action: () => Promise<void>) {
+    startTransition(async () => {
+      try {
+        await action();
+        onComplete?.();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Action failed");
+      }
+    });
+  }
+
   return (
     <section id="user-approvals">
       <h2 className="mb-4 text-xl font-bold text-gray-900">
@@ -40,12 +51,7 @@ export function UserApprovalsSection({
                 <button
                   type="button"
                   disabled={isPending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      await approveUserAction(user.id);
-                      onComplete?.();
-                    })
-                  }
+                  onClick={() => run(() => approveUserAction(user.id))}
                   className="rounded-lg bg-brand-green px-3 py-1.5 text-sm font-semibold text-white"
                 >
                   Approve
@@ -53,12 +59,7 @@ export function UserApprovalsSection({
                 <button
                   type="button"
                   disabled={isPending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      await rejectUserAction(user.id);
-                      onComplete?.();
-                    })
-                  }
+                  onClick={() => run(() => rejectUserAction(user.id))}
                   className="rounded-lg bg-brand-red px-3 py-1.5 text-sm font-semibold text-white"
                 >
                   Reject
