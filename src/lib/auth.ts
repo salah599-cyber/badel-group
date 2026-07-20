@@ -1,6 +1,6 @@
 import { currentUser } from "@clerk/nextjs/server";
 import type { AdminContext, AdminMetadata, Permission } from "@/lib/permissions";
-import { hasAdminAccess, parseAdminMetadata } from "@/lib/permissions";
+import { hasAdminAccess, isMemberApproved, parseAdminMetadata } from "@/lib/permissions";
 
 export type { AdminContext, Permission };
 
@@ -51,16 +51,14 @@ export async function isAdmin() {
 export async function isApprovedUser() {
   const user = await currentUser();
   if (!user) return false;
-  if (hasAdminAccess(user.publicMetadata as AdminMetadata)) return true;
-  return user.publicMetadata?.approved === true;
+  return isMemberApproved(user.publicMetadata as AdminMetadata);
 }
 
 export async function requireApprovedUser() {
   const user = await currentUser();
   if (!user) throw new Error("You must be signed in");
 
-  if (hasAdminAccess(user.publicMetadata as AdminMetadata)) return user;
-  if (user.publicMetadata?.approved !== true) {
+  if (!isMemberApproved(user.publicMetadata as AdminMetadata)) {
     throw new Error("Your account must be approved before you can perform this action");
   }
 

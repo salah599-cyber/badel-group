@@ -132,3 +132,14 @@ export function canManageTournament(ctx: AdminContext, tournamentId: string): bo
 export function hasAdminAccess(metadata: AdminMetadata | null | undefined): boolean {
   return isAdminRole(metadata?.role);
 }
+
+export function isMemberApproved(metadata: AdminMetadata | null | undefined): boolean {
+  if (hasAdminAccess(metadata)) return true;
+  return metadata?.approved === true || metadata?.status === "approved";
+}
+
+export function isPendingMemberApproval(metadata: AdminMetadata | null | undefined): boolean {
+  if (hasAdminAccess(metadata) || isMemberApproved(metadata)) return false;
+  const status = metadata?.status;
+  return status !== "rejected" && status !== "removed";
+}

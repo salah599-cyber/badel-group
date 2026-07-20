@@ -1,6 +1,17 @@
 import { SignOutButton } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { isMemberApproved } from "@/lib/permissions";
+import type { AdminMetadata } from "@/lib/permissions";
 
-export default function PendingApprovalPage() {
+export default async function PendingApprovalPage() {
+  const user = await currentUser();
+  if (!user) redirect("/sign-in");
+
+  if (isMemberApproved(user.publicMetadata as AdminMetadata)) {
+    redirect("/");
+  }
+
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col items-center justify-center px-4 py-16 text-center">
       <div className="section-shell w-full">

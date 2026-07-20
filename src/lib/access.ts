@@ -1,5 +1,5 @@
 import type { AdminMetadata } from "@/lib/permissions";
-import { hasAdminAccess } from "@/lib/permissions";
+import { hasAdminAccess, isMemberApproved } from "@/lib/permissions";
 
 export function getAccessFromClaims(
   sessionClaims: Record<string, unknown> | null | undefined,
@@ -9,7 +9,7 @@ export function getAccessFromClaims(
     | undefined;
 
   const isAdminUser = hasAdminAccess(meta);
-  const isApproved = isAdminUser || meta?.approved === true;
+  const isApproved = isMemberApproved(meta);
 
   return { isAdmin: isAdminUser, isApproved, meta };
 }
