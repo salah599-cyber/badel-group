@@ -4,6 +4,8 @@ import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
   hasAdminAccess,
   isAdminRole,
+  isMemberApproved,
+  isPendingMemberApproval,
   PERMISSIONS,
   type AdminMetadata,
   type AdminRole,
@@ -54,7 +56,7 @@ export async function fetchPendingUsers(): Promise<PendingUser[]> {
   return data
     .filter((user) => {
       const meta = user.publicMetadata as AdminMetadata;
-      return !hasAdminAccess(meta) && meta?.approved !== true;
+      return isPendingMemberApproval(meta);
     })
     .map((user) => ({
       id: user.id,
@@ -105,7 +107,7 @@ export async function fetchSiteMembers(): Promise<SiteMember[]> {
   return data
     .filter((user) => {
       const meta = user.publicMetadata as AdminMetadata;
-      return !hasAdminAccess(meta) && meta?.approved === true;
+      return !hasAdminAccess(meta) && isMemberApproved(meta);
     })
     .map((user) => ({
       id: user.id,
