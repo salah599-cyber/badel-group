@@ -34,7 +34,7 @@ import {
 } from "@/lib/notifications";
 import { hasAdminAccess } from "@/lib/permissions";
 import type { AdminMetadata } from "@/lib/permissions";
-import { normalizeWebsiteUrl } from "@/lib/urls";
+import { normalizeSponsorLink } from "@/lib/urls";
 import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
   canManageTournament,
@@ -724,21 +724,37 @@ export async function createSponsorAction(input: {
   tier: "platinum" | "gold" | "silver" | "bronze";
   logoUrl: string;
   website?: string;
+  linkType?: "website" | "instagram";
 }) {
   await requirePermission("sponsors:manage");
   if (!db) throw new Error("Database not configured");
 
   const name = input.name?.trim();
   const logoUrl = input.logoUrl?.trim();
+  const linkType = input.linkType ?? "website";
+  const linkValue = input.website?.trim();
 
   if (!name) throw new Error("Sponsor name is required");
   if (!logoUrl) throw new Error("Sponsor logo is required");
+
+  let website: string | null = null;
+  if (linkValue) {
+    website = normalizeSponsorLink(linkType, linkValue);
+    if (!website) {
+      throw new Error(
+        linkType === "instagram"
+          ? "Enter a valid Instagram handle or profile URL"
+          : "Enter a valid website URL",
+      );
+    }
+  }
 
   await db.insert(sponsors).values({
     name,
     tier: input.tier,
     logoUrl,
-    website: normalizeWebsiteUrl(input.website),
+    website,
+    linkType,
   });
 
   revalidatePath("/sponsors");
@@ -778,19 +794,43 @@ export async function createGalleryPhotoAction(formData: FormData) {
 }
 
 export async function createSponsorsBulkAction(
-  items: { name: string; tier: string; logoUrl: string; website?: string }[],
+  items: {
+    name: string;
+    tier: string;
+    logoUrl: string;
+    website?: string;
+    linkType?: "website" | "instagram";
+  }[],
 ) {
   await requirePermission("sponsors:manage");
   if (!db) throw new Error("Database not configured");
   if (items.length === 0) return;
 
   await db.insert(sponsors).values(
-    items.map((item) => ({
-      name: item.name,
-      tier: item.tier as "platinum" | "gold" | "silver" | "bronze",
-      logoUrl: item.logoUrl,
-      website: normalizeWebsiteUrl(item.website),
-    })),
+    items.map((item) => {
+      const linkType = item.linkType ?? "website";
+      const linkValue = item.website?.trim();
+      let website: string | null = null;
+
+      if (linkValue) {
+        website = normalizeSponsorLink(linkType, linkValue);
+        if (!website) {
+          throw new Error(
+            linkType === "instagram"
+              ? `Invalid Instagram link for sponsor "${item.name}"`
+              : `Invalid website link for sponsor "${item.name}"`,
+          );
+        }
+      }
+
+      return {
+        name: item.name,
+        tier: item.tier as "platinum" | "gold" | "silver" | "bronze",
+        logoUrl: item.logoUrl,
+        website,
+        linkType,
+      };
+    }),
   );
 
   revalidatePath("/sponsors");

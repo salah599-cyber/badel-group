@@ -74,6 +74,7 @@ async function seed() {
       tier: s.tier,
       logoUrl: s.logoUrl,
       website: s.website,
+      linkType: s.linkType ?? "website",
     });
   }
 
