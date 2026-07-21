@@ -10,6 +10,7 @@ import {
   tournamentTypes,
   tournaments,
 } from "./schema";
+import { querySponsors } from "./sponsor-db";
 import type { SponsorTier } from "@/lib/types";
 
 function tournamentSelect() {
@@ -129,13 +130,11 @@ export async function getUpcomingWithCounts() {
 }
 
 export async function getSponsors() {
-  if (!db) return [];
-  return db.select().from(sponsors).orderBy(sponsors.tier);
+  return querySponsors();
 }
 
 export async function getSponsorsByTier(tier: SponsorTier) {
-  if (!db) return [];
-  return db.select().from(sponsors).where(eq(sponsors.tier, tier));
+  return querySponsors(eq(sponsors.tier, tier));
 }
 
 export async function getGalleryPhotos() {
