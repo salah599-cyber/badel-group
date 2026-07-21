@@ -33,6 +33,10 @@ export const sponsorTierEnum = pgEnum("sponsor_tier", [
   "silver",
   "bronze",
 ]);
+export const sponsorLinkTypeEnum = pgEnum("sponsor_link_type", [
+  "website",
+  "instagram",
+]);
 
 export const tournamentTypes = pgTable("tournament_types", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -91,6 +95,7 @@ export const sponsors = pgTable("sponsors", {
   tier: sponsorTierEnum("tier").notNull(),
   logoUrl: text("logo_url").notNull(),
   website: text("website"),
+  linkType: sponsorLinkTypeEnum("link_type").notNull().default("website"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

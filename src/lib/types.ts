@@ -1,4 +1,5 @@
 export type SponsorTier = "platinum" | "gold" | "silver" | "bronze";
+export type SponsorLinkType = "website" | "instagram";
 export type PairingMode = "manual" | "random";
 export type SignupMode = "solo" | "with_partner";
 export type PartnershipStatus =
@@ -42,6 +43,7 @@ export interface Sponsor {
   tier: SponsorTier;
   logoUrl: string;
   website?: string | null;
+  linkType?: SponsorLinkType;
 }
 
 export interface GalleryPhoto {
