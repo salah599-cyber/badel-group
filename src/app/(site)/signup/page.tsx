@@ -16,7 +16,8 @@ export default async function SignupPage() {
   if (!user) redirect("/sign-in");
 
   const email = user.emailAddresses[0]?.emailAddress ?? "";
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || email;
+  const firstName = user.firstName ?? "";
+  const lastName = user.lastName ?? "";
   const tournaments = await fetchUpcomingTournaments();
   const partnershipRequests = email ? await fetchPartnershipRequests(email) : [];
   const defaultPlayingSide = parsePlayingSide(
@@ -36,7 +37,8 @@ export default async function SignupPage() {
         <div className="section-shell">
           <SignupForm
             tournaments={tournaments}
-            defaultName={name}
+            defaultFirstName={firstName}
+            defaultLastName={lastName}
             defaultEmail={email}
             defaultPlayingSide={defaultPlayingSide}
           />
