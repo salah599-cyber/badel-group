@@ -34,6 +34,7 @@ import {
 } from "@/lib/notifications";
 import { hasAdminAccess } from "@/lib/permissions";
 import type { AdminMetadata } from "@/lib/permissions";
+import { insertSponsorRow } from "@/lib/db/sponsor-db";
 import { normalizeSponsorLink } from "@/lib/urls";
 import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
@@ -749,7 +750,7 @@ export async function createSponsorAction(input: {
     }
   }
 
-  await db.insert(sponsors).values({
+  await insertSponsorRow({
     name,
     tier: input.tier,
     logoUrl,
@@ -806,32 +807,30 @@ export async function createSponsorsBulkAction(
   if (!db) throw new Error("Database not configured");
   if (items.length === 0) return;
 
-  await db.insert(sponsors).values(
-    items.map((item) => {
-      const linkType = item.linkType ?? "website";
-      const linkValue = item.website?.trim();
-      let website: string | null = null;
+  for (const item of items) {
+    const linkType = item.linkType ?? "website";
+    const linkValue = item.website?.trim();
+    let website: string | null = null;
 
-      if (linkValue) {
-        website = normalizeSponsorLink(linkType, linkValue);
-        if (!website) {
-          throw new Error(
-            linkType === "instagram"
-              ? `Invalid Instagram link for sponsor "${item.name}"`
-              : `Invalid website link for sponsor "${item.name}"`,
-          );
-        }
+    if (linkValue) {
+      website = normalizeSponsorLink(linkType, linkValue);
+      if (!website) {
+        throw new Error(
+          linkType === "instagram"
+            ? `Invalid Instagram link for sponsor "${item.name}"`
+            : `Invalid website link for sponsor "${item.name}"`,
+        );
       }
+    }
 
-      return {
-        name: item.name,
-        tier: item.tier as "platinum" | "gold" | "silver" | "bronze",
-        logoUrl: item.logoUrl,
-        website,
-        linkType,
-      };
-    }),
-  );
+    await insertSponsorRow({
+      name: item.name,
+      tier: item.tier as "platinum" | "gold" | "silver" | "bronze",
+      logoUrl: item.logoUrl,
+      website,
+      linkType,
+    });
+  }
 
   revalidatePath("/sponsors");
   revalidatePath("/");
