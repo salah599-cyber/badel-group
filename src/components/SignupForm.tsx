@@ -7,7 +7,8 @@ import type { PlayingSide, SignupMode, Tournament } from "@/lib/types";
 
 type SignupFormProps = {
   tournaments: Tournament[];
-  defaultName: string;
+  defaultFirstName: string;
+  defaultLastName: string;
   defaultEmail: string;
   defaultPlayingSide: PlayingSide;
 };
@@ -25,7 +26,8 @@ function signupHint(tournament: Tournament | undefined, signupMode: SignupMode) 
 
 export function SignupForm({
   tournaments,
-  defaultName,
+  defaultFirstName,
+  defaultLastName,
   defaultEmail,
   defaultPlayingSide,
 }: SignupFormProps) {
@@ -247,18 +249,36 @@ export function SignupForm({
         </fieldset>
       )}
 
-      <div>
-        <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
-          Full Name
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          required
-          defaultValue={defaultName}
-          className="input"
-        />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-gray-700">
+            First name
+          </label>
+          <input
+            id="firstName"
+            name="firstName"
+            type="text"
+            required
+            autoComplete="given-name"
+            defaultValue={defaultFirstName}
+            className="input"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-gray-700">
+            Last name
+          </label>
+          <input
+            id="lastName"
+            name="lastName"
+            type="text"
+            required
+            autoComplete="family-name"
+            defaultValue={defaultLastName}
+            className="input"
+          />
+        </div>
       </div>
 
       <div>

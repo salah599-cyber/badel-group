@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/schema";
 import { canAdminApproveEntry } from "@/lib/partnerships";
 import { parsePlayingSide } from "@/lib/player-profile";
+import { parseNameFields } from "@/lib/user-profile";
 import { normalizePlayerKey } from "@/lib/rankings";
 import {
   createNotification,
@@ -315,11 +316,12 @@ export async function createEntryAction(formData: FormData) {
   }
 
   const entryStatus = capacity.isFull ? "waitlisted" : "pending";
+  const { firstName, lastName, fullName } = parseNameFields(formData);
 
   await db.insert(entries).values({
     tournamentId,
     userId: user.id,
-    name: formData.get("name") as string,
+    name: fullName,
     email,
     phone: formData.get("phone") as string,
     signupMode,
@@ -337,12 +339,13 @@ export async function createEntryAction(formData: FormData) {
     await notifyUserSafe(partnerUserId, {
       type: "partnership_invite",
       title: "New partnership request",
-      message: `${formData.get("name") as string} invited you to partner for ${tournament.name}.`,
+      message: `${fullName} invited you to partner for ${tournament.name}.`,
       href: "/signup",
     });
   }
 
   const client = await clerkClient();
+  await client.users.updateUser(user.id, { firstName, lastName });
   await client.users.updateUserMetadata(user.id, {
     publicMetadata: {
       ...user.publicMetadata,
@@ -902,6 +905,19 @@ export async function approveUserAction(userId: string) {
   });
 
   revalidatePath("/admin");
+}
+
+export async function completeProfileAction(formData: FormData) {
+  const user = await currentUser();
+  if (!user) throw new Error("You must be signed in");
+
+  const { firstName, lastName } = parseNameFields(formData);
+  const client = await clerkClient();
+  await client.users.updateUser(user.id, { firstName, lastName });
+
+  revalidatePath("/");
+  revalidatePath("/complete-profile");
+  revalidatePath("/pending-approval");
 }
 
 export async function rejectUserAction(userId: string) {

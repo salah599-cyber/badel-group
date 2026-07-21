@@ -1,4 +1,4 @@
-import { SignUp } from "@clerk/nextjs";
+import { CustomSignUpForm } from "@/components/CustomSignUpForm";
 
 export default function SignUpPage() {
   return (
@@ -7,17 +7,7 @@ export default function SignUpPage() {
         After signing up, your account must be approved by an admin before you can access
         the site.
       </div>
-      <SignUp
-        forceRedirectUrl="/pending-approval"
-        appearance={{
-          elements: {
-            rootBox: "mx-auto",
-            card: "shadow-lg border border-primary/10",
-            headerTitle: "text-primary-dark",
-            formButtonPrimary: "bg-primary hover:bg-primary-dark",
-          },
-        }}
-      />
+      <CustomSignUpForm />
     </div>
   );
 }
