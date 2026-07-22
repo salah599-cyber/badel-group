@@ -4,6 +4,7 @@ import { SignupForm } from "@/components/SignupForm";
 import { fetchPartnershipRequests, fetchUpcomingTournaments } from "@/lib/data";
 import { parsePlayingSide } from "@/lib/player-profile";
 import type { AdminMetadata } from "@/lib/permissions";
+import { getUserDisplayName } from "@/lib/user-display";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -16,7 +17,15 @@ export default async function SignupPage() {
   if (!user) redirect("/sign-in");
 
   const email = user.emailAddresses[0]?.emailAddress ?? "";
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || email;
+  const name = getUserDisplayName(
+    {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      emailAddresses: user.emailAddresses,
+      publicMetadata: user.publicMetadata as AdminMetadata,
+    },
+    email,
+  );
   const tournaments = await fetchUpcomingTournaments();
   const partnershipRequests = email ? await fetchPartnershipRequests(email) : [];
   const defaultPlayingSide = parsePlayingSide(

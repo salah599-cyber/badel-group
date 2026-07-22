@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
+import { hasRequiredProfile } from "@/lib/registration";
+import { getUserDisplayName } from "@/lib/user-display";
 import {
   getAdminContext,
   requireApprovedUser,
@@ -93,12 +95,9 @@ function getPartnerDisplayName(user: {
   firstName: string | null;
   lastName: string | null;
   emailAddresses: { emailAddress: string }[];
+  publicMetadata?: Record<string, unknown>;
 }) {
-  return (
-    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-    user.emailAddresses[0]?.emailAddress ||
-    "Your partner"
-  );
+  return getUserDisplayName(user, user.emailAddresses[0]?.emailAddress || "Your partner");
 }
 
 export async function createTournamentAction(formData: FormData) {
@@ -303,9 +302,15 @@ export async function createEntryAction(formData: FormData) {
 
       partnerUserId = partnerUser.id;
       resolvedPartnerEmail = partnerEmail;
-      resolvedPartnerName = [partnerUser.firstName, partnerUser.lastName]
-        .filter(Boolean)
-        .join(" ") || partnerEmail;
+      resolvedPartnerName = getUserDisplayName(
+        {
+          firstName: partnerUser.firstName,
+          lastName: partnerUser.lastName,
+          emailAddresses: partnerUser.emailAddresses,
+          publicMetadata: partnerMeta,
+        },
+        partnerEmail,
+      );
       partnershipStatus = "pending_partner";
     } else {
       if (!partnerName) throw new Error("Partner name is required");
@@ -892,12 +897,18 @@ export async function approveUserAction(userId: string) {
   await requirePermission("users:approve");
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
+  const metadata = user.publicMetadata as AdminMetadata;
+
+  if (!hasRequiredProfile(metadata, user)) {
+    throw new Error("This user must complete first and last name before approval.");
+  }
 
   await client.users.updateUserMetadata(userId, {
     publicMetadata: {
       ...user.publicMetadata,
       approved: true,
       status: "approved",
+      profileComplete: true,
     },
   });
 

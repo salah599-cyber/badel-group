@@ -11,6 +11,8 @@ import {
   type AdminRole,
   type Permission,
 } from "@/lib/permissions";
+import { getUserDisplayName } from "@/lib/user-display";
+import { hasRequiredProfile } from "@/lib/registration";
 
 export type PendingUser = {
   id: string;
@@ -40,8 +42,15 @@ export type SiteMember = {
 function getUserName(user: {
   firstName: string | null;
   lastName: string | null;
+  emailAddresses: { emailAddress: string }[];
+  publicMetadata?: AdminMetadata;
 }) {
-  return [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed user";
+  return getUserDisplayName({
+    firstName: user.firstName,
+    lastName: user.lastName,
+    emailAddresses: user.emailAddresses,
+    publicMetadata: user.publicMetadata as AdminMetadata,
+  });
 }
 
 function getUserEmail(user: { emailAddresses: { emailAddress: string }[] }) {
@@ -56,7 +65,7 @@ export async function fetchPendingUsers(): Promise<PendingUser[]> {
   return data
     .filter((user) => {
       const meta = user.publicMetadata as AdminMetadata;
-      return isPendingMemberApproval(meta);
+      return isPendingMemberApproval(meta) && hasRequiredProfile(meta, user);
     })
     .map((user) => ({
       id: user.id,

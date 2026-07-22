@@ -49,6 +49,9 @@ export type AdminMetadata = {
   approved?: boolean;
   status?: string;
   playingSide?: string;
+  profileFirstName?: string;
+  profileLastName?: string;
+  profileComplete?: boolean;
 };
 
 export type AdminContext = {
