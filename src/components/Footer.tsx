@@ -10,7 +10,7 @@ export function Footer() {
           <div className="flex flex-col items-center gap-3 sm:items-start">
             <Logo size="lg" variant="light" />
             <p className="max-w-xs text-center text-sm text-white/75 sm:text-left">
-              Padel tournaments, community events, and championship experiences across the UAE.
+              Padel tournaments, community events, and championship experiences across Oman.
             </p>
           </div>
 
