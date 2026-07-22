@@ -6,7 +6,7 @@ import { FileDropzone } from "@/components/FileDropzone";
 import { createSponsorAction, createSponsorsBulkAction, deleteSponsorAction } from "@/lib/actions";
 import { getMediaSrc } from "@/lib/media";
 import { nameFromFilename, uploadFiles } from "@/lib/uploads";
-import type { Sponsor } from "@/lib/types";
+import type { Sponsor, SponsorLinkType } from "@/lib/types";
 
 export function SponsorUploadSection({
   sponsors,
@@ -19,6 +19,7 @@ export function SponsorUploadSection({
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tier, setTier] = useState("gold");
+  const [linkType, setLinkType] = useState<SponsorLinkType>("website");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -158,6 +159,8 @@ export function SponsorUploadSection({
             | "silver"
             | "bronze";
           const website = (form.elements.namedItem("website") as HTMLInputElement).value;
+          const linkType = (form.elements.namedItem("linkType") as HTMLSelectElement)
+            .value as SponsorLinkType;
 
           startTransition(async () => {
             try {
@@ -170,6 +173,7 @@ export function SponsorUploadSection({
                 tier,
                 logoUrl: uploaded.url,
                 website: website || undefined,
+                linkType,
               });
 
               form.reset();
@@ -219,9 +223,22 @@ export function SponsorUploadSection({
             </div>
           )}
         </div>
+        <select
+          name="linkType"
+          value={linkType}
+          onChange={(e) => setLinkType(e.target.value as SponsorLinkType)}
+          className="input"
+        >
+          <option value="website">Website</option>
+          <option value="instagram">Instagram</option>
+        </select>
         <input
           name="website"
-          placeholder="Website (e.g. www.example.com)"
+          placeholder={
+            linkType === "instagram"
+              ? "Instagram (@handle or instagram.com/handle)"
+              : "Website (e.g. www.example.com)"
+          }
           className="input sm:col-span-2"
         />
         <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">

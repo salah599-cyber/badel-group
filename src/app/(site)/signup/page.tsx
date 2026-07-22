@@ -4,7 +4,6 @@ import { SignupForm } from "@/components/SignupForm";
 import { fetchPartnershipRequests, fetchUpcomingTournaments } from "@/lib/data";
 import { parsePlayingSide } from "@/lib/player-profile";
 import type { AdminMetadata } from "@/lib/permissions";
-import { getUserDisplayName } from "@/lib/user-display";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -17,20 +16,12 @@ export default async function SignupPage() {
   if (!user) redirect("/sign-in");
 
   const email = user.emailAddresses[0]?.emailAddress ?? "";
-  const name = getUserDisplayName(
-    {
-      firstName: user.firstName,
-      lastName: user.lastName,
-      emailAddresses: user.emailAddresses,
-      publicMetadata: user.publicMetadata as AdminMetadata,
-    },
-    email,
-  );
+  const metadata = user.publicMetadata as AdminMetadata;
+  const firstName = user.firstName?.trim() || metadata.profileFirstName?.trim() || "";
+  const lastName = user.lastName?.trim() || metadata.profileLastName?.trim() || "";
   const tournaments = await fetchUpcomingTournaments();
   const partnershipRequests = email ? await fetchPartnershipRequests(email) : [];
-  const defaultPlayingSide = parsePlayingSide(
-    (user.publicMetadata as AdminMetadata)?.playingSide,
-  );
+  const defaultPlayingSide = parsePlayingSide(metadata.playingSide);
 
   return (
     <div className="mx-auto max-w-lg px-4 py-12 sm:px-6 sm:py-16">
@@ -45,7 +36,8 @@ export default async function SignupPage() {
         <div className="section-shell">
           <SignupForm
             tournaments={tournaments}
-            defaultName={name}
+            defaultFirstName={firstName}
+            defaultLastName={lastName}
             defaultEmail={email}
             defaultPlayingSide={defaultPlayingSide}
           />

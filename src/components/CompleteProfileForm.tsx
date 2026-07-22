@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { completeProfileAction } from "@/lib/profile-actions";
+import { completeProfileAction } from "@/lib/actions";
 import { PASSWORD_REQUIREMENTS, registrationFieldLimits } from "@/lib/registration";
 
 export function CompleteProfileForm() {

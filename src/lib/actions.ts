@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
-import { hasRequiredProfile } from "@/lib/registration";
+import { hasRequiredProfile, normalizeProfileName, validateRegistrationNames } from "@/lib/registration";
 import { getUserDisplayName } from "@/lib/user-display";
 import {
   getAdminContext,
@@ -24,6 +24,7 @@ import {
 } from "@/lib/db/schema";
 import { canAdminApproveEntry } from "@/lib/partnerships";
 import { parsePlayingSide } from "@/lib/player-profile";
+import { parseNameFields } from "@/lib/user-profile";
 import { normalizePlayerKey } from "@/lib/rankings";
 import {
   createNotification,
@@ -35,7 +36,8 @@ import {
 } from "@/lib/notifications";
 import { hasAdminAccess } from "@/lib/permissions";
 import type { AdminMetadata } from "@/lib/permissions";
-import { normalizeWebsiteUrl } from "@/lib/urls";
+import { insertSponsorRow } from "@/lib/db/sponsor-db";
+import { normalizeSponsorLink } from "@/lib/urls";
 import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
   canManageTournament,
@@ -320,11 +322,12 @@ export async function createEntryAction(formData: FormData) {
   }
 
   const entryStatus = capacity.isFull ? "waitlisted" : "pending";
+  const { firstName, lastName, fullName } = parseNameFields(formData);
 
   await db.insert(entries).values({
     tournamentId,
     userId: user.id,
-    name: formData.get("name") as string,
+    name: fullName,
     email,
     phone: formData.get("phone") as string,
     signupMode,
@@ -342,12 +345,13 @@ export async function createEntryAction(formData: FormData) {
     await notifyUserSafe(partnerUserId, {
       type: "partnership_invite",
       title: "New partnership request",
-      message: `${formData.get("name") as string} invited you to partner for ${tournament.name}.`,
+      message: `${fullName} invited you to partner for ${tournament.name}.`,
       href: "/signup",
     });
   }
 
   const client = await clerkClient();
+  await client.users.updateUser(user.id, { firstName, lastName });
   await client.users.updateUserMetadata(user.id, {
     publicMetadata: {
       ...user.publicMetadata,
@@ -726,21 +730,37 @@ export async function createSponsorAction(input: {
   tier: "platinum" | "gold" | "silver" | "bronze";
   logoUrl: string;
   website?: string;
+  linkType?: "website" | "instagram";
 }) {
   await requirePermission("sponsors:manage");
   if (!db) throw new Error("Database not configured");
 
   const name = input.name?.trim();
   const logoUrl = input.logoUrl?.trim();
+  const linkType = input.linkType ?? "website";
+  const linkValue = input.website?.trim();
 
   if (!name) throw new Error("Sponsor name is required");
   if (!logoUrl) throw new Error("Sponsor logo is required");
 
-  await db.insert(sponsors).values({
+  let website: string | null = null;
+  if (linkValue) {
+    website = normalizeSponsorLink(linkType, linkValue);
+    if (!website) {
+      throw new Error(
+        linkType === "instagram"
+          ? "Enter a valid Instagram handle or profile URL"
+          : "Enter a valid website URL",
+      );
+    }
+  }
+
+  await insertSponsorRow({
     name,
     tier: input.tier,
     logoUrl,
-    website: normalizeWebsiteUrl(input.website),
+    website,
+    linkType,
   });
 
   revalidatePath("/sponsors");
@@ -780,20 +800,42 @@ export async function createGalleryPhotoAction(formData: FormData) {
 }
 
 export async function createSponsorsBulkAction(
-  items: { name: string; tier: string; logoUrl: string; website?: string }[],
+  items: {
+    name: string;
+    tier: string;
+    logoUrl: string;
+    website?: string;
+    linkType?: "website" | "instagram";
+  }[],
 ) {
   await requirePermission("sponsors:manage");
   if (!db) throw new Error("Database not configured");
   if (items.length === 0) return;
 
-  await db.insert(sponsors).values(
-    items.map((item) => ({
+  for (const item of items) {
+    const linkType = item.linkType ?? "website";
+    const linkValue = item.website?.trim();
+    let website: string | null = null;
+
+    if (linkValue) {
+      website = normalizeSponsorLink(linkType, linkValue);
+      if (!website) {
+        throw new Error(
+          linkType === "instagram"
+            ? `Invalid Instagram link for sponsor "${item.name}"`
+            : `Invalid website link for sponsor "${item.name}"`,
+        );
+      }
+    }
+
+    await insertSponsorRow({
       name: item.name,
       tier: item.tier as "platinum" | "gold" | "silver" | "bronze",
       logoUrl: item.logoUrl,
-      website: normalizeWebsiteUrl(item.website),
-    })),
-  );
+      website,
+      linkType,
+    });
+  }
 
   revalidatePath("/sponsors");
   revalidatePath("/");
@@ -913,6 +955,32 @@ export async function approveUserAction(userId: string) {
   });
 
   revalidatePath("/admin");
+}
+
+export async function completeProfileAction(formData: FormData) {
+  const user = await currentUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const firstName = normalizeProfileName(String(formData.get("firstName") ?? ""));
+  const lastName = normalizeProfileName(String(formData.get("lastName") ?? ""));
+  const validationError = validateRegistrationNames(firstName, lastName);
+  if (validationError) throw new Error(validationError);
+
+  const existingMeta = user.publicMetadata as AdminMetadata;
+  const client = await clerkClient();
+
+  await client.users.updateUserMetadata(user.id, {
+    publicMetadata: {
+      ...existingMeta,
+      profileFirstName: firstName,
+      profileLastName: lastName,
+      profileComplete: true,
+    },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/complete-profile");
+  revalidatePath("/pending-approval");
 }
 
 export async function rejectUserAction(userId: string) {

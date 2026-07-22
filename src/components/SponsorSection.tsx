@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { tierLabels, type Sponsor, type SponsorTier } from "@/lib/types";
-import { normalizeWebsiteUrl } from "@/lib/urls";
+import { normalizeSponsorLink } from "@/lib/urls";
 
 const tierSizes: Record<SponsorTier, string> = {
   platinum: "h-20 w-40",
@@ -17,7 +17,7 @@ const tierAccent: Record<SponsorTier, string> = {
 };
 
 export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
-  const website = normalizeWebsiteUrl(sponsor.website);
+  const link = normalizeSponsorLink(sponsor.linkType ?? "website", sponsor.website);
 
   const content = (
     <>
@@ -34,7 +34,7 @@ export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
     </>
   );
 
-  if (!website) {
+  if (!link) {
     return (
       <div className="card-hover flex min-w-[8rem] flex-1 flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:min-w-0 sm:flex-none sm:p-5">
         {content}
@@ -42,11 +42,17 @@ export function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
     );
   }
 
+  const linkLabel =
+    sponsor.linkType === "instagram"
+      ? `Visit ${sponsor.name} on Instagram`
+      : `Visit ${sponsor.name} website`;
+
   return (
     <a
-      href={website}
+      href={link}
       target="_blank"
       rel="noopener noreferrer"
+      aria-label={linkLabel}
       className="card-hover flex min-w-[8rem] flex-1 flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:min-w-0 sm:flex-none sm:p-5"
     >
       {content}
