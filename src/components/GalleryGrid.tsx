@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { GalleryLightbox } from "@/components/GalleryLightbox";
@@ -24,27 +23,29 @@ export function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+      <div className="columns-2 gap-3 sm:columns-3 sm:gap-4 lg:columns-4">
         {photos.map((photo, index) => (
           <figure
             key={photo.id}
             role="button"
             tabIndex={0}
-            className="group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="group relative mb-3 cursor-pointer break-inside-avoid overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mb-4"
             onClick={() => openLightbox(index)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             aria-label={`View photo: ${photo.caption || "Gallery image"}`}
           >
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={getMediaSrc(photo.imageUrl)}
               alt={photo.caption}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-contain"
+              loading="lazy"
+              className="block h-auto w-full"
             />
-            <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 text-xs font-medium text-white sm:translate-y-full sm:transition sm:duration-300 sm:group-hover:translate-y-0">
-              {photo.caption}
-            </figcaption>
+            {photo.caption ? (
+              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 text-xs font-medium text-white sm:translate-y-full sm:transition sm:duration-300 sm:group-hover:translate-y-0">
+                {photo.caption}
+              </figcaption>
+            ) : null}
           </figure>
         ))}
       </div>
