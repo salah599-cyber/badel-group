@@ -130,7 +130,7 @@ export function FileDropzone({
               key={preview.url}
               className="relative aspect-square overflow-hidden rounded-lg border border-gray-100 bg-white"
             >
-              <Image src={preview.url} alt={preview.name} fill className="object-cover" unoptimized />
+              <Image src={preview.url} alt={preview.name} fill className="object-contain" unoptimized />
             </div>
           ))}
         </div>
