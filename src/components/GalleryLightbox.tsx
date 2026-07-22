@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getMediaSrc } from "@/lib/media";
+import { getDisplayCaption } from "@/lib/uploads";
 import type { GalleryPhoto } from "@/lib/types";
 
 type GalleryLightboxProps = {
@@ -16,6 +17,7 @@ export function GalleryLightbox({ photos, initialIndex, onClose }: GalleryLightb
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const photo = photos[index];
+  const caption = photo ? getDisplayCaption(photo.caption) : null;
   const hasPrev = index > 0;
   const hasNext = index < photos.length - 1;
 
@@ -104,11 +106,11 @@ export function GalleryLightbox({ photos, initialIndex, onClose }: GalleryLightb
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={getMediaSrc(photo.imageUrl)}
-          alt={photo.caption}
+          alt={caption ?? "Gallery image"}
           className="max-h-[calc(100vh-6rem)] max-w-[min(96vw,1200px)] w-auto h-auto object-contain"
         />
-        {photo.caption ? (
-          <p className="max-w-lg text-center text-sm text-white/90">{photo.caption}</p>
+        {caption ? (
+          <p className="max-w-lg text-center text-sm text-white/90">{caption}</p>
         ) : null}
         {photos.length > 1 ? (
           <p className="text-xs text-white/60">

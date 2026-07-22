@@ -2,7 +2,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { isMemberApproved } from "@/lib/permissions";
 import type { AdminMetadata } from "@/lib/permissions";
-import { hasCompleteName } from "@/lib/user-profile";
+import { hasRequiredProfile } from "@/lib/registration";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
@@ -10,7 +10,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   if (user) {
     const meta = user.publicMetadata as AdminMetadata;
 
-    if (!hasCompleteName(user)) {
+    if (!hasRequiredProfile(meta, user)) {
       redirect("/complete-profile");
     }
 

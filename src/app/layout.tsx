@@ -20,7 +20,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Badel Group | Padel Tournaments & Community",
   description:
-    "Badel Group runs padel tournaments, manages a player community, and showcases sponsors across the UAE.",
+    "Badel Group runs padel tournaments, manages a player community, and showcases sponsors across Oman.",
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",

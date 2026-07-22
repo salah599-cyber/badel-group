@@ -945,6 +945,15 @@ export async function approveUserAction(userId: string) {
     throw new Error("This user must complete first and last name before approval.");
   }
 
+  const firstName =
+    user.firstName?.trim() || metadata.profileFirstName?.trim() || undefined;
+  const lastName =
+    user.lastName?.trim() || metadata.profileLastName?.trim() || undefined;
+
+  if (firstName && lastName) {
+    await client.users.updateUser(userId, { firstName, lastName });
+  }
+
   await client.users.updateUserMetadata(userId, {
     publicMetadata: {
       ...user.publicMetadata,
@@ -968,6 +977,11 @@ export async function completeProfileAction(formData: FormData) {
 
   const existingMeta = user.publicMetadata as AdminMetadata;
   const client = await clerkClient();
+
+  await client.users.updateUser(user.id, {
+    firstName,
+    lastName,
+  });
 
   await client.users.updateUserMetadata(user.id, {
     publicMetadata: {
