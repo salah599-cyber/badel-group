@@ -88,6 +88,8 @@ export function CustomSignUpForm() {
       await signUp.create({
         emailAddress: normalizedEmail,
         password,
+        firstName: normalizedFirstName,
+        lastName: normalizedLastName,
         unsafeMetadata: {
           profileFirstName: normalizedFirstName,
           profileLastName: normalizedLastName,
