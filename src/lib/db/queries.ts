@@ -253,9 +253,16 @@ export async function getManageableEntries() {
     .orderBy(desc(entries.createdAt));
 }
 
-export async function getPartnershipRequestsForUser(email: string) {
+export async function getPartnershipRequestsForUser(email: string, userId?: string) {
   if (!db) return [];
   const normalizedEmail = email.trim().toLowerCase();
+
+  const partnerMatch = userId
+    ? or(
+        sql`lower(${entries.partnerEmail}) = ${normalizedEmail}`,
+        eq(entries.partnerUserId, userId),
+      )
+    : sql`lower(${entries.partnerEmail}) = ${normalizedEmail}`;
 
   return db
     .select({
@@ -273,7 +280,7 @@ export async function getPartnershipRequestsForUser(email: string) {
     .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
     .where(
       and(
-        sql`lower(${entries.partnerEmail}) = ${normalizedEmail}`,
+        partnerMatch,
         eq(entries.partnershipStatus, "pending_partner"),
       ),
     )

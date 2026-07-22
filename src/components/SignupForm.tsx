@@ -11,6 +11,7 @@ type SignupFormProps = {
   defaultLastName: string;
   defaultEmail: string;
   defaultPlayingSide: PlayingSide;
+  membershipNumber: string;
 };
 
 function signupHint(tournament: Tournament | undefined, signupMode: SignupMode) {
@@ -30,6 +31,7 @@ export function SignupForm({
   defaultLastName,
   defaultEmail,
   defaultPlayingSide,
+  membershipNumber,
 }: SignupFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submittedMode, setSubmittedMode] = useState<SignupMode>("solo");
@@ -40,6 +42,9 @@ export function SignupForm({
   const [selectedId, setSelectedId] = useState(tournaments[0]?.id ?? "");
   const [signupMode, setSignupMode] = useState<SignupMode>("solo");
   const [partnerType, setPartnerType] = useState<"registered" | "unregistered">("registered");
+  const [partnerLookup, setPartnerLookup] = useState<"membership_number" | "email">(
+    "membership_number",
+  );
 
   const selectedTournament = tournaments.find((t) => t.id === selectedId);
   const isSoloOnlyTournament = selectedTournament?.pairingMode === "random";
@@ -211,23 +216,74 @@ export function SignupForm({
           </div>
 
           {partnerType === "registered" ? (
-            <div>
-              <label htmlFor="partnerEmail" className="mb-1 block text-sm font-medium text-gray-700">
-                Partner email
-              </label>
-              <input
-                id="partnerEmail"
-                name="partnerEmail"
-                type="email"
-                required
-                placeholder="partner@email.com"
-                className="input"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                They must already be a registered and approved member. They will need to accept your
-                invite.
-              </p>
-            </div>
+            <>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                  <input
+                    type="radio"
+                    name="partnerLookup"
+                    value="membership_number"
+                    checked={partnerLookup === "membership_number"}
+                    onChange={() => setPartnerLookup("membership_number")}
+                  />
+                  Membership number
+                </label>
+                <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                  <input
+                    type="radio"
+                    name="partnerLookup"
+                    value="email"
+                    checked={partnerLookup === "email"}
+                    onChange={() => setPartnerLookup("email")}
+                  />
+                  Email
+                </label>
+              </div>
+
+              {partnerLookup === "membership_number" ? (
+                <div>
+                  <label
+                    htmlFor="partnerMembershipNumber"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Partner membership number
+                  </label>
+                  <input
+                    id="partnerMembershipNumber"
+                    name="partnerMembershipNumber"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{3}"
+                    maxLength={3}
+                    required
+                    placeholder="e.g. 482"
+                    className="input"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Ask your partner for their 3-digit membership number (yours is {membershipNumber}
+                    ). They must accept your invite before admin approval.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="partnerEmail" className="mb-1 block text-sm font-medium text-gray-700">
+                    Partner email
+                  </label>
+                  <input
+                    id="partnerEmail"
+                    name="partnerEmail"
+                    type="email"
+                    required
+                    placeholder="partner@email.com"
+                    className="input"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    They must already be a registered and approved member. They will need to accept your
+                    invite.
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
             <div>
               <label htmlFor="partnerName" className="mb-1 block text-sm font-medium text-gray-700">

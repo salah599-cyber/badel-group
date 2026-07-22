@@ -85,7 +85,7 @@ export async function fetchPendingEntries() {
   return [];
 }
 
-export async function fetchPartnershipRequests(email: string) {
-  if (hasDatabase()) return getPartnershipRequestsForUser(email);
+export async function fetchPartnershipRequests(email: string, userId?: string) {
+  if (hasDatabase()) return getPartnershipRequestsForUser(email, userId);
   return [];
 }

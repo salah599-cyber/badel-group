@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
+import { ensureMembershipNumber, findUserByMembershipNumber, normalizeMembershipNumber } from "@/lib/membership";
 import { hasRequiredProfile, normalizeProfileName, validateRegistrationNames } from "@/lib/registration";
 import { getUserDisplayName } from "@/lib/user-display";
 import {
@@ -269,7 +270,12 @@ export async function createEntryAction(formData: FormData) {
       ? "solo"
       : ((formData.get("signupMode") as "solo" | "with_partner") || "solo");
   const partnerType = formData.get("partnerType") as "registered" | "unregistered" | null;
+  const partnerLookup =
+    (formData.get("partnerLookup") as "membership_number" | "email" | null) ??
+    "membership_number";
   const partnerEmail = (formData.get("partnerEmail") as string | null)?.trim().toLowerCase() || null;
+  const partnerMembershipNumber =
+    (formData.get("partnerMembershipNumber") as string | null)?.trim() || null;
   const partnerName = (formData.get("partnerName") as string | null)?.trim() || null;
 
   if (await hasExistingEntry(tournamentId, email, user.id)) {
@@ -284,17 +290,43 @@ export async function createEntryAction(formData: FormData) {
 
   if (signupMode === "with_partner") {
     if (partnerType === "registered") {
-      if (!partnerEmail) throw new Error("Partner email is required");
+      let partnerUser = null;
 
-      if (partnerEmail === email) {
-        throw new Error("You cannot select yourself as your partner");
-      }
+      if (partnerLookup === "email") {
+        if (!partnerEmail) throw new Error("Partner email is required");
 
-      const partnerUser = await findUserByEmail(partnerEmail);
-      if (!partnerUser) {
-        throw new Error(
-          "No registered member found with that email. Choose “Not registered yet” instead.",
-        );
+        if (partnerEmail === email) {
+          throw new Error("You cannot select yourself as your partner");
+        }
+
+        partnerUser = await findUserByEmail(partnerEmail);
+        if (!partnerUser) {
+          throw new Error(
+            "No registered member found with that email. Try their membership number instead, or choose “Not registered yet”.",
+          );
+        }
+      } else {
+        if (!partnerMembershipNumber) {
+          throw new Error("Partner membership number is required");
+        }
+
+        const normalizedMembershipNumber = normalizeMembershipNumber(partnerMembershipNumber);
+        if (!normalizedMembershipNumber) {
+          throw new Error("Enter a valid 3-digit membership number between 100 and 999");
+        }
+
+        if (
+          (user.publicMetadata as AdminMetadata)?.membershipNumber === normalizedMembershipNumber
+        ) {
+          throw new Error("You cannot select yourself as your partner");
+        }
+
+        partnerUser = await findUserByMembershipNumber(normalizedMembershipNumber);
+        if (!partnerUser) {
+          throw new Error(
+            "No registered member found with that membership number. Check the number or choose “Not registered yet”.",
+          );
+        }
       }
 
       const partnerMeta = partnerUser.publicMetadata as AdminMetadata;
@@ -303,7 +335,7 @@ export async function createEntryAction(formData: FormData) {
       }
 
       partnerUserId = partnerUser.id;
-      resolvedPartnerEmail = partnerEmail;
+      resolvedPartnerEmail = partnerUser.emailAddresses[0]?.emailAddress?.toLowerCase() ?? null;
       resolvedPartnerName = getUserDisplayName(
         {
           firstName: partnerUser.firstName,
@@ -311,7 +343,7 @@ export async function createEntryAction(formData: FormData) {
           emailAddresses: partnerUser.emailAddresses,
           publicMetadata: partnerMeta,
         },
-        partnerEmail,
+        resolvedPartnerEmail ?? "Partner",
       );
       partnershipStatus = "pending_partner";
     } else {
@@ -963,6 +995,8 @@ export async function approveUserAction(userId: string) {
     },
   });
 
+  await ensureMembershipNumber(userId);
+
   revalidatePath("/admin");
 }
 
@@ -991,6 +1025,8 @@ export async function completeProfileAction(formData: FormData) {
       profileComplete: true,
     },
   });
+
+  await ensureMembershipNumber(user.id);
 
   revalidatePath("/");
   revalidatePath("/complete-profile");

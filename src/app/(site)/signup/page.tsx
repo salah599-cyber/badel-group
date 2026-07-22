@@ -2,6 +2,7 @@ import { PartnershipRequests } from "@/components/PartnershipRequests";
 import { SectionHeading } from "@/components/SectionHeading";
 import { SignupForm } from "@/components/SignupForm";
 import { fetchPartnershipRequests, fetchUpcomingTournaments } from "@/lib/data";
+import { ensureMembershipNumber } from "@/lib/membership";
 import { parsePlayingSide } from "@/lib/player-profile";
 import type { AdminMetadata } from "@/lib/permissions";
 import { currentUser } from "@clerk/nextjs/server";
@@ -17,10 +18,13 @@ export default async function SignupPage() {
 
   const email = user.emailAddresses[0]?.emailAddress ?? "";
   const metadata = user.publicMetadata as AdminMetadata;
+  const membershipNumber = await ensureMembershipNumber(user.id);
   const firstName = user.firstName?.trim() || metadata.profileFirstName?.trim() || "";
   const lastName = user.lastName?.trim() || metadata.profileLastName?.trim() || "";
   const tournaments = await fetchUpcomingTournaments();
-  const partnershipRequests = email ? await fetchPartnershipRequests(email) : [];
+  const partnershipRequests = email
+    ? await fetchPartnershipRequests(email, user.id)
+    : [];
   const defaultPlayingSide = parsePlayingSide(metadata.playingSide);
 
   return (
@@ -29,6 +33,14 @@ export default async function SignupPage() {
         title="Tournament Sign Up"
         subtitle="Sign up solo or with a partner. Registered partners must approve; unregistered partners need admin approval."
       />
+
+      <div className="mb-6 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-primary-dark">
+        <p className="font-semibold">Your membership number</p>
+        <p className="mt-1 text-2xl font-bold tracking-widest text-primary">{membershipNumber}</p>
+        <p className="mt-1 text-xs text-primary-dark/80">
+          Share this number with your partner so they can add you without using your email.
+        </p>
+      </div>
 
       <PartnershipRequests requests={partnershipRequests} />
 
@@ -40,6 +52,7 @@ export default async function SignupPage() {
             defaultLastName={lastName}
             defaultEmail={email}
             defaultPlayingSide={defaultPlayingSide}
+            membershipNumber={membershipNumber}
           />
         </div>
       ) : (

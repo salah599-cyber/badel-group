@@ -3,6 +3,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { getSuperAdminEmail, hasAdminAccess } from "@/lib/permissions";
 import type { AdminMetadata } from "@/lib/permissions";
+import { ensureMembershipNumber } from "@/lib/membership";
 import { normalizeProfileName } from "@/lib/registration";
 
 function readProfileNames(
@@ -81,6 +82,8 @@ export async function POST(req: NextRequest) {
         },
       });
     }
+
+    await ensureMembershipNumber(user.id);
   }
 
   return new Response("OK", { status: 200 });

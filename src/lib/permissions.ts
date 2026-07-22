@@ -52,6 +52,7 @@ export type AdminMetadata = {
   profileFirstName?: string;
   profileLastName?: string;
   profileComplete?: boolean;
+  membershipNumber?: string;
 };
 
 export type AdminContext = {
