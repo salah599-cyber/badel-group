@@ -1,8 +1,53 @@
 import { upload } from "@vercel/blob/client";
 
-export function nameFromFilename(filename: string) {
-  return filename
-    .replace(/\.[^.]+$/, "")
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$/i;
+
+const CAMERA_NAME_PATTERN =
+  /^(img|dsc|pict|photo|screenshot|image|snap)(\s*|[_-])\d+$/i;
+
+export function isMeaninglessCaption(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+
+  const compact = trimmed.replace(/[\s_-]+/g, "").toLowerCase();
+  if (UUID_PATTERN.test(compact) || /^[0-9a-f]{32}$/i.test(compact)) {
+    return true;
+  }
+
+  const tokens = trimmed.split(/\s+/);
+  if (tokens.length >= 3) {
+    const hexLike = tokens.filter((token) => /^[0-9a-f]{4,8}$/i.test(token));
+    if (hexLike.length >= 3 && hexLike.length / tokens.length >= 0.75) {
+      return true;
+    }
+  }
+
+  const base = trimmed.replace(/\.[^.]+$/, "");
+  if (CAMERA_NAME_PATTERN.test(base)) return true;
+
+  if (
+    compact.length >= 16 &&
+    /^[a-z0-9]+$/i.test(compact) &&
+    !/[aeiou]{2}/i.test(compact)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function getDisplayCaption(caption: string): string | null {
+  const trimmed = caption.trim();
+  if (!trimmed || isMeaninglessCaption(trimmed)) return null;
+  return trimmed;
+}
+
+export function nameFromFilename(filename: string): string {
+  const base = filename.replace(/\.[^.]+$/, "").trim();
+  if (isMeaninglessCaption(base)) return "";
+
+  return base
     .replace(/[-_]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
