@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { pairEntriesAction, unpairEntryAction } from "@/lib/actions";
+import { hasManualPairLink, isPartnershipTeamEntry } from "@/lib/partnerships";
 import { playingSideLabels } from "@/lib/player-profile";
 import type { Entry, Tournament } from "@/lib/types";
 
@@ -12,8 +13,8 @@ type EntryPairingSectionProps = {
 };
 
 function isPaired(entry: Entry, allEntries: Entry[]) {
-  if (entry.partnerEntryId) return true;
-  return allEntries.some((other) => other.partnerEntryId === entry.id);
+  if (isPartnershipTeamEntry(entry)) return true;
+  return hasManualPairLink(entry, allEntries);
 }
 
 export function EntryPairingSection({
@@ -34,17 +35,24 @@ export function EntryPairingSection({
     [entries, selectedTournamentId],
   );
 
+  const partnershipTeams = useMemo(
+    () => tournamentEntries.filter((entry) => isPartnershipTeamEntry(entry)),
+    [tournamentEntries],
+  );
+
   const unpairedEntries = useMemo(
     () => tournamentEntries.filter((entry) => !isPaired(entry, tournamentEntries)),
     [tournamentEntries],
   );
 
-  const pairedEntries = useMemo(() => {
+  const manuallyPairedEntries = useMemo(() => {
     const seen = new Set<string>();
     const pairs: { a: Entry; b: Entry }[] = [];
 
     for (const entry of tournamentEntries) {
-      if (seen.has(entry.id) || !isPaired(entry, tournamentEntries)) continue;
+      if (seen.has(entry.id) || isPartnershipTeamEntry(entry) || !hasManualPairLink(entry, tournamentEntries)) {
+        continue;
+      }
 
       const partnerId = entry.partnerEntryId;
       const partner = partnerId
@@ -60,6 +68,8 @@ export function EntryPairingSection({
 
     return pairs;
   }, [tournamentEntries]);
+
+  const pairedTeamCount = partnershipTeams.length + manuallyPairedEntries.length;
 
   function wrapAction(action: () => Promise<void>) {
     startTransition(async () => {
@@ -82,8 +92,8 @@ export function EntryPairingSection({
     <section id="pairing" className="mb-8">
       <h3 className="mb-2 font-semibold text-primary-dark">Player Pairing</h3>
       <p className="mb-4 text-sm text-gray-600">
-        For doubles and mixed doubles, players sign up individually. Pair two solo
-        registrants into a team here.
+        Players who signed up together are listed automatically as teams after admin approval.
+        Use this section only to pair solo registrants into teams.
       </p>
 
       <div className="mb-4">
@@ -142,11 +152,24 @@ export function EntryPairingSection({
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <h4 className="mb-3 text-sm font-semibold text-gray-800">
-            Paired Teams ({pairedEntries.length})
+            Paired Teams ({pairedTeamCount})
           </h4>
-          {pairedEntries.length > 0 ? (
+          {pairedTeamCount > 0 ? (
             <ul className="space-y-3 text-sm">
-              {pairedEntries.map(({ a, b }) => (
+              {partnershipTeams.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="rounded-lg border border-brand-green/20 bg-brand-green/5 px-3 py-3"
+                >
+                  <p className="font-medium text-gray-900">
+                    {entry.name} + {entry.partnerName}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Registered together · {entry.status}
+                  </p>
+                </li>
+              ))}
+              {manuallyPairedEntries.map(({ a, b }) => (
                 <li
                   key={`${a.id}-${b.id}`}
                   className="rounded-lg border border-brand-green/20 bg-brand-green/5 px-3 py-3"

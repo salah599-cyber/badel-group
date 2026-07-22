@@ -6,7 +6,7 @@ import {
   promoteEntryFromWaitlistAction,
 } from "@/lib/actions";
 import { entryStatusLabels } from "@/lib/entries";
-import { partnershipStatusLabels } from "@/lib/partnerships";
+import { isPartnershipTeamEntry, partnershipStatusLabels } from "@/lib/partnerships";
 import { playingSideLabels } from "@/lib/player-profile";
 import type { Entry, Tournament } from "@/lib/types";
 
@@ -20,7 +20,9 @@ function entryDetails(entry: Entry) {
   const parts = [
     entry.email,
     entry.playingSide ? playingSideLabels[entry.playingSide] : null,
-    entry.signupMode === "with_partner" && entry.partnerName
+    entry.signupMode === "with_partner" &&
+    entry.partnerName &&
+    !isPartnershipTeamEntry(entry)
       ? `Partner: ${entry.partnerName}`
       : null,
     entry.partnershipStatus && entry.partnershipStatus !== "not_applicable"
@@ -114,7 +116,11 @@ export function TournamentRosterSection({
                   className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-medium">{entry.name}</p>
+                    <p className="font-medium">
+                      {isPartnershipTeamEntry(entry) && entry.partnerName
+                        ? `${entry.name} + ${entry.partnerName}`
+                        : entry.name}
+                    </p>
                     <p className="text-sm text-gray-500">{entryDetails(entry)}</p>
                     <p className="mt-1 text-xs font-medium text-brand-green">
                       {entryStatusLabels.approved}
@@ -148,7 +154,11 @@ export function TournamentRosterSection({
                   className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-medium">{entry.name}</p>
+                    <p className="font-medium">
+                      {isPartnershipTeamEntry(entry) && entry.partnerName
+                        ? `${entry.name} + ${entry.partnerName}`
+                        : entry.name}
+                    </p>
                     <p className="text-sm text-gray-500">{entryDetails(entry)}</p>
                     <p className="mt-1 text-xs font-medium text-amber-700">
                       {entryStatusLabels.waitlisted}

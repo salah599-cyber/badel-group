@@ -167,11 +167,13 @@ export function AdminPanel({
                   : null;
                 const partnerLabel =
                   entry.signupMode === "with_partner"
-                    ? entry.partnerEmail
-                      ? `Partner: ${entry.partnerName ?? entry.partnerEmail} (${entry.partnerEmail})`
-                      : entry.partnerName
-                        ? `Partner: ${entry.partnerName} (unregistered)`
-                        : "With partner"
+                    ? entry.partnershipStatus === "approved" && entry.partnerName
+                      ? `Team: ${entry.name} + ${entry.partnerName}`
+                      : entry.partnerEmail
+                        ? `Partner: ${entry.partnerName ?? entry.partnerEmail} (${entry.partnerEmail})`
+                        : entry.partnerName
+                          ? `Partner: ${entry.partnerName} (unregistered)`
+                          : "With partner"
                     : entry.pairingMode === "manual"
                       ? "Solo signup"
                       : null;

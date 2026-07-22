@@ -571,14 +571,12 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
   if (status === "approved" && entry.tournamentId) {
     const capacity = await getTournamentCapacity(entry.tournamentId);
     if (capacity?.isFull) {
-      await db
-        .update(entries)
-        .set(
-          entry.partnershipStatus === "pending_admin"
-            ? { status: "waitlisted", partnershipStatus: "approved" as const }
-            : { status: "waitlisted" },
-        )
-        .where(eq(entries.id, entryId));
+      const waitlistUpdates =
+        entry.signupMode === "with_partner" || entry.partnershipStatus === "pending_admin"
+          ? { status: "waitlisted" as const, partnershipStatus: "approved" as const }
+          : { status: "waitlisted" as const };
+
+      await db.update(entries).set(waitlistUpdates).where(eq(entries.id, entryId));
 
       await notifyUserSafe(await resolveEntryUserId(entry), {
         type: "entry_waitlisted",
@@ -595,7 +593,8 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
   }
 
   const updates =
-    status === "approved" && entry.partnershipStatus === "pending_admin"
+    status === "approved" &&
+    (entry.signupMode === "with_partner" || entry.partnershipStatus === "pending_admin")
       ? { status, partnershipStatus: "approved" as const }
       : { status };
 
@@ -603,22 +602,23 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
 
   if (status === "approved") {
     const playerUserId = await resolveEntryUserId(entry);
+    const partnerLabel = entry.partnerName ?? entry.partnerPlayerName;
+    const approvalMessage = partnerLabel
+      ? `Your entry for ${entry.tournamentName} with ${partnerLabel} has been approved.`
+      : `Your entry for ${entry.tournamentName} has been approved.`;
 
-    if (entry.partnershipStatus === "pending_admin" && entry.partnerName) {
-      await notifyUserSafe(playerUserId, {
+    await notifyUserSafe(playerUserId, {
+      type: "entry_approved",
+      title: "Tournament entry approved",
+      message: approvalMessage,
+      href: "/signup",
+    });
+
+    if (entry.signupMode === "with_partner" && entry.partnerUserId) {
+      await notifyUserSafe(entry.partnerUserId, {
         type: "entry_approved",
         title: "Tournament entry approved",
-        message: `Your entry for ${entry.tournamentName} with ${entry.partnerName} has been approved.`,
-        href: "/signup",
-      });
-    } else {
-      const partnerLabel = entry.partnerName ?? entry.partnerPlayerName;
-      await notifyUserSafe(playerUserId, {
-        type: "entry_approved",
-        title: "Tournament entry approved",
-        message: partnerLabel
-          ? `Your entry for ${entry.tournamentName} with ${partnerLabel} has been approved.`
-          : `Your entry for ${entry.tournamentName} has been approved.`,
+        message: `Your team entry for ${entry.tournamentName} with ${entry.name} has been approved.`,
         href: "/signup",
       });
     }
