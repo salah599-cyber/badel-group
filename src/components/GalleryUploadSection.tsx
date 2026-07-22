@@ -54,7 +54,7 @@ export function GalleryUploadSection({
 
       <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4">
         <p className="text-sm text-gray-600">
-          Drag and drop photos or select a folder. Captions are generated from filenames.
+          Drag and drop photos or select a folder. Descriptive filenames become captions; auto-generated names are skipped.
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
