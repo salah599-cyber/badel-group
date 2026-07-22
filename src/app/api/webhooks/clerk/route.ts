@@ -49,6 +49,10 @@ export async function POST(req: NextRequest) {
     const superAdminEmail = getSuperAdminEmail();
 
     if (superAdminEmail && email === superAdminEmail) {
+      await client.users.updateUser(user.id, {
+        ...(profile.profileFirstName ? { firstName: profile.profileFirstName } : {}),
+        ...(profile.profileLastName ? { lastName: profile.profileLastName } : {}),
+      });
       await client.users.updateUserMetadata(user.id, {
         publicMetadata: {
           ...existingMeta,
