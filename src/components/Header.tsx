@@ -4,6 +4,7 @@ import { AuthNav } from "@/components/AuthNav";
 import { Logo } from "@/components/Logo";
 import { MobileNav } from "@/components/MobileNav";
 import { isAdmin } from "@/lib/auth";
+import { ensureMembershipNumber } from "@/lib/membership";
 import { getUnreadNotificationCount } from "@/lib/notifications";
 
 const navLinks = [
@@ -33,6 +34,7 @@ function SignupLink({ pendingCount }: { pendingCount: number }) {
 export async function Header() {
   const [admin, user] = await Promise.all([isAdmin(), currentUser()]);
   const pendingCount = user?.id ? await getUnreadNotificationCount(user.id) : 0;
+  const membershipNumber = user?.id ? await ensureMembershipNumber(user.id) : null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-primary/10 bg-cream/90 shadow-sm backdrop-blur-md">
@@ -67,7 +69,7 @@ export async function Header() {
 
         <div className="flex items-center gap-1 sm:gap-2">
           <SignupLink pendingCount={pendingCount} />
-          <AuthNav />
+          <AuthNav membershipNumber={membershipNumber} />
           <MobileNav links={navLinks} isAdmin={admin} pendingCount={pendingCount} />
         </div>
       </div>
