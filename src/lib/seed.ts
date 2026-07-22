@@ -43,7 +43,7 @@ export const seedTournaments: Tournament[] = [
     id: "t1",
     name: "Badel Spring Open 2026",
     date: "2026-04-12",
-    location: "Dubai Sports City",
+    location: "Strike",
     tournamentTypeId: "type-doubles",
     typeName: "Doubles",
     typeSlug: "doubles",
@@ -60,7 +60,7 @@ export const seedTournaments: Tournament[] = [
     id: "t2",
     name: "Community Cup",
     date: "2026-05-03",
-    location: "Abu Dhabi Padel Club",
+    location: "Padel Addicts",
     tournamentTypeId: "type-mixed-doubles",
     typeName: "Mixed Doubles",
     typeSlug: "mixed-doubles",
@@ -78,7 +78,7 @@ export const seedTournaments: Tournament[] = [
 export const seedSponsors: Sponsor[] = [
   {
     id: "1",
-    name: "Padel Pro UAE",
+    name: "Padel Pro Oman",
     tier: "platinum",
     logoUrl: "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=200&h=100&fit=crop",
     website: "#",
