@@ -26,7 +26,7 @@ import {
 import { findManualPairPartner, userCanWithdrawSolo, userCanWithdrawTeam } from "@/lib/tournament-teams";
 import { canAdminApproveEntry, isPartnershipTeamEntry } from "@/lib/partnerships";
 import { parsePlayingSide } from "@/lib/player-profile";
-import { parseNameFields } from "@/lib/user-profile";
+import { parseNameFields, syncClerkUserProfileNames } from "@/lib/user-profile";
 import { normalizePlayerKey } from "@/lib/rankings";
 import {
   createNotification,
@@ -323,7 +323,9 @@ export async function createEntryAction(formData: FormData) {
         }
 
         if (
-          (user.publicMetadata as AdminMetadata)?.membershipNumber === normalizedMembershipNumber
+          normalizeMembershipNumber(
+            String((user.publicMetadata as AdminMetadata)?.membershipNumber ?? ""),
+          ) === normalizedMembershipNumber
         ) {
           throw new Error("You cannot select yourself as your partner");
         }
@@ -398,14 +400,7 @@ export async function createEntryAction(formData: FormData) {
     });
   }
 
-  const client = await clerkClient();
-  await client.users.updateUser(user.id, { firstName, lastName });
-  await client.users.updateUserMetadata(user.id, {
-    publicMetadata: {
-      ...user.publicMetadata,
-      playingSide,
-    },
-  });
+  await syncClerkUserProfileNames(user.id, firstName, lastName, { playingSide });
 
   if (entryStatus === "waitlisted") {
     await notifyUserSafe(user.id, {
@@ -1090,7 +1085,11 @@ export async function approveUserAction(userId: string) {
     user.lastName?.trim() || metadata.profileLastName?.trim() || undefined;
 
   if (firstName && lastName) {
-    await client.users.updateUser(userId, { firstName, lastName });
+    try {
+      await client.users.updateUser(userId, { firstName, lastName });
+    } catch (error) {
+      console.warn("[clerk] Could not update firstName/lastName on user record:", error);
+    }
   }
 
   await client.users.updateUserMetadata(userId, {
@@ -1116,22 +1115,7 @@ export async function completeProfileAction(formData: FormData) {
   const validationError = validateRegistrationNames(firstName, lastName);
   if (validationError) throw new Error(validationError);
 
-  const existingMeta = user.publicMetadata as AdminMetadata;
-  const client = await clerkClient();
-
-  await client.users.updateUser(user.id, {
-    firstName,
-    lastName,
-  });
-
-  await client.users.updateUserMetadata(user.id, {
-    publicMetadata: {
-      ...existingMeta,
-      profileFirstName: firstName,
-      profileLastName: lastName,
-      profileComplete: true,
-    },
-  });
+  await syncClerkUserProfileNames(user.id, firstName, lastName);
 
   await ensureMembershipNumber(user.id);
 

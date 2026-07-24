@@ -28,3 +28,31 @@ export function parseNameFields(formData: FormData) {
     fullName: `${firstName} ${lastName}`,
   };
 }
+
+/** Clerk may reject firstName/lastName when those attributes are disabled in the dashboard. */
+export async function syncClerkUserProfileNames(
+  userId: string,
+  firstName: string,
+  lastName: string,
+  publicMetadataPatch: Record<string, unknown> = {},
+) {
+  const { clerkClient } = await import("@clerk/nextjs/server");
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId);
+
+  try {
+    await client.users.updateUser(userId, { firstName, lastName });
+  } catch (error) {
+    console.warn("[clerk] Could not update firstName/lastName on user record:", error);
+  }
+
+  await client.users.updateUserMetadata(userId, {
+    publicMetadata: {
+      ...user.publicMetadata,
+      profileFirstName: firstName,
+      profileLastName: lastName,
+      profileComplete: true,
+      ...publicMetadataPatch,
+    },
+  });
+}

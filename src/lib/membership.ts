@@ -5,6 +5,15 @@ const MEMBERSHIP_MIN = 100;
 const MEMBERSHIP_MAX = 999;
 const MAX_ASSIGN_ATTEMPTS = 50;
 
+function membershipNumbersMatch(
+  stored: string | number | undefined | null,
+  normalized: string,
+) {
+  if (stored == null || stored === "") return false;
+  return String(stored).padStart(3, "0") === normalized.padStart(3, "0")
+    || normalizeMembershipNumber(String(stored)) === normalized;
+}
+
 export function normalizeMembershipNumber(input: string): string | null {
   const digits = input.replace(/\D/g, "");
   if (!digits || digits.length > 3) return null;
@@ -48,7 +57,7 @@ export async function isMembershipNumberTaken(
   return users.some((user) => {
     if (excludeUserId && user.id === excludeUserId) return false;
     const meta = user.publicMetadata as AdminMetadata;
-    return meta.membershipNumber === membershipNumber;
+    return membershipNumbersMatch(meta.membershipNumber, membershipNumber);
   });
 }
 
@@ -60,7 +69,7 @@ export async function findUserByMembershipNumber(membershipNumber: string) {
   return (
     users.find((user) => {
       const meta = user.publicMetadata as AdminMetadata;
-      return meta.membershipNumber === normalized;
+      return membershipNumbersMatch(meta.membershipNumber, normalized);
     }) ?? null
   );
 }
@@ -70,8 +79,8 @@ export async function ensureMembershipNumber(userId: string): Promise<string> {
   const user = await client.users.getUser(userId);
   const metadata = user.publicMetadata as AdminMetadata;
 
-  if (metadata.membershipNumber) {
-    return metadata.membershipNumber;
+  if (metadata.membershipNumber != null && metadata.membershipNumber !== "") {
+    return String(metadata.membershipNumber);
   }
 
   for (let attempt = 0; attempt < MAX_ASSIGN_ATTEMPTS; attempt += 1) {
