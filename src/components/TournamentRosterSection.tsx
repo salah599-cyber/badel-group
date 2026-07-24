@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import {
   demoteEntryToWaitlistAction,
   promoteEntryFromWaitlistAction,
+  removeConfirmedEntryAction,
 } from "@/lib/actions";
 import { entryStatusLabels } from "@/lib/entries";
 import { partnershipStatusLabels } from "@/lib/partnerships";
@@ -106,6 +107,9 @@ export function TournamentRosterSection({
           <h3 className="mb-3 font-semibold text-primary-dark">
             Confirmed ({confirmedEntries.length})
           </h3>
+          <p className="mb-3 text-xs text-gray-500">
+            Move a player to the waiting list or remove their registration entirely.
+          </p>
           {confirmedEntries.length > 0 ? (
             <div className="space-y-3">
               {confirmedEntries.map((entry) => (
@@ -120,14 +124,42 @@ export function TournamentRosterSection({
                       {entryStatusLabels.approved}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => wrapAction(() => demoteEntryToWaitlistAction(entry.id))}
-                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    Move to waitlist
-                  </button>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Move ${entry.name} to the waiting list for this tournament?`,
+                          )
+                        ) {
+                          return;
+                        }
+                        wrapAction(() => demoteEntryToWaitlistAction(entry.id));
+                      }}
+                      className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      Move to waitlist
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Remove ${entry.name} from this tournament? They can sign up again if registration is still open.`,
+                          )
+                        ) {
+                          return;
+                        }
+                        wrapAction(() => removeConfirmedEntryAction(entry.id));
+                      }}
+                      className="rounded-lg border border-brand-red/40 bg-white px-3 py-1.5 text-sm font-semibold text-brand-red disabled:opacity-50"
+                    >
+                      Remove player
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
