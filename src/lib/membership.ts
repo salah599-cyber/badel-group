@@ -131,8 +131,8 @@ export async function findUserByMembershipNumber(membershipNumber: string) {
   const normalized = normalizeMembershipNumber(membershipNumber);
   if (!normalized) return null;
 
-  let user = await lookupUserByMembershipNumber(normalized);
-  if (user) return user;
+  const found = await lookupUserByMembershipNumber(normalized);
+  if (found) return found;
 
   await rebuildMembershipIndexFromClerk();
   return lookupUserByMembershipNumber(normalized);
