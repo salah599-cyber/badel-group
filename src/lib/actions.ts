@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
-import { ensureMembershipNumber, findUserByMembershipNumber, normalizeMembershipNumber } from "@/lib/membership";
+import { ensureMembershipNumber, findUserByMembershipNumber, getMembershipFromMetadata, normalizeMembershipNumber } from "@/lib/membership";
 import { hasRequiredProfile, normalizeProfileName, validateRegistrationNames } from "@/lib/registration";
 import { getUserDisplayName } from "@/lib/user-display";
 import {
@@ -336,11 +336,9 @@ export async function createEntryAction(formData: FormData): Promise<CreateEntry
             return entryError("Enter a valid 3-digit membership number between 100 and 999.");
           }
 
-          if (
-            normalizeMembershipNumber(
-              String((user.publicMetadata as AdminMetadata)?.membershipNumber ?? ""),
-            ) === normalizedMembershipNumber
-          ) {
+        if (
+          getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalizedMembershipNumber
+        ) {
             return entryError("You cannot select yourself as your partner.");
           }
 

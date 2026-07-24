@@ -13,7 +13,7 @@ import {
 } from "@/lib/permissions";
 import { getUserDisplayName } from "@/lib/user-display";
 import { hasRequiredProfile } from "@/lib/registration";
-import { formatMembershipNumber } from "@/lib/membership";
+import { getMembershipFromMetadata } from "@/lib/membership";
 
 export type PendingUser = {
   id: string;
@@ -62,8 +62,7 @@ function getUserEmail(user: { emailAddresses: { emailAddress: string }[] }) {
 }
 
 function getMembershipNumberFromMeta(meta: AdminMetadata): string | null {
-  if (meta.membershipNumber == null || meta.membershipNumber === "") return null;
-  return formatMembershipNumber(String(meta.membershipNumber));
+  return getMembershipFromMetadata(meta);
 }
 
 export async function fetchPendingUsers(): Promise<PendingUser[]> {

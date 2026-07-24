@@ -9,14 +9,6 @@ const MEMBERSHIP_MIN = 100;
 const MEMBERSHIP_MAX = 999;
 const MAX_ASSIGN_ATTEMPTS = 50;
 
-function membershipNumbersMatch(
-  stored: string | number | undefined | null,
-  normalized: string,
-) {
-  if (stored == null || stored === "") return false;
-  return normalizeMembershipNumber(String(stored)) === normalized;
-}
-
 export function normalizeMembershipNumber(input: string): string | null {
   const digits = input.replace(/\D/g, "");
   if (!digits || digits.length > 3) return null;
@@ -27,6 +19,17 @@ export function normalizeMembershipNumber(input: string): string | null {
   }
 
   return String(value);
+}
+
+/** Read membership # from Clerk public metadata (supports legacy snake_case). */
+export function getMembershipFromMetadata(
+  meta: AdminMetadata | Record<string, unknown> | null | undefined,
+): string | null {
+  if (!meta || typeof meta !== "object") return null;
+  const record = meta as Record<string, unknown>;
+  const raw = record.membershipNumber ?? record.membership_number;
+  if (raw == null || raw === "") return null;
+  return normalizeMembershipNumber(String(raw));
 }
 
 function randomMembershipNumber() {
@@ -41,25 +44,91 @@ async function listAllUsers() {
 
   while (true) {
     const response = await client.users.getUserList({ limit, offset, orderBy: "-created_at" });
+    if (response.data.length === 0) break;
+
     users.push(...response.data);
     offset += response.data.length;
-    if (offset >= response.totalCount || response.data.length === 0) {
-      break;
-    }
+
+    if (response.data.length < limit) break;
   }
 
   return users;
 }
 
 async function persistMembershipNumber(userId: string, membershipNumber: string) {
-  await upsertMembershipIndex(userId, membershipNumber);
+  const normalized = normalizeMembershipNumber(membershipNumber);
+  if (!normalized) return;
+  await upsertMembershipIndex(userId, normalized);
+}
+
+export async function rebuildMembershipIndexFromClerk() {
+  const users = await listAllUsers();
+  const client = await clerkClient();
+
+  for (const user of users) {
+    let membershipNumber = getMembershipFromMetadata(user.publicMetadata as AdminMetadata);
+
+    if (!membershipNumber) {
+      try {
+        const fullUser = await client.users.getUser(user.id);
+        membershipNumber = getMembershipFromMetadata(fullUser.publicMetadata as AdminMetadata);
+      } catch {
+        continue;
+      }
+    }
+
+    if (membershipNumber) {
+      await persistMembershipNumber(user.id, membershipNumber);
+    }
+  }
+}
+
+async function lookupUserByMembershipNumber(normalized: string) {
+  const indexedUserId = await getUserIdByMembershipNumber(normalized);
+  if (indexedUserId) {
+    const client = await clerkClient();
+    try {
+      const user = await client.users.getUser(indexedUserId);
+      if (getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized) {
+        return user;
+      }
+    } catch {
+      // Stale index — fall through.
+    }
+  }
+
+  const client = await clerkClient();
+  const { data: queryResults } = await client.users.getUserList({
+    query: normalized,
+    limit: 100,
+  });
+
+  for (const user of queryResults) {
+    if (getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized) {
+      await persistMembershipNumber(user.id, normalized);
+      return user;
+    }
+  }
+
+  const users = await listAllUsers();
+  for (const user of users) {
+    if (getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized) {
+      await persistMembershipNumber(user.id, normalized);
+      return user;
+    }
+  }
+
+  return null;
 }
 
 export async function isMembershipNumberTaken(
   membershipNumber: string,
   excludeUserId?: string,
 ) {
-  const indexedUserId = await getUserIdByMembershipNumber(membershipNumber);
+  const normalized = normalizeMembershipNumber(membershipNumber);
+  if (!normalized) return false;
+
+  const indexedUserId = await getUserIdByMembershipNumber(normalized);
   if (indexedUserId && indexedUserId !== excludeUserId) {
     return true;
   }
@@ -68,8 +137,7 @@ export async function isMembershipNumberTaken(
 
   return users.some((user) => {
     if (excludeUserId && user.id === excludeUserId) return false;
-    const meta = user.publicMetadata as AdminMetadata;
-    return membershipNumbersMatch(meta.membershipNumber, membershipNumber);
+    return getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized;
   });
 }
 
@@ -77,44 +145,11 @@ export async function findUserByMembershipNumber(membershipNumber: string) {
   const normalized = normalizeMembershipNumber(membershipNumber);
   if (!normalized) return null;
 
-  const indexedUserId = await getUserIdByMembershipNumber(normalized);
-  if (indexedUserId) {
-    const client = await clerkClient();
-    try {
-      return await client.users.getUser(indexedUserId);
-    } catch {
-      // Stale index — fall through to Clerk search.
-    }
-  }
+  let user = await lookupUserByMembershipNumber(normalized);
+  if (user) return user;
 
-  const client = await clerkClient();
-  const { data: queryResults } = await client.users.getUserList({
-    query: normalized,
-    limit: 25,
-  });
-  const fromQuery =
-    queryResults.find((user) => {
-      const meta = user.publicMetadata as AdminMetadata;
-      return membershipNumbersMatch(meta.membershipNumber, normalized);
-    }) ?? null;
-
-  if (fromQuery) {
-    await persistMembershipNumber(fromQuery.id, normalized);
-    return fromQuery;
-  }
-
-  const users = await listAllUsers();
-  const found =
-    users.find((user) => {
-      const meta = user.publicMetadata as AdminMetadata;
-      return membershipNumbersMatch(meta.membershipNumber, normalized);
-    }) ?? null;
-
-  if (found) {
-    await persistMembershipNumber(found.id, normalized);
-  }
-
-  return found;
+  await rebuildMembershipIndexFromClerk();
+  return lookupUserByMembershipNumber(normalized);
 }
 
 export async function ensureMembershipNumber(userId: string): Promise<string> {
@@ -122,10 +157,10 @@ export async function ensureMembershipNumber(userId: string): Promise<string> {
   const user = await client.users.getUser(userId);
   const metadata = user.publicMetadata as AdminMetadata;
 
-  if (metadata.membershipNumber != null && metadata.membershipNumber !== "") {
-    const membershipNumber = String(metadata.membershipNumber);
-    await persistMembershipNumber(userId, membershipNumber);
-    return membershipNumber;
+  const existing = getMembershipFromMetadata(metadata);
+  if (existing) {
+    await persistMembershipNumber(userId, existing);
+    return existing;
   }
 
   for (let attempt = 0; attempt < MAX_ASSIGN_ATTEMPTS; attempt += 1) {
