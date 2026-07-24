@@ -674,7 +674,7 @@ export async function withdrawEntryAction(entryId: string, mode: "solo" | "team"
       }
     }
   } else {
-    if (!userCanWithdrawSolo(entry, user.id, tournamentEntries)) {
+    if (!userCanWithdrawSolo(entry, user.id, tournamentEntries, userEmail)) {
       throw new Error("Use team cancellation to withdraw from a team registration");
     }
 
