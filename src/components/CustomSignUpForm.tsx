@@ -4,6 +4,7 @@ import { useSignUp } from "@clerk/nextjs/legacy";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PasswordRequirementsHint } from "@/components/CompleteProfileForm";
+import { completeProfileAction } from "@/lib/actions";
 import {
   normalizeProfileName,
   registrationFieldLimits,
@@ -88,8 +89,6 @@ export function CustomSignUpForm() {
       await signUp.create({
         emailAddress: normalizedEmail,
         password,
-        firstName: normalizedFirstName,
-        lastName: normalizedLastName,
         unsafeMetadata: {
           profileFirstName: normalizedFirstName,
           profileLastName: normalizedLastName,
@@ -123,6 +122,12 @@ export function CustomSignUpForm() {
       const result = await signUp.attemptEmailAddressVerification({ code: verificationCode });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
+
+        const profileForm = new FormData();
+        profileForm.set("firstName", normalizeProfileName(firstName));
+        profileForm.set("lastName", normalizeProfileName(lastName));
+        await completeProfileAction(profileForm);
+
         router.push("/pending-approval");
         return;
       }
