@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { deleteUserAction } from "@/lib/actions";
+import { MembershipNumberLabel } from "@/components/MembershipNumberLabel";
 import type { SiteMember } from "@/lib/admin-members";
 
 export function SiteMembersSection({
@@ -30,7 +31,8 @@ export function SiteMembersSection({
         Site Members ({siteMembers.length})
       </h2>
       <p className="mb-4 text-sm text-gray-600">
-        Approved members with site access. Deleting a user permanently removes their account.
+        Approved members with site access. Each person&apos;s 3-digit membership number is shown for
+        tournament partner sign-up. Deleting a user permanently removes their account.
       </p>
 
       {siteMembers.length > 0 ? (
@@ -43,6 +45,7 @@ export function SiteMembersSection({
               <div>
                 <p className="font-medium">{member.name}</p>
                 <p className="text-sm text-gray-500">{member.email}</p>
+                <MembershipNumberLabel membershipNumber={member.membershipNumber} className="mt-1" />
               </div>
               <button
                 type="button"
