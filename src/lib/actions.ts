@@ -1147,6 +1147,47 @@ export async function approveUserAction(userId: string) {
   revalidatePath("/admin");
 }
 
+export type AssignMembershipResult =
+  | { ok: true; membershipNumber: string }
+  | { ok: false; error: string };
+
+export async function assignMembershipNumberAction(input: {
+  userId?: string;
+  email?: string;
+}): Promise<AssignMembershipResult> {
+  try {
+    await requirePermission("users:approve");
+
+    let userId = input.userId?.trim();
+    const email = input.email?.trim().toLowerCase();
+
+    if (!userId && email) {
+      const user = await findUserByEmail(email);
+      if (!user) {
+        return { ok: false, error: `No account found for ${email}.` };
+      }
+      userId = user.id;
+    }
+
+    if (!userId) {
+      return { ok: false, error: "Enter a member email or select a user." };
+    }
+
+    const membershipNumber = await ensureMembershipNumber(userId);
+
+    revalidatePath("/admin");
+    revalidatePath("/signup");
+
+    return { ok: true, membershipNumber };
+  } catch (error) {
+    console.error("[assignMembershipNumberAction]", error);
+    return {
+      ok: false,
+      error: "Could not assign a membership number. Please try again.",
+    };
+  }
+}
+
 export async function completeProfileAction(formData: FormData) {
   const user = await currentUser();
   if (!user) throw new Error("You must be signed in.");

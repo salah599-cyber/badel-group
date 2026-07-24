@@ -1,7 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
-import { deleteUserAction } from "@/lib/actions";
+import { assignMembershipNumberAction, deleteUserAction } from "@/lib/actions";
+import { AssignMembershipByEmailForm } from "@/components/AssignMembershipByEmailForm";
 import { MembershipNumberLabel } from "@/components/MembershipNumberLabel";
 import type { SiteMember } from "@/lib/admin-members";
 
@@ -35,6 +36,8 @@ export function SiteMembersSection({
         tournament partner sign-up. Deleting a user permanently removes their account.
       </p>
 
+      <AssignMembershipByEmailForm onComplete={onComplete} />
+
       {siteMembers.length > 0 ? (
         <div className="space-y-3">
           {siteMembers.map((member) => (
@@ -47,24 +50,41 @@ export function SiteMembersSection({
                 <p className="text-sm text-gray-500">{member.email}</p>
                 <MembershipNumberLabel membershipNumber={member.membershipNumber} className="mt-1" />
               </div>
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() =>
-                  run(async () => {
-                    if (
-                      confirm(
-                        `Permanently delete ${member.email}? This cannot be undone.`,
-                      )
-                    ) {
-                      await deleteUserAction(member.id);
+              <div className="flex flex-wrap gap-2">
+                {!member.membershipNumber && (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() =>
+                      run(async () => {
+                        const result = await assignMembershipNumberAction({ userId: member.id });
+                        if (!result.ok) alert(result.error);
+                      })
                     }
-                  })
-                }
-                className="rounded-lg bg-brand-red px-3 py-1.5 text-sm font-semibold text-white"
-              >
-                Delete user
-              </button>
+                    className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary-dark"
+                  >
+                    Assign membership #
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() =>
+                    run(async () => {
+                      if (
+                        confirm(
+                          `Permanently delete ${member.email}? This cannot be undone.`,
+                        )
+                      ) {
+                        await deleteUserAction(member.id);
+                      }
+                    })
+                  }
+                  className="rounded-lg bg-brand-red px-3 py-1.5 text-sm font-semibold text-white"
+                >
+                  Delete user
+                </button>
+              </div>
             </div>
           ))}
         </div>
