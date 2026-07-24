@@ -1,7 +1,9 @@
 import { PartnershipRequests } from "@/components/PartnershipRequests";
+import { MyRegistrations } from "@/components/MyRegistrations";
 import { SectionHeading } from "@/components/SectionHeading";
 import { SignupForm } from "@/components/SignupForm";
-import { fetchPartnershipRequests, fetchUpcomingTournaments } from "@/lib/data";
+import { fetchActiveRegistrations, fetchPartnershipRequests, fetchUpcomingTournaments } from "@/lib/data";
+import { getEntriesForTournaments } from "@/lib/db/queries";
 import { ensureMembershipNumber } from "@/lib/membership";
 import { parsePlayingSide } from "@/lib/player-profile";
 import type { AdminMetadata } from "@/lib/permissions";
@@ -25,6 +27,16 @@ export default async function SignupPage() {
   const partnershipRequests = email
     ? await fetchPartnershipRequests(email, user.id)
     : [];
+  const registrations = email ? await fetchActiveRegistrations(email, user.id) : [];
+  const tournamentIds = [
+    ...new Set(registrations.map((entry) => entry.tournamentId).filter(Boolean) as string[]),
+  ];
+  const tournamentEntries = tournamentIds.length
+    ? await getEntriesForTournaments(tournamentIds)
+    : [];
+  const registeredTournamentIds = new Set(
+    registrations.map((entry) => entry.tournamentId).filter(Boolean) as string[],
+  );
   const defaultPlayingSide = parsePlayingSide(metadata.playingSide);
 
   return (
@@ -44,10 +56,18 @@ export default async function SignupPage() {
 
       <PartnershipRequests requests={partnershipRequests} />
 
+      <MyRegistrations
+        registrations={registrations}
+        tournamentEntries={tournamentEntries}
+        userId={user.id}
+        userEmail={email}
+      />
+
       {tournaments.length > 0 ? (
         <div className="section-shell">
           <SignupForm
             tournaments={tournaments}
+            registeredTournamentIds={[...registeredTournamentIds]}
             defaultFirstName={firstName}
             defaultLastName={lastName}
             defaultEmail={email}

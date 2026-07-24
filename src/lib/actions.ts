@@ -14,7 +14,7 @@ import {
   requireSuperAdmin,
 } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { countTournamentsByType, deletePlayerProfile, getEntryById, getTournamentCapacity, hasExistingEntry, upsertPlayerProfile } from "@/lib/db/queries";
+import { countTournamentsByType, deletePlayerProfile, findTournamentParticipation, getEntriesForTournament, getEntryById, getTournamentCapacity, hasExistingEntry, upsertPlayerProfile } from "@/lib/db/queries";
 import {
   entries,
   galleryPhotos,
@@ -23,7 +23,8 @@ import {
   tournamentTypes,
   tournaments,
 } from "@/lib/db/schema";
-import { canAdminApproveEntry } from "@/lib/partnerships";
+import { findManualPairPartner, userCanWithdrawSolo, userCanWithdrawTeam } from "@/lib/tournament-teams";
+import { canAdminApproveEntry, isPartnershipTeamEntry } from "@/lib/partnerships";
 import { parsePlayingSide } from "@/lib/player-profile";
 import { parseNameFields } from "@/lib/user-profile";
 import { normalizePlayerKey } from "@/lib/rankings";
@@ -279,6 +280,12 @@ export async function createEntryAction(formData: FormData) {
   const partnerName = (formData.get("partnerName") as string | null)?.trim() || null;
 
   if (await hasExistingEntry(tournamentId, email, user.id)) {
+    const participation = await findTournamentParticipation(tournamentId, email, user.id);
+    if (participation?.role === "partner") {
+      throw new Error(
+        "You are already registered for this tournament as someone else's partner. Cancel that team registration before signing up again.",
+      );
+    }
     throw new Error("You are already registered for this tournament");
   }
 
@@ -346,6 +353,15 @@ export async function createEntryAction(formData: FormData) {
         resolvedPartnerEmail ?? "Partner",
       );
       partnershipStatus = "pending_partner";
+
+      const partnerParticipation = await findTournamentParticipation(
+        tournamentId,
+        resolvedPartnerEmail ?? "",
+        partnerUserId,
+      );
+      if (partnerParticipation) {
+        throw new Error("Your partner is already registered for this tournament");
+      }
     } else {
       if (!partnerName) throw new Error("Partner name is required");
       resolvedPartnerName = partnerName;
@@ -532,23 +548,23 @@ export async function pairEntriesAction(entryIdA: string, entryIdB: string) {
   await assertEntryPairingAccess(entryIdA);
   await assertEntryPairingAccess(entryIdB);
 
-  const [entryA] = await db
-    .select({ tournamentId: entries.tournamentId })
-    .from(entries)
-    .where(eq(entries.id, entryIdA))
-    .limit(1);
-  const [entryB] = await db
-    .select({ tournamentId: entries.tournamentId })
-    .from(entries)
-    .where(eq(entries.id, entryIdB))
-    .limit(1);
+  const entryA = await getEntryById(entryIdA);
+  const entryB = await getEntryById(entryIdB);
 
   if (!entryA || !entryB) throw new Error("Entry not found");
   if (entryA.tournamentId !== entryB.tournamentId) {
     throw new Error("Players must be in the same tournament");
   }
 
-  if (await isEntryPaired(entryIdA) || await isEntryPaired(entryIdB)) {
+  if (isPartnershipTeamEntry(entryA) || isPartnershipTeamEntry(entryB)) {
+    throw new Error("Players who registered together are already a team and cannot be paired again");
+  }
+
+  if (entryA.signupMode === "with_partner" || entryB.signupMode === "with_partner") {
+    throw new Error("Partnership sign-ups cannot be manually paired");
+  }
+
+  if (await isEntryPaired(entryIdA) || (await isEntryPaired(entryIdB))) {
     throw new Error("One or both players are already paired. Unpair first.");
   }
 
@@ -584,6 +600,97 @@ export async function unpairEntryAction(entryId: string) {
   }
 
   revalidatePath("/admin");
+}
+
+async function withdrawEntryRecord(entryId: string) {
+  if (!db) throw new Error("Database not configured");
+
+  await clearEntryPairing(entryId);
+
+  await db
+    .update(entries)
+    .set({ status: "rejected", partnershipStatus: "rejected" })
+    .where(eq(entries.id, entryId));
+}
+
+export async function withdrawEntryAction(entryId: string, mode: "solo" | "team") {
+  const user = await requireApprovedUser();
+  if (!db) throw new Error("Database not configured");
+
+  const entry = await getEntryById(entryId);
+  if (!entry?.tournamentId) throw new Error("Registration not found");
+
+  const userEmail = user.emailAddresses[0]?.emailAddress?.toLowerCase();
+  const tournamentEntries = await getEntriesForTournament(entry.tournamentId);
+
+  if (mode === "team") {
+    if (!userCanWithdrawTeam(entry, user.id, userEmail, tournamentEntries)) {
+      throw new Error("You cannot cancel this team registration");
+    }
+
+    if (isPartnershipTeamEntry(entry) || entry.signupMode === "with_partner") {
+      await withdrawEntryRecord(entry.id);
+
+      if (entry.partnerUserId) {
+        await notifyUserSafe(entry.partnerUserId, {
+          type: "entry_rejected",
+          title: "Team registration cancelled",
+          message: `The team registration for ${entry.tournamentName} was cancelled.`,
+          href: "/signup",
+        });
+      }
+
+      const playerUserId = await resolveEntryUserId(entry);
+      if (playerUserId) {
+        await notifyUserSafe(playerUserId, {
+          type: "entry_rejected",
+          title: "Team registration cancelled",
+          message: `Your team registration for ${entry.tournamentName} was cancelled.`,
+          href: "/signup",
+        });
+      }
+    } else {
+      const partner = findManualPairPartner(entry, tournamentEntries);
+      if (!partner) {
+        throw new Error("This team pairing could not be found");
+      }
+
+      await withdrawEntryRecord(entry.id);
+      await withdrawEntryRecord(partner.id);
+
+      const notifyIds = new Set<string>();
+      const primaryUserId = await resolveEntryUserId(entry);
+      const partnerUserId = await resolveEntryUserId(partner);
+      if (primaryUserId) notifyIds.add(primaryUserId);
+      if (partnerUserId) notifyIds.add(partnerUserId);
+
+      for (const notifyUserId of notifyIds) {
+        await notifyUserSafe(notifyUserId, {
+          type: "entry_rejected",
+          title: "Team registration cancelled",
+          message: `Your team registration for ${entry.tournamentName} was cancelled.`,
+          href: "/signup",
+        });
+      }
+    }
+  } else {
+    if (!userCanWithdrawSolo(entry, user.id, tournamentEntries)) {
+      throw new Error("Use team cancellation to withdraw from a team registration");
+    }
+
+    await withdrawEntryRecord(entry.id);
+
+    await notifyUserSafe(user.id, {
+      type: "entry_rejected",
+      title: "Registration cancelled",
+      message: `Your registration for ${entry.tournamentName} was cancelled.`,
+      href: "/signup",
+    });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/");
 }
 
 export async function updateEntryStatusAction(entryId: string, status: "approved" | "rejected") {

@@ -11,6 +11,7 @@ import {
   tournaments,
 } from "./schema";
 import { querySponsors } from "./sponsor-db";
+import { countConfirmedTeams } from "@/lib/tournament-teams";
 import type { SponsorTier } from "@/lib/types";
 
 function tournamentSelect() {
@@ -68,15 +69,30 @@ export async function getTournamentById(id: string) {
   return rows[0] ?? null;
 }
 
+export async function getEntriesForTournament(tournamentId: string) {
+  if (!db) return [];
+  const partnerEntry = alias(entries, "partner_entry");
+
+  return db
+    .select(entrySelect())
+    .from(entries)
+    .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
+    .where(eq(entries.tournamentId, tournamentId));
+}
+
+export async function getEntriesForTournaments(tournamentIds: string[]) {
+  if (!tournamentIds.length) return [];
+  const chunks = await Promise.all(tournamentIds.map((id) => getEntriesForTournament(id)));
+  return chunks.flat();
+}
+
 export async function countConfirmedEntries(tournamentId: string) {
   if (!db) return 0;
 
-  const [{ value }] = await db
-    .select({ value: count() })
-    .from(entries)
-    .where(and(eq(entries.tournamentId, tournamentId), eq(entries.status, "approved")));
-
-  return Number(value);
+  const rows = await getEntriesForTournament(tournamentId);
+  return countConfirmedTeams(rows);
 }
 
 export async function countWaitlistedEntries(tournamentId: string) {
@@ -304,30 +320,101 @@ export async function getEntryById(entryId: string) {
 }
 
 export async function hasExistingEntry(tournamentId: string, email: string, userId?: string) {
-  if (!db) return false;
+  const participation = await findTournamentParticipation(tournamentId, email, userId);
+  return participation !== null;
+}
+
+export type TournamentParticipationRole = "primary" | "partner";
+
+export async function findTournamentParticipation(
+  tournamentId: string,
+  email: string,
+  userId?: string,
+) {
+  if (!db) return null;
   const normalizedEmail = email.trim().toLowerCase();
 
-  const identityMatch = userId
+  const activeStatusFilter = or(
+    eq(entries.status, "pending"),
+    eq(entries.status, "approved"),
+    eq(entries.status, "waitlisted"),
+  );
+
+  const primaryMatch = userId
     ? or(eq(entries.userId, userId), sql`lower(${entries.email}) = ${normalizedEmail}`)
     : sql`lower(${entries.email}) = ${normalizedEmail}`;
 
-  const rows = await db
+  const [primary] = await db
+    .select({ id: entries.id })
+    .from(entries)
+    .where(and(eq(entries.tournamentId, tournamentId), primaryMatch, activeStatusFilter))
+    .limit(1);
+
+  if (primary) {
+    return { entryId: primary.id, role: "primary" as const };
+  }
+
+  const partnerMatch = userId
+    ? or(eq(entries.partnerUserId, userId), sql`lower(${entries.partnerEmail}) = ${normalizedEmail}`)
+    : sql`lower(${entries.partnerEmail}) = ${normalizedEmail}`;
+
+  const [partnerRow] = await db
     .select({ id: entries.id })
     .from(entries)
     .where(
       and(
         eq(entries.tournamentId, tournamentId),
-        identityMatch,
+        partnerMatch,
+        activeStatusFilter,
+        eq(entries.signupMode, "with_partner"),
+      ),
+    )
+    .limit(1);
+
+  if (partnerRow) {
+    return { entryId: partnerRow.id, role: "partner" as const };
+  }
+
+  return null;
+}
+
+export async function getActiveRegistrationsForUser(email: string, userId?: string) {
+  if (!db) return [];
+  const normalizedEmail = email.trim().toLowerCase();
+  const partnerEntry = alias(entries, "partner_entry");
+
+  const primaryMatch = userId
+    ? or(eq(entries.userId, userId), sql`lower(${entries.email}) = ${normalizedEmail}`)
+    : sql`lower(${entries.email}) = ${normalizedEmail}`;
+
+  const partnerMatch = userId
+    ? or(eq(entries.partnerUserId, userId), sql`lower(${entries.partnerEmail}) = ${normalizedEmail}`)
+    : sql`lower(${entries.partnerEmail}) = ${normalizedEmail}`;
+
+  const rows = await db
+    .select(entrySelect())
+    .from(entries)
+    .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
+    .where(
+      and(
         or(
           eq(entries.status, "pending"),
           eq(entries.status, "approved"),
           eq(entries.status, "waitlisted"),
         ),
+        or(primaryMatch, and(eq(entries.signupMode, "with_partner"), partnerMatch)),
       ),
     )
-    .limit(1);
+    .orderBy(desc(entries.createdAt));
 
-  return rows.length > 0;
+  const deduped = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    deduped.set(row.id, row);
+  }
+
+  return [...deduped.values()];
 }
 
 export async function getAllEntries() {

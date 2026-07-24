@@ -85,6 +85,14 @@ export async function fetchPendingEntries() {
   return [];
 }
 
+export async function fetchActiveRegistrations(email: string, userId?: string) {
+  if (hasDatabase()) {
+    const { getActiveRegistrationsForUser } = await import("@/lib/db/queries");
+    return getActiveRegistrationsForUser(email, userId);
+  }
+  return [];
+}
+
 export async function fetchPartnershipRequests(email: string, userId?: string) {
   if (hasDatabase()) return getPartnershipRequestsForUser(email, userId);
   return [];

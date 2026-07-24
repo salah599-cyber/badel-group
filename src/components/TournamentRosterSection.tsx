@@ -88,7 +88,7 @@ export function TournamentRosterSection({
         >
           {tournaments.map((tournament) => (
             <option key={tournament.id} value={tournament.id}>
-              {tournament.name} — {tournament.registeredCount}/{tournament.maxPlayers} confirmed
+              {tournament.name} — {tournament.registeredCount}/{tournament.maxPlayers} teams confirmed
               {tournament.waitlistCount > 0 ? `, ${tournament.waitlistCount} waiting` : ""}
             </option>
           ))}

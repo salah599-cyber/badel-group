@@ -40,7 +40,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between text-xs font-medium">
             <span className="text-gray-500">
-              {tournament.registeredCount}/{tournament.maxPlayers} confirmed
+              {tournament.registeredCount}/{tournament.maxPlayers} teams confirmed
             </span>
             <span className={isFull ? "text-amber-700" : spotsLeft <= 4 ? "text-brand-red" : "text-brand-green"}>
               {isFull
