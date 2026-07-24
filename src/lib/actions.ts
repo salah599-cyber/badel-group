@@ -862,6 +862,44 @@ export async function demoteEntryToWaitlistAction(entryId: string) {
   revalidatePath("/");
 }
 
+export async function removeConfirmedEntryAction(entryId: string) {
+  await assertEntryAccess(entryId);
+  if (!db) throw new Error("Database not configured");
+
+  const entry = await getEntryById(entryId);
+  if (!entry) throw new Error("Entry not found");
+  if (entry.status !== "approved") {
+    throw new Error("Only confirmed players can be removed from the roster");
+  }
+
+  await clearEntryPairing(entryId);
+
+  await db
+    .update(entries)
+    .set({ status: "rejected", partnershipStatus: "rejected" })
+    .where(eq(entries.id, entryId));
+
+  await notifyUserSafe(await resolveEntryUserId(entry), {
+    type: "entry_rejected",
+    title: "Registration removed",
+    message: `Your confirmed registration for ${entry.tournamentName} was removed by an admin.`,
+    href: "/signup",
+  });
+
+  if (entry.signupMode === "with_partner" && entry.partnerUserId) {
+    await notifyUserSafe(entry.partnerUserId, {
+      type: "entry_rejected",
+      title: "Team registration changed",
+      message: `The team registration for ${entry.tournamentName} involving ${entry.name} was removed by an admin.`,
+      href: "/signup",
+    });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/");
+}
+
 export async function promoteEntryFromWaitlistAction(entryId: string) {
   await assertEntryAccess(entryId);
   if (!db) throw new Error("Database not configured");
