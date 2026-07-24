@@ -7,6 +7,7 @@ import type { PlayingSide, SignupMode, Tournament } from "@/lib/types";
 
 type SignupFormProps = {
   tournaments: Tournament[];
+  registeredTournamentIds: string[];
   defaultFirstName: string;
   defaultLastName: string;
   defaultEmail: string;
@@ -27,19 +28,23 @@ function signupHint(tournament: Tournament | undefined, signupMode: SignupMode) 
 
 export function SignupForm({
   tournaments,
+  registeredTournamentIds,
   defaultFirstName,
   defaultLastName,
   defaultEmail,
   defaultPlayingSide,
   membershipNumber,
 }: SignupFormProps) {
+  const registeredSet = new Set(registeredTournamentIds);
+  const openTournaments = tournaments.filter((t) => !registeredSet.has(t.id));
+
   const [submitted, setSubmitted] = useState(false);
   const [submittedMode, setSubmittedMode] = useState<SignupMode>("solo");
   const [submittedPartnerType, setSubmittedPartnerType] = useState<"registered" | "unregistered" | null>(null);
   const [submittedWaitlisted, setSubmittedWaitlisted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [selectedId, setSelectedId] = useState(tournaments[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(openTournaments[0]?.id ?? tournaments[0]?.id ?? "");
   const [signupMode, setSignupMode] = useState<SignupMode>("solo");
   const [partnerType, setPartnerType] = useState<"registered" | "unregistered">("registered");
   const [partnerLookup, setPartnerLookup] = useState<"membership_number" | "email">(
@@ -47,6 +52,7 @@ export function SignupForm({
   );
 
   const selectedTournament = tournaments.find((t) => t.id === selectedId);
+  const isAlreadyRegistered = registeredSet.has(selectedId);
   const isSoloOnlyTournament = selectedTournament?.pairingMode === "random";
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -119,12 +125,13 @@ export function SignupForm({
             const spotsLeft = t.maxPlayers - t.registeredCount;
             const capacityLabel =
               spotsLeft > 0
-                ? `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`
+                ? `${spotsLeft} team spot${spotsLeft === 1 ? "" : "s"} left`
                 : `Full — waitlist open (${t.waitlistCount} waiting)`;
+            const alreadyRegistered = registeredSet.has(t.id);
 
             return (
-              <option key={t.id} value={t.id}>
-                {t.name} — {new Date(t.date).toLocaleDateString()} ({t.typeName}) · {capacityLabel}
+              <option key={t.id} value={t.id} disabled={alreadyRegistered}>
+                {alreadyRegistered ? `${t.name} — already registered` : `${t.name} — ${new Date(t.date).toLocaleDateString()} (${t.typeName}) · ${capacityLabel}`}
               </option>
             );
           })}
@@ -401,7 +408,11 @@ export function SignupForm({
         <textarea id="notes" name="notes" rows={3} className="input" />
       </div>
 
-      <button type="submit" disabled={isPending} className="btn-primary w-full py-3">
+      <button
+        type="submit"
+        disabled={isPending || isAlreadyRegistered || openTournaments.length === 0}
+        className="btn-primary w-full py-3"
+      >
         {isPending ? "Submitting..." : "Submit Registration"}
       </button>
     </form>
