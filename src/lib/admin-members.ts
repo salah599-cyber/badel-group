@@ -14,6 +14,7 @@ import {
 import { getUserDisplayName } from "@/lib/user-display";
 import { hasRequiredProfile } from "@/lib/registration";
 import { getMembershipFromMetadata } from "@/lib/membership";
+import { listAllClerkUsers } from "@/lib/clerk-user-list";
 
 export type PendingUser = {
   id: string;
@@ -67,8 +68,7 @@ function getMembershipNumberFromMeta(meta: AdminMetadata): string | null {
 
 export async function fetchPendingUsers(): Promise<PendingUser[]> {
   await requirePermission("users:approve");
-  const client = await clerkClient();
-  const { data } = await client.users.getUserList({ limit: 100, orderBy: "-created_at" });
+  const data = await listAllClerkUsers();
 
   return data
     .filter((user) => {
@@ -86,8 +86,7 @@ export async function fetchPendingUsers(): Promise<PendingUser[]> {
 
 export async function fetchAdminMembers(): Promise<AdminMember[]> {
   await requireSuperAdmin();
-  const client = await clerkClient();
-  const { data } = await client.users.getUserList({ limit: 100, orderBy: "-created_at" });
+  const data = await listAllClerkUsers();
 
   return data
     .filter((user) => isAdminRole((user.publicMetadata as AdminMetadata)?.role))
@@ -120,8 +119,7 @@ export async function fetchAdminMembers(): Promise<AdminMember[]> {
 
 export async function fetchSiteMembers(): Promise<SiteMember[]> {
   await requirePermission("users:approve");
-  const client = await clerkClient();
-  const { data } = await client.users.getUserList({ limit: 100, orderBy: "-created_at" });
+  const data = await listAllClerkUsers();
 
   return data
     .filter((user) => {
