@@ -13,11 +13,13 @@ import {
 } from "@/lib/permissions";
 import { getUserDisplayName } from "@/lib/user-display";
 import { hasRequiredProfile } from "@/lib/registration";
+import { formatMembershipNumber } from "@/lib/membership";
 
 export type PendingUser = {
   id: string;
   email: string;
   name: string;
+  membershipNumber: string | null;
   createdAt: number;
 };
 
@@ -25,6 +27,7 @@ export type AdminMember = {
   id: string;
   email: string;
   name: string;
+  membershipNumber: string | null;
   role: AdminRole;
   permissions: Permission[];
   tournamentIds: string[];
@@ -35,6 +38,7 @@ export type SiteMember = {
   id: string;
   email: string;
   name: string;
+  membershipNumber: string | null;
   status: string;
   createdAt: number;
 };
@@ -57,6 +61,11 @@ function getUserEmail(user: { emailAddresses: { emailAddress: string }[] }) {
   return user.emailAddresses[0]?.emailAddress ?? "No email";
 }
 
+function getMembershipNumberFromMeta(meta: AdminMetadata): string | null {
+  if (meta.membershipNumber == null || meta.membershipNumber === "") return null;
+  return formatMembershipNumber(String(meta.membershipNumber));
+}
+
 export async function fetchPendingUsers(): Promise<PendingUser[]> {
   await requirePermission("users:approve");
   const client = await clerkClient();
@@ -71,6 +80,7 @@ export async function fetchPendingUsers(): Promise<PendingUser[]> {
       id: user.id,
       email: getUserEmail(user),
       name: getUserName(user),
+      membershipNumber: getMembershipNumberFromMeta(user.publicMetadata as AdminMetadata),
       createdAt: user.createdAt,
     }));
 }
@@ -93,6 +103,7 @@ export async function fetchAdminMembers(): Promise<AdminMember[]> {
         id: user.id,
         email: getUserEmail(user),
         name: getUserName(user),
+        membershipNumber: getMembershipNumberFromMeta(meta),
         role,
         permissions:
           role === "super_admin"
@@ -122,6 +133,7 @@ export async function fetchSiteMembers(): Promise<SiteMember[]> {
       id: user.id,
       email: getUserEmail(user),
       name: getUserName(user),
+      membershipNumber: getMembershipNumberFromMeta(user.publicMetadata as AdminMetadata),
       status: (user.publicMetadata as AdminMetadata)?.status ?? "approved",
       createdAt: user.createdAt,
     }));

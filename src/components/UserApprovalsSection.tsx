@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { approveUserAction, deleteUserAction, rejectUserAction } from "@/lib/actions";
+import { MembershipNumberLabel } from "@/components/MembershipNumberLabel";
 import type { PendingUser } from "@/lib/clerk-users";
 
 export function UserApprovalsSection({
@@ -30,7 +31,8 @@ export function UserApprovalsSection({
         User Sign-up Approvals ({pendingUsers.length})
       </h2>
       <p className="mb-4 text-sm text-gray-600">
-        New accounts must be approved before they can access the site.
+        New accounts must be approved before they can access the site. Membership numbers are
+        listed so you can help members pair for tournaments.
       </p>
 
       {pendingUsers.length > 0 ? (
@@ -43,6 +45,7 @@ export function UserApprovalsSection({
               <div>
                 <p className="font-medium">{user.name}</p>
                 <p className="text-sm text-gray-500">{user.email}</p>
+                <MembershipNumberLabel membershipNumber={user.membershipNumber} className="mt-1" />
                 <p className="text-xs text-gray-400">
                   Signed up {new Date(user.createdAt).toLocaleString()}
                 </p>
