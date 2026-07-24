@@ -46,13 +46,17 @@ export async function syncClerkUserProfileNames(
     console.warn("[clerk] Could not update firstName/lastName on user record:", error);
   }
 
-  await client.users.updateUserMetadata(userId, {
-    publicMetadata: {
-      ...user.publicMetadata,
-      profileFirstName: firstName,
-      profileLastName: lastName,
-      profileComplete: true,
-      ...publicMetadataPatch,
-    },
-  });
+  try {
+    await client.users.updateUserMetadata(userId, {
+      publicMetadata: {
+        ...user.publicMetadata,
+        profileFirstName: firstName,
+        profileLastName: lastName,
+        profileComplete: true,
+        ...publicMetadataPatch,
+      },
+    });
+  } catch (error) {
+    console.warn("[clerk] Could not update profile metadata:", error);
+  }
 }

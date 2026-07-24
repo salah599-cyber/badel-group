@@ -36,7 +36,7 @@ import {
   markNotificationRead,
   type AppNotification,
 } from "@/lib/notifications";
-import { hasAdminAccess } from "@/lib/permissions";
+import { hasAdminAccess, isMemberApproved } from "@/lib/permissions";
 import type { AdminMetadata } from "@/lib/permissions";
 import { insertSponsorRow } from "@/lib/db/sponsor-db";
 import { normalizeSponsorLink } from "@/lib/urls";
@@ -46,6 +46,14 @@ import {
   type AdminRole,
   type Permission,
 } from "@/lib/permissions";
+
+export type CreateEntryResult =
+  | { ok: true; status: "pending" | "waitlisted" }
+  | { ok: false; error: string };
+
+function entryError(error: string): CreateEntryResult {
+  return { ok: false, error };
+}
 
 async function assertEntryAccess(entryId: string) {
   const ctx = await requirePermission("entries:manage");
@@ -235,187 +243,222 @@ export async function deleteTournamentTypeAction(typeId: string) {
   revalidatePath("/admin");
 }
 
-export async function createEntryAction(formData: FormData) {
-  const user = await requireApprovedUser();
+export async function createEntryAction(formData: FormData): Promise<CreateEntryResult> {
+  try {
+    const user = await currentUser();
+    if (!user) return entryError("You must be signed in to register.");
 
-  if (!db) throw new Error("Database not configured");
-
-  const tournamentId = formData.get("tournamentId") as string;
-  const email = (formData.get("email") as string).trim().toLowerCase();
-  const userEmail = user.emailAddresses[0]?.emailAddress?.toLowerCase();
-  const playingSide = parsePlayingSide(formData.get("playingSide"));
-
-  if (userEmail && email !== userEmail) {
-    throw new Error("Email must match your account email");
-  }
-
-  const [tournament] = await db
-    .select({
-      id: tournaments.id,
-      name: tournaments.name,
-      pairingMode: tournamentTypes.pairingMode,
-      maxPlayers: tournaments.maxPlayers,
-    })
-    .from(tournaments)
-    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
-    .where(eq(tournaments.id, tournamentId))
-    .limit(1);
-
-  if (!tournament) throw new Error("Tournament not found");
-
-  const capacity = await getTournamentCapacity(tournamentId);
-  if (!capacity) throw new Error("Tournament not found");
-
-  const signupMode =
-    tournament.pairingMode === "random"
-      ? "solo"
-      : ((formData.get("signupMode") as "solo" | "with_partner") || "solo");
-  const partnerType = formData.get("partnerType") as "registered" | "unregistered" | null;
-  const partnerLookup =
-    (formData.get("partnerLookup") as "membership_number" | "email" | null) ??
-    "membership_number";
-  const partnerEmail = (formData.get("partnerEmail") as string | null)?.trim().toLowerCase() || null;
-  const partnerMembershipNumber =
-    (formData.get("partnerMembershipNumber") as string | null)?.trim() || null;
-  const partnerName = (formData.get("partnerName") as string | null)?.trim() || null;
-
-  if (await hasExistingEntry(tournamentId, email, user.id)) {
-    const participation = await findTournamentParticipation(tournamentId, email, user.id);
-    if (participation?.role === "partner") {
-      throw new Error(
-        "You are already registered for this tournament as someone else's partner. Cancel that team registration before signing up again.",
-      );
+    if (!isMemberApproved(user.publicMetadata as AdminMetadata)) {
+      return entryError("Your account must be approved before you can register for tournaments.");
     }
-    throw new Error("You are already registered for this tournament");
-  }
 
-  let partnershipStatus: "not_applicable" | "pending_partner" | "pending_admin" | "approved" =
-    "not_applicable";
-  let partnerUserId: string | null = null;
-  let resolvedPartnerName: string | null = null;
-  let resolvedPartnerEmail: string | null = null;
+    if (!db) return entryError("Registration is temporarily unavailable. Please try again later.");
 
-  if (signupMode === "with_partner") {
-    if (partnerType === "registered") {
-      let partnerUser = null;
+    const tournamentId = formData.get("tournamentId") as string;
+    const email = (formData.get("email") as string).trim().toLowerCase();
+    const userEmail = user.emailAddresses[0]?.emailAddress?.toLowerCase();
+    const playingSide = parsePlayingSide(formData.get("playingSide"));
 
-      if (partnerLookup === "email") {
-        if (!partnerEmail) throw new Error("Partner email is required");
+    if (userEmail && email !== userEmail) {
+      return entryError("Email must match your account email.");
+    }
 
-        if (partnerEmail === email) {
-          throw new Error("You cannot select yourself as your partner");
+    const [tournament] = await db
+      .select({
+        id: tournaments.id,
+        name: tournaments.name,
+        pairingMode: tournamentTypes.pairingMode,
+        maxPlayers: tournaments.maxPlayers,
+      })
+      .from(tournaments)
+      .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+      .where(eq(tournaments.id, tournamentId))
+      .limit(1);
+
+    if (!tournament) return entryError("Tournament not found.");
+
+    const capacity = await getTournamentCapacity(tournamentId);
+    if (!capacity) return entryError("Tournament not found.");
+
+    const signupMode =
+      tournament.pairingMode === "random"
+        ? "solo"
+        : ((formData.get("signupMode") as "solo" | "with_partner") || "solo");
+    const partnerType = formData.get("partnerType") as "registered" | "unregistered" | null;
+    const partnerLookup =
+      (formData.get("partnerLookup") as "membership_number" | "email" | null) ??
+      "membership_number";
+    const partnerEmail = (formData.get("partnerEmail") as string | null)?.trim().toLowerCase() || null;
+    const partnerMembershipNumber =
+      (formData.get("partnerMembershipNumber") as string | null)?.trim() || null;
+    const partnerName = (formData.get("partnerName") as string | null)?.trim() || null;
+
+    if (await hasExistingEntry(tournamentId, email, user.id)) {
+      const participation = await findTournamentParticipation(tournamentId, email, user.id);
+      if (participation?.role === "partner") {
+        return entryError(
+          "You are already registered for this tournament as someone else's partner. Cancel that team registration before signing up again.",
+        );
+      }
+      return entryError("You are already registered for this tournament.");
+    }
+
+    let partnershipStatus: "not_applicable" | "pending_partner" | "pending_admin" | "approved" =
+      "not_applicable";
+    let partnerUserId: string | null = null;
+    let resolvedPartnerName: string | null = null;
+    let resolvedPartnerEmail: string | null = null;
+
+    if (signupMode === "with_partner") {
+      if (partnerType === "registered") {
+        let partnerUser = null;
+
+        if (partnerLookup === "email") {
+          if (!partnerEmail) return entryError("Partner email is required.");
+
+          if (partnerEmail === email) {
+            return entryError("You cannot select yourself as your partner.");
+          }
+
+          partnerUser = await findUserByEmail(partnerEmail);
+          if (!partnerUser) {
+            return entryError(
+              "No registered member found with that email. Try their membership number instead, or choose “Not registered yet”.",
+            );
+          }
+        } else {
+          if (!partnerMembershipNumber) {
+            return entryError("Partner membership number is required.");
+          }
+
+          const normalizedMembershipNumber = normalizeMembershipNumber(partnerMembershipNumber);
+          if (!normalizedMembershipNumber) {
+            return entryError("Enter a valid 3-digit membership number between 100 and 999.");
+          }
+
+          if (
+            normalizeMembershipNumber(
+              String((user.publicMetadata as AdminMetadata)?.membershipNumber ?? ""),
+            ) === normalizedMembershipNumber
+          ) {
+            return entryError("You cannot select yourself as your partner.");
+          }
+
+          partnerUser = await findUserByMembershipNumber(normalizedMembershipNumber);
+          if (!partnerUser) {
+            return entryError(
+              "No registered member found with that membership number. Check the number or choose “Not registered yet”.",
+            );
+          }
         }
 
-        partnerUser = await findUserByEmail(partnerEmail);
-        if (!partnerUser) {
-          throw new Error(
-            "No registered member found with that email. Try their membership number instead, or choose “Not registered yet”.",
-          );
+        const partnerMeta = partnerUser.publicMetadata as AdminMetadata;
+        if (!hasAdminAccess(partnerMeta) && partnerMeta?.approved !== true) {
+          return entryError("Your partner must be a registered and approved member.");
+        }
+
+        partnerUserId = partnerUser.id;
+        resolvedPartnerEmail = partnerUser.emailAddresses[0]?.emailAddress?.toLowerCase() ?? null;
+        resolvedPartnerName = getUserDisplayName(
+          {
+            firstName: partnerUser.firstName,
+            lastName: partnerUser.lastName,
+            emailAddresses: partnerUser.emailAddresses,
+            publicMetadata: partnerMeta,
+          },
+          resolvedPartnerEmail ?? "Partner",
+        );
+        partnershipStatus = "pending_partner";
+
+        const partnerParticipation = await findTournamentParticipation(
+          tournamentId,
+          resolvedPartnerEmail ?? "",
+          partnerUserId,
+        );
+        if (partnerParticipation) {
+          return entryError("Your partner is already registered for this tournament.");
         }
       } else {
-        if (!partnerMembershipNumber) {
-          throw new Error("Partner membership number is required");
-        }
-
-        const normalizedMembershipNumber = normalizeMembershipNumber(partnerMembershipNumber);
-        if (!normalizedMembershipNumber) {
-          throw new Error("Enter a valid 3-digit membership number between 100 and 999");
-        }
-
-        if (
-          normalizeMembershipNumber(
-            String((user.publicMetadata as AdminMetadata)?.membershipNumber ?? ""),
-          ) === normalizedMembershipNumber
-        ) {
-          throw new Error("You cannot select yourself as your partner");
-        }
-
-        partnerUser = await findUserByMembershipNumber(normalizedMembershipNumber);
-        if (!partnerUser) {
-          throw new Error(
-            "No registered member found with that membership number. Check the number or choose “Not registered yet”.",
-          );
-        }
+        if (!partnerName) return entryError("Partner name is required.");
+        resolvedPartnerName = partnerName;
+        partnershipStatus = "pending_admin";
       }
-
-      const partnerMeta = partnerUser.publicMetadata as AdminMetadata;
-      if (!hasAdminAccess(partnerMeta) && partnerMeta?.approved !== true) {
-        throw new Error("Your partner must be a registered and approved member");
-      }
-
-      partnerUserId = partnerUser.id;
-      resolvedPartnerEmail = partnerUser.emailAddresses[0]?.emailAddress?.toLowerCase() ?? null;
-      resolvedPartnerName = getUserDisplayName(
-        {
-          firstName: partnerUser.firstName,
-          lastName: partnerUser.lastName,
-          emailAddresses: partnerUser.emailAddresses,
-          publicMetadata: partnerMeta,
-        },
-        resolvedPartnerEmail ?? "Partner",
-      );
-      partnershipStatus = "pending_partner";
-
-      const partnerParticipation = await findTournamentParticipation(
-        tournamentId,
-        resolvedPartnerEmail ?? "",
-        partnerUserId,
-      );
-      if (partnerParticipation) {
-        throw new Error("Your partner is already registered for this tournament");
-      }
-    } else {
-      if (!partnerName) throw new Error("Partner name is required");
-      resolvedPartnerName = partnerName;
-      partnershipStatus = "pending_admin";
     }
+
+    const entryStatus = capacity.isFull ? "waitlisted" : "pending";
+
+    let firstName: string;
+    let lastName: string;
+    let fullName: string;
+    try {
+      ({ firstName, lastName, fullName } = parseNameFields(formData));
+    } catch (error) {
+      return entryError(
+        error instanceof Error ? error.message : "First name and last name are required.",
+      );
+    }
+
+    const nameValidationError = validateRegistrationNames(firstName, lastName);
+    if (nameValidationError) return entryError(nameValidationError);
+
+    const phone = (formData.get("phone") as string | null)?.trim();
+    if (!phone) return entryError("Phone number is required.");
+
+    try {
+      await db.insert(entries).values({
+        tournamentId,
+        userId: user.id,
+        name: fullName,
+        email,
+        phone,
+        signupMode,
+        partnerName: resolvedPartnerName,
+        partnerEmail: resolvedPartnerEmail,
+        partnerUserId,
+        partnershipStatus,
+        playingSide,
+        skillLevel: formData.get("skillLevel") as string,
+        notes: (formData.get("notes") as string) || null,
+        status: entryStatus,
+      });
+    } catch (error) {
+      console.error("[createEntryAction] Failed to insert entry:", error);
+      return entryError("Could not save your registration. Please try again or contact support.");
+    }
+
+    if (partnershipStatus === "pending_partner" && partnerUserId) {
+      await notifyUserSafe(partnerUserId, {
+        type: "partnership_invite",
+        title: "New partnership request",
+        message: `${fullName} invited you to partner for ${tournament.name}.`,
+        href: "/signup",
+      });
+    }
+
+    try {
+      await syncClerkUserProfileNames(user.id, firstName, lastName, { playingSide });
+    } catch (error) {
+      console.error("[createEntryAction] Profile sync failed:", error);
+    }
+
+    if (entryStatus === "waitlisted") {
+      await notifyUserSafe(user.id, {
+        type: "entry_waitlisted",
+        title: "Added to waiting list",
+        message: `${tournament.name} is full. You have been added to the waiting list and will be notified if a spot opens.`,
+        href: "/signup",
+      });
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/signup");
+    revalidatePath("/");
+
+    return { ok: true, status: entryStatus };
+  } catch (error) {
+    console.error("[createEntryAction] Unexpected error:", error);
+    return entryError("Registration failed. Please try again or contact support.");
   }
-
-  const entryStatus = capacity.isFull ? "waitlisted" : "pending";
-  const { firstName, lastName, fullName } = parseNameFields(formData);
-
-  await db.insert(entries).values({
-    tournamentId,
-    userId: user.id,
-    name: fullName,
-    email,
-    phone: formData.get("phone") as string,
-    signupMode,
-    partnerName: resolvedPartnerName,
-    partnerEmail: resolvedPartnerEmail,
-    partnerUserId,
-    partnershipStatus,
-    playingSide,
-    skillLevel: formData.get("skillLevel") as string,
-    notes: (formData.get("notes") as string) || null,
-    status: entryStatus,
-  });
-
-  if (partnershipStatus === "pending_partner" && partnerUserId) {
-    await notifyUserSafe(partnerUserId, {
-      type: "partnership_invite",
-      title: "New partnership request",
-      message: `${fullName} invited you to partner for ${tournament.name}.`,
-      href: "/signup",
-    });
-  }
-
-  await syncClerkUserProfileNames(user.id, firstName, lastName, { playingSide });
-
-  if (entryStatus === "waitlisted") {
-    await notifyUserSafe(user.id, {
-      type: "entry_waitlisted",
-      title: "Added to waiting list",
-      message: `${tournament.name} is full. You have been added to the waiting list and will be notified if a spot opens.`,
-      href: "/signup",
-    });
-  }
-
-  revalidatePath("/admin");
-  revalidatePath("/signup");
-  revalidatePath("/");
-
-  return { status: entryStatus };
 }
 
 async function assertPartnershipAccess(entryId: string) {

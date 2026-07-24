@@ -63,19 +63,15 @@ export function SignupForm({
     const type = formData.get("partnerType") as "registered" | "unregistered" | null;
 
     startTransition(async () => {
-      try {
-        const result = await createEntryAction(formData);
-        setSubmittedMode(mode);
-        setSubmittedPartnerType(type);
-        setSubmittedWaitlisted(result.status === "waitlisted");
-        setSubmitted(true);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Registration failed. Please try again or contact support.",
-        );
+      const result = await createEntryAction(formData);
+      if (!result.ok) {
+        setError(result.error);
+        return;
       }
+      setSubmittedMode(mode);
+      setSubmittedPartnerType(type);
+      setSubmittedWaitlisted(result.status === "waitlisted");
+      setSubmitted(true);
     });
   }
 
