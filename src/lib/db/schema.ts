@@ -140,3 +140,8 @@ export const playerProfiles = pgTable("player_profiles", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const userMembershipNumbers = pgTable("user_membership_numbers", {
+  userId: text("user_id").primaryKey(),
+  membershipNumber: text("membership_number").notNull().unique(),
+});
