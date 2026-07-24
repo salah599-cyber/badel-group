@@ -73,6 +73,10 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
+      await client.users.updateUser(user.id, {
+        ...(profile.profileFirstName ? { firstName: profile.profileFirstName } : {}),
+        ...(profile.profileLastName ? { lastName: profile.profileLastName } : {}),
+      });
       await client.users.updateUserMetadata(user.id, {
         publicMetadata: {
           ...existingMeta,
