@@ -91,6 +91,8 @@ export interface Entry {
   partnerUserId?: string | null;
   partnerEntryId?: string | null;
   partnerPlayerName?: string | null;
+  pairedByAdminId?: string | null;
+  pairedByAdminName?: string | null;
   partnershipStatus?: PartnershipStatus;
   playingSide?: PlayingSide;
   skillLevel?: string;

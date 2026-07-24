@@ -7,8 +7,7 @@ import {
   removeConfirmedEntryAction,
 } from "@/lib/actions";
 import { entryStatusLabels } from "@/lib/entries";
-import { partnershipStatusLabels } from "@/lib/partnerships";
-import { playingSideLabels } from "@/lib/player-profile";
+import { formatRosterEntryDetails } from "@/lib/roster-display";
 import type { Entry, Tournament } from "@/lib/types";
 
 type TournamentRosterSectionProps = {
@@ -16,21 +15,6 @@ type TournamentRosterSectionProps = {
   entries: Entry[];
   onComplete: () => void;
 };
-
-function entryDetails(entry: Entry) {
-  const parts = [
-    entry.email,
-    entry.playingSide ? playingSideLabels[entry.playingSide] : null,
-    entry.signupMode === "with_partner" && entry.partnerName
-      ? `Partner: ${entry.partnerName}`
-      : null,
-    entry.partnershipStatus && entry.partnershipStatus !== "not_applicable"
-      ? partnershipStatusLabels[entry.partnershipStatus]
-      : null,
-  ].filter(Boolean);
-
-  return parts.join(" · ");
-}
 
 export function TournamentRosterSection({
   tournaments,
@@ -119,7 +103,9 @@ export function TournamentRosterSection({
                 >
                   <div>
                     <p className="font-medium">{entry.name}</p>
-                    <p className="text-sm text-gray-500">{entryDetails(entry)}</p>
+                    <p className="text-sm text-gray-500">
+                      {formatRosterEntryDetails(entry, tournamentEntries)}
+                    </p>
                     <p className="mt-1 text-xs font-medium text-brand-green">
                       {entryStatusLabels.approved}
                     </p>
@@ -181,7 +167,9 @@ export function TournamentRosterSection({
                 >
                   <div>
                     <p className="font-medium">{entry.name}</p>
-                    <p className="text-sm text-gray-500">{entryDetails(entry)}</p>
+                    <p className="text-sm text-gray-500">
+                      {formatRosterEntryDetails(entry, tournamentEntries)}
+                    </p>
                     <p className="mt-1 text-xs font-medium text-amber-700">
                       {entryStatusLabels.waitlisted}
                     </p>
