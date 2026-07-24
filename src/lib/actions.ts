@@ -581,6 +581,20 @@ export async function pairEntriesAction(entryIdA: string, entryIdB: string) {
   if (!db) throw new Error("Database not configured");
   if (entryIdA === entryIdB) throw new Error("Select two different players");
 
+  const ctx = await requirePermission("entries:manage");
+  const clerkUser = await currentUser();
+  const pairedByAdminName = clerkUser
+    ? getUserDisplayName(
+        {
+          firstName: clerkUser.firstName,
+          lastName: clerkUser.lastName,
+          emailAddresses: clerkUser.emailAddresses,
+          publicMetadata: clerkUser.publicMetadata as AdminMetadata,
+        },
+        ctx.email,
+      )
+    : ctx.email;
+
   await assertEntryPairingAccess(entryIdA);
   await assertEntryPairingAccess(entryIdB);
 
@@ -604,8 +618,22 @@ export async function pairEntriesAction(entryIdA: string, entryIdB: string) {
     throw new Error("One or both players are already paired. Unpair first.");
   }
 
-  await db.update(entries).set({ partnerEntryId: entryIdB }).where(eq(entries.id, entryIdA));
-  await db.update(entries).set({ partnerEntryId: entryIdA }).where(eq(entries.id, entryIdB));
+  await db
+    .update(entries)
+    .set({
+      partnerEntryId: entryIdB,
+      pairedByAdminId: ctx.userId,
+      pairedByAdminName,
+    })
+    .where(eq(entries.id, entryIdA));
+  await db
+    .update(entries)
+    .set({
+      partnerEntryId: entryIdA,
+      pairedByAdminId: ctx.userId,
+      pairedByAdminName,
+    })
+    .where(eq(entries.id, entryIdB));
 
   revalidatePath("/admin");
 }
@@ -623,16 +651,18 @@ export async function unpairEntryAction(entryId: string) {
   if (!entry) throw new Error("Entry not found");
 
   const partnerId = entry.partnerEntryId;
+  const clearPairing = {
+    partnerEntryId: null as null,
+    pairedByAdminId: null as null,
+    pairedByAdminName: null as null,
+  };
 
-  await db.update(entries).set({ partnerEntryId: null }).where(eq(entries.id, entryId));
+  await db.update(entries).set(clearPairing).where(eq(entries.id, entryId));
 
   if (partnerId) {
-    await db.update(entries).set({ partnerEntryId: null }).where(eq(entries.id, partnerId));
+    await db.update(entries).set(clearPairing).where(eq(entries.id, partnerId));
   } else {
-    await db
-      .update(entries)
-      .set({ partnerEntryId: null })
-      .where(eq(entries.partnerEntryId, entryId));
+    await db.update(entries).set(clearPairing).where(eq(entries.partnerEntryId, entryId));
   }
 
   revalidatePath("/admin");
@@ -823,16 +853,18 @@ async function clearEntryPairing(entryId: string) {
   if (!entry) throw new Error("Entry not found");
 
   const partnerId = entry.partnerEntryId;
+  const clearPairing = {
+    partnerEntryId: null as null,
+    pairedByAdminId: null as null,
+    pairedByAdminName: null as null,
+  };
 
-  await db.update(entries).set({ partnerEntryId: null }).where(eq(entries.id, entryId));
+  await db.update(entries).set(clearPairing).where(eq(entries.id, entryId));
 
   if (partnerId) {
-    await db.update(entries).set({ partnerEntryId: null }).where(eq(entries.id, partnerId));
+    await db.update(entries).set(clearPairing).where(eq(entries.id, partnerId));
   } else {
-    await db
-      .update(entries)
-      .set({ partnerEntryId: null })
-      .where(eq(entries.partnerEntryId, entryId));
+    await db.update(entries).set(clearPairing).where(eq(entries.partnerEntryId, entryId));
   }
 }
 

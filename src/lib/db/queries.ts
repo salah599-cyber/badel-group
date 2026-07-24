@@ -230,6 +230,8 @@ function entrySelect() {
     partnerUserId: entries.partnerUserId,
     partnerEntryId: entries.partnerEntryId,
     partnerPlayerName: partnerEntry.name,
+    pairedByAdminId: entries.pairedByAdminId,
+    pairedByAdminName: entries.pairedByAdminName,
     partnershipStatus: entries.partnershipStatus,
     playingSide: entries.playingSide,
     skillLevel: entries.skillLevel,

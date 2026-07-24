@@ -79,6 +79,8 @@ export const entries = pgTable("entries", {
   partnerEntryId: uuid("partner_entry_id").references((): AnyPgColumn => entries.id, {
     onDelete: "set null",
   }),
+  pairedByAdminId: text("paired_by_admin_id"),
+  pairedByAdminName: text("paired_by_admin_name"),
   partnershipStatus: partnershipStatusEnum("partnership_status")
     .notNull()
     .default("not_applicable"),
