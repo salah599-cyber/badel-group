@@ -36,6 +36,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} flex min-h-screen flex-col font-sans antialiased`}>
         <ClerkProvider
+          allowedRedirectOrigins={[
+            "https://www.badelgroup.com",
+            "https://badelgroup.com",
+            "https://badel-group.vercel.app",
+          ]}
           appearance={{
             variables: {
               colorPrimary: "#cc5500",

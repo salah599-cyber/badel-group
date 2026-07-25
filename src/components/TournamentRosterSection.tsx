@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import {
   demoteEntryToWaitlistAction,
+  deleteTournamentEntryAction,
   promoteEntryFromWaitlistAction,
 } from "@/lib/actions";
 import { entryStatusLabels } from "@/lib/entries";
@@ -61,6 +62,16 @@ export function TournamentRosterSection({
   const spotsLeft = selectedTournament
     ? Math.max(0, selectedTournament.maxPlayers - selectedTournament.registeredCount)
     : 0;
+
+  function confirmDelete(entry: Entry) {
+    const label =
+      isPartnershipTeamEntry(entry) && entry.partnerName
+        ? `${entry.name} + ${entry.partnerName}`
+        : entry.name;
+    return window.confirm(
+      `Remove ${label} from ${selectedTournament?.name ?? "this tournament"}? This cannot be undone.`,
+    );
+  }
 
   function wrapAction(action: () => Promise<void>) {
     startTransition(async () => {
@@ -126,14 +137,27 @@ export function TournamentRosterSection({
                       {entryStatusLabels.approved}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => wrapAction(() => demoteEntryToWaitlistAction(entry.id))}
-                    className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    Move to waitlist
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => wrapAction(() => demoteEntryToWaitlistAction(entry.id))}
+                      className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      Move to waitlist
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        if (!confirmDelete(entry)) return;
+                        wrapAction(() => deleteTournamentEntryAction(entry.id));
+                      }}
+                      className="rounded-lg border border-brand-red px-3 py-1.5 text-sm font-semibold text-brand-red disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -164,14 +188,27 @@ export function TournamentRosterSection({
                       {entryStatusLabels.waitlisted}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    disabled={isPending || spotsLeft === 0}
-                    onClick={() => wrapAction(() => promoteEntryFromWaitlistAction(entry.id))}
-                    className="rounded-lg bg-brand-green px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    Confirm player
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={isPending || spotsLeft === 0}
+                      onClick={() => wrapAction(() => promoteEntryFromWaitlistAction(entry.id))}
+                      className="rounded-lg bg-brand-green px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      Confirm player
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        if (!confirmDelete(entry)) return;
+                        wrapAction(() => deleteTournamentEntryAction(entry.id));
+                      }}
+                      className="rounded-lg border border-brand-red px-3 py-1.5 text-sm font-semibold text-brand-red disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

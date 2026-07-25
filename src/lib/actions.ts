@@ -23,7 +23,10 @@ import {
   tournamentTypes,
   tournaments,
 } from "@/lib/db/schema";
-import { canAdminApproveEntry } from "@/lib/partnerships";
+import {
+  canAdminApproveEntry,
+  manualPairDuplicatesPartnershipTeam,
+} from "@/lib/partnerships";
 import { parsePlayingSide } from "@/lib/player-profile";
 import { parseNameFields } from "@/lib/user-profile";
 import { normalizePlayerKey } from "@/lib/rankings";
@@ -552,6 +555,14 @@ export async function pairEntriesAction(entryIdA: string, entryIdB: string) {
     throw new Error("One or both players are already paired. Unpair first.");
   }
 
+  const [fullA, fullB] = await Promise.all([getEntryById(entryIdA), getEntryById(entryIdB)]);
+  if (!fullA || !fullB) throw new Error("Entry not found");
+  if (manualPairDuplicatesPartnershipTeam(fullA, fullB)) {
+    throw new Error(
+      "These players are already registered as a team. Remove the extra manual pair with Unpair if needed.",
+    );
+  }
+
   await db.update(entries).set({ partnerEntryId: entryIdB }).where(eq(entries.id, entryIdA));
   await db.update(entries).set({ partnerEntryId: entryIdA }).where(eq(entries.id, entryIdB));
 
@@ -749,6 +760,29 @@ export async function promoteEntryFromWaitlistAction(entryId: string) {
     type: "entry_approved",
     title: "Spot confirmed",
     message: `A spot opened up for ${entry.tournamentName}. You are now confirmed to play.`,
+    href: "/signup",
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/");
+}
+
+export async function deleteTournamentEntryAction(entryId: string) {
+  await assertEntryAccess(entryId);
+  if (!db) throw new Error("Database not configured");
+
+  const entry = await getEntryById(entryId);
+  if (!entry) throw new Error("Entry not found");
+
+  await clearEntryPairing(entryId);
+
+  await db.delete(entries).where(eq(entries.id, entryId));
+
+  await notifyUserSafe(await resolveEntryUserId(entry), {
+    type: "entry_removed",
+    title: "Tournament entry removed",
+    message: `Your registration for ${entry.tournamentName} has been removed by an administrator.`,
     href: "/signup",
   });
 

@@ -13,6 +13,7 @@ import { TournamentRosterSection } from "@/components/TournamentRosterSection";
 import { TournamentTypesSection } from "@/components/TournamentTypesSection";
 import {
   createResultAction,
+  deleteTournamentEntryAction,
   updateEntryStatusAction,
 } from "@/lib/actions";
 import type { AdminMember, SiteMember } from "@/lib/admin-members";
@@ -225,6 +226,23 @@ export function AdminPanel({
                       className="rounded-lg bg-brand-red px-3 py-1.5 text-sm font-semibold text-white"
                     >
                       Reject
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Remove ${entry.name} from ${entry.tournamentName}? This cannot be undone.`,
+                          )
+                        ) {
+                          return;
+                        }
+                        wrapAction(() => deleteTournamentEntryAction(entry.id));
+                      }}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700"
+                    >
+                      Remove
                     </button>
                   </div>
                 </div>

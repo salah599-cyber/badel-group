@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { pairEntriesAction, unpairEntryAction } from "@/lib/actions";
-import { hasManualPairLink, isPartnershipTeamEntry } from "@/lib/partnerships";
+import { hasManualPairLink, isPartnershipTeamEntry, manualPairDuplicatesPartnershipTeam } from "@/lib/partnerships";
 import { playingSideLabels } from "@/lib/player-profile";
 import type { Entry, Tournament } from "@/lib/types";
 
@@ -35,10 +35,26 @@ export function EntryPairingSection({
     [entries, selectedTournamentId],
   );
 
-  const partnershipTeams = useMemo(
-    () => tournamentEntries.filter((entry) => isPartnershipTeamEntry(entry)),
-    [tournamentEntries],
-  );
+  const partnershipTeams = useMemo(() => {
+    const teams = tournamentEntries.filter((entry) => isPartnershipTeamEntry(entry));
+    const seen = new Set<string>();
+
+    return teams.filter((entry) => {
+      const partner = teams.find(
+        (other) =>
+          other.id !== entry.id &&
+          other.userId &&
+          entry.partnerUserId === other.userId &&
+          isPartnershipTeamEntry(other),
+      );
+      if (!partner) return true;
+
+      const key = [entry.id, partner.id].sort().join(":");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return entry.id < partner.id;
+    });
+  }, [tournamentEntries]);
 
   const unpairedEntries = useMemo(
     () => tournamentEntries.filter((entry) => !isPaired(entry, tournamentEntries)),
@@ -60,6 +76,7 @@ export function EntryPairingSection({
         : tournamentEntries.find((other) => other.partnerEntryId === entry.id);
 
       if (!partner) continue;
+      if (manualPairDuplicatesPartnershipTeam(entry, partner)) continue;
 
       seen.add(entry.id);
       seen.add(partner.id);

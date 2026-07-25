@@ -26,6 +26,21 @@ export function isPartnershipTeamEntry(
   );
 }
 
+/** True when a manual A+B pair is already represented by an approved with_partner team row. */
+export function manualPairDuplicatesPartnershipTeam(a: Entry, b: Entry) {
+  return partnershipEntryMatchesPlayer(a, b) || partnershipEntryMatchesPlayer(b, a);
+}
+
+function partnershipEntryMatchesPlayer(teamEntry: Entry, playerEntry: Entry) {
+  if (!isPartnershipTeamEntry(teamEntry)) return false;
+  if (teamEntry.partnerUserId && playerEntry.userId === teamEntry.partnerUserId) {
+    return true;
+  }
+  const partnerEmail = teamEntry.partnerEmail?.trim().toLowerCase();
+  const playerEmail = playerEntry.email?.trim().toLowerCase();
+  return Boolean(partnerEmail && playerEmail && partnerEmail === playerEmail);
+}
+
 export function hasManualPairLink(entry: Entry, allEntries: Entry[]) {
   return Boolean(entry.partnerEntryId) || allEntries.some((other) => other.partnerEntryId === entry.id);
 }
