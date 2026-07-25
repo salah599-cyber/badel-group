@@ -5,10 +5,11 @@ import {
   demoteEntryToWaitlistAction,
   deleteTournamentEntryAction,
   promoteEntryFromWaitlistAction,
+  removeConfirmedEntryAction,
 } from "@/lib/actions";
 import { entryStatusLabels } from "@/lib/entries";
-import { isPartnershipTeamEntry, partnershipStatusLabels } from "@/lib/partnerships";
-import { playingSideLabels } from "@/lib/player-profile";
+import { isPartnershipTeamEntry } from "@/lib/partnerships";
+import { formatRosterEntryDetails } from "@/lib/roster-display";
 import type { Entry, Tournament } from "@/lib/types";
 
 type TournamentRosterSectionProps = {
@@ -16,23 +17,6 @@ type TournamentRosterSectionProps = {
   entries: Entry[];
   onComplete: () => void;
 };
-
-function entryDetails(entry: Entry) {
-  const parts = [
-    entry.email,
-    entry.playingSide ? playingSideLabels[entry.playingSide] : null,
-    entry.signupMode === "with_partner" &&
-    entry.partnerName &&
-    !isPartnershipTeamEntry(entry)
-      ? `Partner: ${entry.partnerName}`
-      : null,
-    entry.partnershipStatus && entry.partnershipStatus !== "not_applicable"
-      ? partnershipStatusLabels[entry.partnershipStatus]
-      : null,
-  ].filter(Boolean);
-
-  return parts.join(" · ");
-}
 
 export function TournamentRosterSection({
   tournaments,
@@ -99,7 +83,7 @@ export function TournamentRosterSection({
         >
           {tournaments.map((tournament) => (
             <option key={tournament.id} value={tournament.id}>
-              {tournament.name} — {tournament.registeredCount}/{tournament.maxPlayers} confirmed
+              {tournament.name} — {tournament.registeredCount}/{tournament.maxPlayers} teams confirmed
               {tournament.waitlistCount > 0 ? `, ${tournament.waitlistCount} waiting` : ""}
             </option>
           ))}
@@ -119,6 +103,9 @@ export function TournamentRosterSection({
           <h3 className="mb-3 font-semibold text-primary-dark">
             Confirmed ({confirmedEntries.length})
           </h3>
+          <p className="mb-3 text-xs text-gray-500">
+            Move a player to the waiting list or remove their registration entirely.
+          </p>
           {confirmedEntries.length > 0 ? (
             <div className="space-y-3">
               {confirmedEntries.map((entry) => (
@@ -127,21 +114,28 @@ export function TournamentRosterSection({
                   className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-medium">
-                      {isPartnershipTeamEntry(entry) && entry.partnerName
-                        ? `${entry.name} + ${entry.partnerName}`
-                        : entry.name}
+                    <p className="font-medium">{entry.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {formatRosterEntryDetails(entry, tournamentEntries)}
                     </p>
-                    <p className="text-sm text-gray-500">{entryDetails(entry)}</p>
                     <p className="mt-1 text-xs font-medium text-brand-green">
                       {entryStatusLabels.approved}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                     <button
                       type="button"
                       disabled={isPending}
-                      onClick={() => wrapAction(() => demoteEntryToWaitlistAction(entry.id))}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Move ${entry.name} to the waiting list for this tournament?`,
+                          )
+                        ) {
+                          return;
+                        }
+                        wrapAction(() => demoteEntryToWaitlistAction(entry.id));
+                      }}
                       className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
                     >
                       Move to waitlist
@@ -151,11 +145,11 @@ export function TournamentRosterSection({
                       disabled={isPending}
                       onClick={() => {
                         if (!confirmDelete(entry)) return;
-                        wrapAction(() => deleteTournamentEntryAction(entry.id));
+                        wrapAction(() => removeConfirmedEntryAction(entry.id));
                       }}
-                      className="rounded-lg border border-brand-red px-3 py-1.5 text-sm font-semibold text-brand-red disabled:opacity-50"
+                      className="rounded-lg border border-brand-red/40 bg-white px-3 py-1.5 text-sm font-semibold text-brand-red disabled:opacity-50"
                     >
-                      Remove
+                      Remove player
                     </button>
                   </div>
                 </div>
@@ -178,12 +172,10 @@ export function TournamentRosterSection({
                   className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-medium">
-                      {isPartnershipTeamEntry(entry) && entry.partnerName
-                        ? `${entry.name} + ${entry.partnerName}`
-                        : entry.name}
+                    <p className="font-medium">{entry.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {formatRosterEntryDetails(entry, tournamentEntries)}
                     </p>
-                    <p className="text-sm text-gray-500">{entryDetails(entry)}</p>
                     <p className="mt-1 text-xs font-medium text-amber-700">
                       {entryStatusLabels.waitlisted}
                     </p>

@@ -79,6 +79,8 @@ export const entries = pgTable("entries", {
   partnerEntryId: uuid("partner_entry_id").references((): AnyPgColumn => entries.id, {
     onDelete: "set null",
   }),
+  pairedByAdminId: text("paired_by_admin_id"),
+  pairedByAdminName: text("paired_by_admin_name"),
   partnershipStatus: partnershipStatusEnum("partnership_status")
     .notNull()
     .default("not_applicable"),
@@ -139,4 +141,9 @@ export const playerProfiles = pgTable("player_profiles", {
   photoUrl: text("photo_url").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const userMembershipNumbers = pgTable("user_membership_numbers", {
+  userId: text("user_id").primaryKey(),
+  membershipNumber: text("membership_number").notNull().unique(),
 });

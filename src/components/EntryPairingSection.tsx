@@ -2,8 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { pairEntriesAction, unpairEntryAction } from "@/lib/actions";
-import { hasManualPairLink, isPartnershipTeamEntry, manualPairDuplicatesPartnershipTeam } from "@/lib/partnerships";
+import { hasManualPairLink, isPartnershipTeamEntry } from "@/lib/partnerships";
 import { playingSideLabels } from "@/lib/player-profile";
+import { getPairedTeamDisplayEntries } from "@/lib/tournament-teams";
 import type { Entry, Tournament } from "@/lib/types";
 
 type EntryPairingSectionProps = {
@@ -35,58 +36,17 @@ export function EntryPairingSection({
     [entries, selectedTournamentId],
   );
 
-  const partnershipTeams = useMemo(() => {
-    const teams = tournamentEntries.filter((entry) => isPartnershipTeamEntry(entry));
-    const seen = new Set<string>();
-
-    return teams.filter((entry) => {
-      const partner = teams.find(
-        (other) =>
-          other.id !== entry.id &&
-          other.userId &&
-          entry.partnerUserId === other.userId &&
-          isPartnershipTeamEntry(other),
-      );
-      if (!partner) return true;
-
-      const key = [entry.id, partner.id].sort().join(":");
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return entry.id < partner.id;
-    });
-  }, [tournamentEntries]);
+  const { partnershipTeams, manualPairs } = useMemo(
+    () => getPairedTeamDisplayEntries(tournamentEntries),
+    [tournamentEntries],
+  );
 
   const unpairedEntries = useMemo(
     () => tournamentEntries.filter((entry) => !isPaired(entry, tournamentEntries)),
     [tournamentEntries],
   );
 
-  const manuallyPairedEntries = useMemo(() => {
-    const seen = new Set<string>();
-    const pairs: { a: Entry; b: Entry }[] = [];
-
-    for (const entry of tournamentEntries) {
-      if (seen.has(entry.id) || isPartnershipTeamEntry(entry) || !hasManualPairLink(entry, tournamentEntries)) {
-        continue;
-      }
-
-      const partnerId = entry.partnerEntryId;
-      const partner = partnerId
-        ? tournamentEntries.find((other) => other.id === partnerId)
-        : tournamentEntries.find((other) => other.partnerEntryId === entry.id);
-
-      if (!partner) continue;
-      if (manualPairDuplicatesPartnershipTeam(entry, partner)) continue;
-
-      seen.add(entry.id);
-      seen.add(partner.id);
-      pairs.push({ a: entry, b: partner });
-    }
-
-    return pairs;
-  }, [tournamentEntries]);
-
-  const pairedTeamCount = partnershipTeams.length + manuallyPairedEntries.length;
+  const pairedTeamCount = partnershipTeams.length + manualPairs.length;
 
   function wrapAction(action: () => Promise<void>) {
     startTransition(async () => {
@@ -186,7 +146,7 @@ export function EntryPairingSection({
                   </p>
                 </li>
               ))}
-              {manuallyPairedEntries.map(({ a, b }) => (
+              {manualPairs.map(({ a, b }) => (
                 <li
                   key={`${a.id}-${b.id}`}
                   className="rounded-lg border border-brand-green/20 bg-brand-green/5 px-3 py-3"

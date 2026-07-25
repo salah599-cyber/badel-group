@@ -7,6 +7,7 @@ import {
   updateAdminAction,
 } from "@/lib/actions";
 import type { AdminMember } from "@/lib/admin-members";
+import { MembershipNumberLabel } from "@/components/MembershipNumberLabel";
 import {
   ADMIN_ASSIGNABLE_PERMISSIONS,
   PERMISSION_LABELS,
@@ -136,6 +137,7 @@ export function AdminMembersSection({
                 <div>
                   <p className="font-medium">{member.name}</p>
                   <p className="text-sm text-gray-500">{member.email}</p>
+                  <MembershipNumberLabel membershipNumber={member.membershipNumber} className="mt-1" />
                   <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">
                     {member.role.replace("_", " ")}
                   </p>
