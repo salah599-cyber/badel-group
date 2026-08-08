@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { pairEntriesAction, unpairEntryAction } from "@/lib/actions";
 import { hasManualPairLink, isPartnershipTeamEntry } from "@/lib/partnerships";
 import { playingSideLabels } from "@/lib/player-profile";
+import { isGuestEntryEmail } from "@/lib/roster-display";
 import { getPairedTeamDisplayEntries } from "@/lib/tournament-teams";
 import type { Entry, Tournament } from "@/lib/types";
 
@@ -12,6 +13,17 @@ type EntryPairingSectionProps = {
   entries: Entry[];
   onComplete: () => void;
 };
+
+function entryLabel(entry: Entry) {
+  const guestSuffix = entry.isGuest ? " (Guest)" : "";
+  const sideSuffix = entry.playingSide ? ` (${playingSideLabels[entry.playingSide]})` : "";
+  return `${entry.name}${guestSuffix}${sideSuffix}`;
+}
+
+function entrySubLabel(entry: Entry) {
+  if (entry.isGuest || isGuestEntryEmail(entry.email)) return "Guest player";
+  return entry.email;
+}
 
 function isPaired(entry: Entry, allEntries: Entry[]) {
   if (isPartnershipTeamEntry(entry)) return true;
@@ -108,9 +120,16 @@ export function EntryPairingSection({
                   className="flex items-center justify-between rounded-lg bg-cream/40 px-3 py-2"
                 >
                   <div>
-                    <p className="font-medium text-gray-900">{entry.name}</p>
+                    <p className="font-medium text-gray-900">
+                      {entry.name}
+                      {entry.isGuest && (
+                        <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                          Guest
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-gray-500">
-                      {entry.email}
+                      {entrySubLabel(entry)}
                       {entry.playingSide
                         ? ` · ${playingSideLabels[entry.playingSide]}`
                         : ""}
@@ -192,8 +211,7 @@ export function EntryPairingSection({
           <option value="">Select player 1</option>
           {unpairedEntries.map((entry) => (
             <option key={entry.id} value={entry.id}>
-              {entry.name}
-              {entry.playingSide ? ` (${playingSideLabels[entry.playingSide]})` : ""}
+              {entryLabel(entry)}
             </option>
           ))}
         </select>
@@ -208,8 +226,7 @@ export function EntryPairingSection({
             .filter((entry) => entry.id !== playerA)
             .map((entry) => (
               <option key={entry.id} value={entry.id}>
-                {entry.name}
-                {entry.playingSide ? ` (${playingSideLabels[entry.playingSide]})` : ""}
+                {entryLabel(entry)}
               </option>
             ))}
         </select>

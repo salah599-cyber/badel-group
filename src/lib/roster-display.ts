@@ -12,6 +12,10 @@ function normalizeEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() ?? "";
 }
 
+export function isGuestEntryEmail(email: string | null | undefined) {
+  return normalizeEmail(email).endsWith("@internal.badel");
+}
+
 function findPartnershipInviter(entry: Entry, tournamentEntries: Entry[]) {
   const normalizedEmail = normalizeEmail(entry.email);
   return (
@@ -87,7 +91,12 @@ export function formatRosterEntryDetails(entry: Entry, tournamentEntries: Entry[
   }
   const parts: string[] = [];
 
-  if (entry.email) parts.push(entry.email);
+  if (entry.email && !isGuestEntryEmail(entry.email)) {
+    parts.push(entry.email);
+  }
+  if (entry.isGuest) {
+    parts.push("Guest player");
+  }
   if (entry.playingSide) parts.push(playingSideLabels[entry.playingSide]);
 
   if (partnerName) {

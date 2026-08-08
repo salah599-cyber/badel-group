@@ -97,6 +97,9 @@ export interface Entry {
   playingSide?: PlayingSide;
   skillLevel?: string;
   status: string;
+  isGuest?: boolean;
+  addedByAdminId?: string | null;
+  addedByAdminName?: string | null;
   tournamentId?: string;
   tournamentName: string;
   pairingMode?: PairingMode;

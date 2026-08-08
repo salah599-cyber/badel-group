@@ -114,7 +114,14 @@ export function TournamentRosterSection({
                   className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-medium">{entry.name}</p>
+                    <p className="font-medium">
+                      {entry.name}
+                      {entry.isGuest && (
+                        <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                          Guest
+                        </span>
+                      )}
+                    </p>
                     <p className="text-sm text-gray-500">
                       {formatRosterEntryDetails(entry, tournamentEntries)}
                     </p>
@@ -172,7 +179,14 @@ export function TournamentRosterSection({
                   className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-medium">{entry.name}</p>
+                    <p className="font-medium">
+                      {entry.name}
+                      {entry.isGuest && (
+                        <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                          Guest
+                        </span>
+                      )}
+                    </p>
                     <p className="text-sm text-gray-500">
                       {formatRosterEntryDetails(entry, tournamentEntries)}
                     </p>

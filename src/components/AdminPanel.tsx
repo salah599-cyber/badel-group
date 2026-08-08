@@ -8,6 +8,7 @@ import { GalleryUploadSection } from "@/components/GalleryUploadSection";
 import { SponsorUploadSection } from "@/components/SponsorUploadSection";
 import { UserApprovalsSection } from "@/components/UserApprovalsSection";
 import { EntryPairingSection } from "@/components/EntryPairingSection";
+import { GuestPlayerSection } from "@/components/GuestPlayerSection";
 import { TournamentsSection } from "@/components/TournamentsSection";
 import { TournamentRosterSection } from "@/components/TournamentRosterSection";
 import { TournamentTypesSection } from "@/components/TournamentTypesSection";
@@ -147,6 +148,11 @@ export function AdminPanel({
 
       {canAccess(permissions, "entries:manage", isSuperAdmin) && (
         <section id="entries">
+          <GuestPlayerSection
+            tournaments={visibleTournaments}
+            onComplete={() => window.location.reload()}
+          />
+
           <TournamentRosterSection
             tournaments={visibleTournaments}
             entries={manageableEntries.filter((entry) => {

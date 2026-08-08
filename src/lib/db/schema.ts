@@ -88,6 +88,9 @@ export const entries = pgTable("entries", {
   skillLevel: text("skill_level").notNull().default("intermediate"),
   notes: text("notes"),
   status: entryStatusEnum("status").notNull().default("pending"),
+  isGuest: boolean("is_guest").notNull().default(false),
+  addedByAdminId: text("added_by_admin_id"),
+  addedByAdminName: text("added_by_admin_name"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

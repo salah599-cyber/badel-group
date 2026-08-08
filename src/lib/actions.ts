@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { eq, max } from "drizzle-orm";
@@ -577,6 +578,175 @@ async function isEntryPaired(entryId: string) {
   return Boolean(reverse);
 }
 
+function createGuestEmail() {
+  return `guest+${randomUUID()}@internal.badel`;
+}
+
+async function getAdminDisplayName(ctx: { email: string; userId: string }) {
+  const clerkUser = await currentUser();
+  if (clerkUser) {
+    return getUserDisplayName(
+      {
+        firstName: clerkUser.firstName,
+        lastName: clerkUser.lastName,
+        emailAddresses: clerkUser.emailAddresses,
+        publicMetadata: clerkUser.publicMetadata as AdminMetadata,
+      },
+      ctx.email,
+    );
+  }
+  return ctx.email;
+}
+
+async function assertGuestTournamentAccess(tournamentId: string) {
+  const ctx = await requirePermission("entries:manage");
+  if (!db) throw new Error("Database not configured");
+  if (!canManageTournament(ctx, tournamentId)) {
+    throw new Error("You do not have access to this tournament");
+  }
+
+  const [tournament] = await db
+    .select({ status: tournaments.status })
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament) throw new Error("Tournament not found");
+  if (tournament.status !== "upcoming") {
+    throw new Error("Guest players can only be added to upcoming tournaments");
+  }
+
+  return ctx;
+}
+
+async function linkEntriesAsPair(
+  entryIdA: string,
+  entryIdB: string,
+  adminId: string,
+  adminName: string,
+) {
+  if (!db) throw new Error("Database not configured");
+
+  await db
+    .update(entries)
+    .set({
+      partnerEntryId: entryIdB,
+      pairedByAdminId: adminId,
+      pairedByAdminName: adminName,
+    })
+    .where(eq(entries.id, entryIdA));
+  await db
+    .update(entries)
+    .set({
+      partnerEntryId: entryIdA,
+      pairedByAdminId: adminId,
+      pairedByAdminName: adminName,
+    })
+    .where(eq(entries.id, entryIdB));
+}
+
+export async function createGuestEntryAction(formData: FormData) {
+  const tournamentId = (formData.get("tournamentId") as string)?.trim();
+  if (!tournamentId) throw new Error("Tournament is required");
+
+  const name = (formData.get("name") as string)?.trim();
+  if (!name) throw new Error("Player name is required");
+
+  const ctx = await assertGuestTournamentAccess(tournamentId);
+  const adminName = await getAdminDisplayName(ctx);
+
+  const capacity = await getTournamentCapacity(tournamentId);
+  if (!capacity) throw new Error("Tournament not found");
+
+  const phone = (formData.get("phone") as string | null)?.trim() || "—";
+  const playingSide = parsePlayingSide(formData.get("playingSide"));
+  const entryStatus = capacity.isFull ? "waitlisted" : "approved";
+
+  await db!.insert(entries).values({
+    tournamentId,
+    userId: null,
+    name,
+    email: createGuestEmail(),
+    phone,
+    signupMode: "solo",
+    partnershipStatus: "not_applicable",
+    playingSide,
+    skillLevel: "intermediate",
+    status: entryStatus,
+    isGuest: true,
+    addedByAdminId: ctx.userId,
+    addedByAdminName: adminName,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/");
+}
+
+export async function createGuestTeamAction(formData: FormData) {
+  const tournamentId = (formData.get("tournamentId") as string)?.trim();
+  if (!tournamentId) throw new Error("Tournament is required");
+
+  const nameA = (formData.get("nameA") as string)?.trim();
+  const nameB = (formData.get("nameB") as string)?.trim();
+  if (!nameA || !nameB) throw new Error("Both player names are required");
+  if (nameA.toLowerCase() === nameB.toLowerCase()) {
+    throw new Error("Player names must be different");
+  }
+
+  const ctx = await assertGuestTournamentAccess(tournamentId);
+  const adminName = await getAdminDisplayName(ctx);
+
+  const capacity = await getTournamentCapacity(tournamentId);
+  if (!capacity) throw new Error("Tournament not found");
+
+  const entryStatus = capacity.isFull ? "waitlisted" : "approved";
+  const phoneA = (formData.get("phoneA") as string | null)?.trim() || "—";
+  const phoneB = (formData.get("phoneB") as string | null)?.trim() || "—";
+  const playingSideA = parsePlayingSide(formData.get("playingSideA"));
+  const playingSideB = parsePlayingSide(formData.get("playingSideB"));
+
+  const guestEntryValues = {
+    tournamentId,
+    userId: null as null,
+    signupMode: "solo" as const,
+    partnershipStatus: "not_applicable" as const,
+    skillLevel: "intermediate",
+    status: entryStatus as "approved" | "waitlisted",
+    isGuest: true,
+    addedByAdminId: ctx.userId,
+    addedByAdminName: adminName,
+  };
+
+  const [entryA] = await db!
+    .insert(entries)
+    .values({
+      ...guestEntryValues,
+      name: nameA,
+      email: createGuestEmail(),
+      phone: phoneA,
+      playingSide: playingSideA,
+    })
+    .returning({ id: entries.id });
+
+  const [entryB] = await db!
+    .insert(entries)
+    .values({
+      ...guestEntryValues,
+      name: nameB,
+      email: createGuestEmail(),
+      phone: phoneB,
+      playingSide: playingSideB,
+    })
+    .returning({ id: entries.id });
+
+  await linkEntriesAsPair(entryA.id, entryB.id, ctx.userId, adminName);
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/");
+}
+
 export async function pairEntriesAction(entryIdA: string, entryIdB: string) {
   if (!db) throw new Error("Database not configured");
   if (entryIdA === entryIdB) throw new Error("Select two different players");
@@ -618,22 +788,8 @@ export async function pairEntriesAction(entryIdA: string, entryIdB: string) {
     throw new Error("One or both players are already paired. Unpair first.");
   }
 
-  await db
-    .update(entries)
-    .set({
-      partnerEntryId: entryIdB,
-      pairedByAdminId: ctx.userId,
-      pairedByAdminName,
-    })
-    .where(eq(entries.id, entryIdA));
-  await db
-    .update(entries)
-    .set({
-      partnerEntryId: entryIdA,
-      pairedByAdminId: ctx.userId,
-      pairedByAdminName,
-    })
-    .where(eq(entries.id, entryIdB));
+  // Guest entries (userId null) are valid manual pair targets alongside registered members.
+  await linkEntriesAsPair(entryIdA, entryIdB, ctx.userId, pairedByAdminName);
 
   revalidatePath("/admin");
 }
