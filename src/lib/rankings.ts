@@ -1,12 +1,10 @@
 import type { PlayerRanking, TournamentResult } from "@/lib/types";
 
 export const PLACEMENT_POINTS: Record<string, number> = {
-  "1st": 20,
-  "2nd": 15,
-  "3rd": 10,
-  "4th": 5,
-  "5th": 3,
-  "6th": 1,
+  "1st": 8,
+  "2nd": 6,
+  "3rd": 4,
+  "4th": 2,
 };
 
 const PAIR_SEPARATORS = /\s*(?:&|\/|\+|\band\b)\s*/i;
@@ -20,6 +18,30 @@ export function parsePairNames(names: string): string[] {
 
 export function normalizePlayerKey(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+type RankedPlayer = {
+  name: string;
+  points: number;
+  placements: number;
+};
+
+/** Competition ranking: tied players share a rank; the next rank skips (e.g. 1, 1, 3, 3). */
+export function assignCompetitionRanks(players: RankedPlayer[]): PlayerRanking[] {
+  let rank = 1;
+
+  return players.map((player, index) => {
+    if (index > 0 && player.points < players[index - 1].points) {
+      rank = index + 1;
+    }
+
+    return {
+      rank,
+      name: player.name,
+      points: player.points,
+      placements: player.placements,
+    };
+  });
 }
 
 export function calculatePlayerRankings(
@@ -55,10 +77,5 @@ export function calculatePlayerRankings(
     return a.name.localeCompare(b.name);
   });
 
-  return sorted.slice(0, limit).map((player, index) => ({
-    rank: index + 1,
-    name: player.name,
-    points: player.points,
-    placements: player.placements,
-  }));
+  return assignCompetitionRanks(sorted).slice(0, limit);
 }

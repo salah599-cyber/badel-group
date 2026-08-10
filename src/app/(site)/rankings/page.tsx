@@ -28,9 +28,11 @@ export default async function RankingsPage() {
           <div className="section-shell p-5 sm:p-6">
             <h2 className="mb-4 text-lg font-bold text-gray-900">Scoring System</h2>
             <p className="mb-4 text-sm text-gray-600">
-              Each player in a placed pair earns the full points for that placement.
+              Each player in a placed team earns the full points for that placement. Players with
+              the same total share a rank — for example, two players at 8 points are both 1st, and
+              the next players at 6 points are ranked 3rd.
             </p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {Object.entries(PLACEMENT_POINTS).map(([place, points]) => (
                 <div
                   key={place}
