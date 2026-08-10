@@ -21,7 +21,7 @@ import type { AdminMember, SiteMember } from "@/lib/admin-members";
 import { partnershipStatusLabels } from "@/lib/partnerships";
 import { playingSideLabels } from "@/lib/player-profile";
 import type { Permission } from "@/lib/permissions";
-import type { Entry, PlayerProfile, PlayerRanking, Sponsor, Tournament, TournamentType } from "@/lib/types";
+import type { Entry, GalleryPhoto, PlayerProfile, PlayerRanking, Sponsor, Tournament, TournamentType } from "@/lib/types";
 import type { PendingUser } from "@/lib/clerk-users";
 
 type AdminPanelProps = {
@@ -29,6 +29,7 @@ type AdminPanelProps = {
   tournamentTypes: TournamentType[];
   manageableEntries: Entry[];
   sponsors: Sponsor[];
+  galleryPhotos: GalleryPhoto[];
   playerProfiles: PlayerProfile[];
   rankedPlayers: PlayerRanking[];
   pendingEntries: Entry[];
@@ -67,6 +68,7 @@ export function AdminPanel({
   tournamentTypes,
   manageableEntries,
   sponsors,
+  galleryPhotos,
   playerProfiles,
   rankedPlayers,
   pendingEntries,
@@ -284,6 +286,11 @@ export function AdminPanel({
       {canAccess(permissions, "gallery:manage", isSuperAdmin) && (
         <GalleryUploadSection
           tournaments={visibleTournaments}
+          photos={galleryPhotos.filter((photo) => {
+            if (isSuperAdmin || role === "admin") return true;
+            if (!photo.tournamentId) return false;
+            return scopedTournamentIds.includes(photo.tournamentId);
+          })}
           onComplete={() => window.location.reload()}
         />
       )}

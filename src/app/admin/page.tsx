@@ -8,6 +8,7 @@ import {
 } from "@/lib/admin-members";
 import {
   fetchAllTournaments,
+  fetchGalleryPhotos,
   fetchManageableEntries,
   fetchPendingEntries,
   fetchPlayerProfiles,
@@ -33,6 +34,7 @@ export default async function AdminPage() {
   const tournamentTypes = await fetchTournamentTypes();
   const manageableEntries = await fetchManageableEntries();
   const sponsors = await fetchSponsors();
+  const galleryPhotos = await fetchGalleryPhotos();
   const playerProfiles = await fetchPlayerProfiles();
   const rankedPlayers = await fetchTopRankings(50);
   const tournamentIdsWithResults = await fetchTournamentIdsWithResults();
@@ -75,6 +77,7 @@ export default async function AdminPage() {
         tournamentTypes={tournamentTypes}
         manageableEntries={manageableEntries}
         sponsors={sponsors}
+        galleryPhotos={galleryPhotos}
         playerProfiles={playerProfiles}
         rankedPlayers={rankedPlayers}
         pendingEntries={pendingEntries}
