@@ -3,11 +3,20 @@
 import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
 import { FileDropzone } from "@/components/FileDropzone";
-import { createGalleryPhotosBulkAction, deleteGalleryPhotoAction, updateGalleryTournamentNameAction } from "@/lib/actions";
+import {
+  createGalleryPhotosBulkAction,
+  deleteGalleryPhotoAction,
+  updateGalleryPhotoCaptionAction,
+  updateGalleryTournamentNameAction,
+} from "@/lib/actions";
 import { getMediaSrc } from "@/lib/media";
 import { formatTournamentDate } from "@/lib/dates";
 import { getDisplayCaption, nameFromFilename, uploadFiles } from "@/lib/uploads";
 import type { GalleryPhoto, Tournament } from "@/lib/types";
+
+function captionForEditing(photo: GalleryPhoto) {
+  return getDisplayCaption(photo.caption) ?? "";
+}
 
 export function GalleryUploadSection({
   tournaments,
@@ -22,9 +31,9 @@ export function GalleryUploadSection({
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tournamentName, setTournamentName] = useState(tournaments[0]?.name ?? "");
-  const [caption, setCaption] = useState("");
   const [editingTournament, setEditingTournament] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
 
   const photosByTournament = useMemo(() => {
     return photos.reduce<Record<string, GalleryPhoto[]>>((acc, photo) => {
@@ -34,13 +43,16 @@ export function GalleryUploadSection({
     }, {});
   }, [photos]);
 
+  function getCaptionDraft(photo: GalleryPhoto) {
+    if (photo.id in captionDrafts) return captionDrafts[photo.id];
+    return captionForEditing(photo);
+  }
+
   async function handleUpload(files: File[]) {
     if (!tournamentName.trim()) {
       setError("Please enter a tournament name first.");
       return;
     }
-
-    const customCaption = caption.trim();
 
     setError(null);
     setStatus(`Uploading ${files.length} photo${files.length > 1 ? "s" : ""}...`);
@@ -57,12 +69,11 @@ export function GalleryUploadSection({
             tournamentId: tournament?.id,
             tournamentDate: tournament?.date,
             imageUrl: file.url,
-            caption: customCaption || nameFromFilename(file.name),
+            caption: nameFromFilename(file.name),
           })),
         );
 
         setStatus(`Added ${uploaded.length} photo${uploaded.length > 1 ? "s" : ""} to gallery.`);
-        setCaption("");
         onComplete?.();
       } catch (err) {
         setStatus(null);
@@ -86,6 +97,27 @@ export function GalleryUploadSection({
       } catch (err) {
         setStatus(null);
         setError(err instanceof Error ? err.message : "Failed to remove photo");
+      }
+    });
+  }
+
+  function handleSaveCaption(photo: GalleryPhoto) {
+    const caption = getCaptionDraft(photo).trim();
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        await updateGalleryPhotoCaptionAction(photo.id, caption);
+        setCaptionDrafts((current) => {
+          const next = { ...current };
+          delete next[photo.id];
+          return next;
+        });
+        setStatus("Caption saved.");
+        onComplete?.();
+      } catch (err) {
+        setStatus(null);
+        setError(err instanceof Error ? err.message : "Failed to save caption");
       }
     });
   }
@@ -191,7 +223,9 @@ export function GalleryUploadSection({
               </div>
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {tournamentPhotos.map((photo) => {
-                  const displayCaption = getDisplayCaption(photo.caption);
+                  const draftCaption = getCaptionDraft(photo);
+                  const savedCaption = captionForEditing(photo);
+                  const hasUnsavedCaption = draftCaption.trim() !== savedCaption;
 
                   return (
                     <li
@@ -201,24 +235,50 @@ export function GalleryUploadSection({
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                         <Image
                           src={getMediaSrc(photo.imageUrl)}
-                          alt={displayCaption ?? "Gallery photo"}
+                          alt={savedCaption || "Gallery photo"}
                           fill
                           className="object-cover"
                           sizes="64px"
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-900">
-                          {displayCaption ?? "No caption"}
-                        </p>
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => handleRemove(photo)}
-                          className="mt-2 text-xs font-semibold text-brand-red hover:underline disabled:opacity-50"
+                        <label
+                          htmlFor={`caption-${photo.id}`}
+                          className="mb-1 block text-xs font-medium text-gray-600"
                         >
-                          Remove
-                        </button>
+                          Caption <span className="font-normal text-gray-400">(optional)</span>
+                        </label>
+                        <input
+                          id={`caption-${photo.id}`}
+                          value={draftCaption}
+                          onChange={(e) =>
+                            setCaptionDrafts((current) => ({
+                              ...current,
+                              [photo.id]: e.target.value,
+                            }))
+                          }
+                          placeholder="e.g. Finals celebration"
+                          className="input py-1.5 text-sm"
+                          disabled={isPending}
+                        />
+                        <div className="mt-2 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            disabled={isPending || !hasUnsavedCaption}
+                            onClick={() => handleSaveCaption(photo)}
+                            className="text-xs font-semibold text-primary hover:text-primary-dark disabled:opacity-50"
+                          >
+                            Save caption
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleRemove(photo)}
+                            className="text-xs font-semibold text-brand-red hover:underline disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </li>
                   );
@@ -236,43 +296,28 @@ export function GalleryUploadSection({
       <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4">
         <h3 className="font-semibold text-primary-dark">Upload photos</h3>
         <p className="text-sm text-gray-600">
-          Drag and drop photos or select a folder. Add an optional caption, or leave it blank to use
-          descriptive filenames. Auto-generated names like WhatsApp images are skipped.
+          Drag and drop photos or select a folder, then add an optional caption to each photo
+          individually after upload.
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor="galleryTournament" className="mb-1 block text-sm font-medium text-gray-700">
-              Tournament
-            </label>
-            <input
-              id="galleryTournament"
-              list="tournament-options"
-              value={tournamentName}
-              onChange={(e) => setTournamentName(e.target.value)}
-              placeholder="Tournament name"
-              className="input"
-              disabled={isPending}
-            />
-            <datalist id="tournament-options">
-              {tournaments.map((t) => (
-                <option key={t.id} value={t.name} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label htmlFor="galleryCaption" className="mb-1 block text-sm font-medium text-gray-700">
-              Caption <span className="font-normal text-gray-500">(optional)</span>
-            </label>
-            <input
-              id="galleryCaption"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="e.g. Finals celebration"
-              className="input"
-              disabled={isPending}
-            />
-          </div>
+        <div>
+          <label htmlFor="galleryTournament" className="mb-1 block text-sm font-medium text-gray-700">
+            Tournament
+          </label>
+          <input
+            id="galleryTournament"
+            list="tournament-options"
+            value={tournamentName}
+            onChange={(e) => setTournamentName(e.target.value)}
+            placeholder="Tournament name"
+            className="input max-w-md"
+            disabled={isPending}
+          />
+          <datalist id="tournament-options">
+            {tournaments.map((t) => (
+              <option key={t.id} value={t.name} />
+            ))}
+          </datalist>
         </div>
 
         <FileDropzone

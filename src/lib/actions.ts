@@ -1343,6 +1343,35 @@ export async function deleteGalleryPhotoAction(photoId: string) {
   revalidatePath("/admin");
 }
 
+export async function updateGalleryPhotoCaptionAction(photoId: string, caption: string) {
+  const ctx = await requirePermission("gallery:manage");
+  if (!db) throw new Error("Database not configured");
+
+  const [photo] = await db
+    .select({
+      id: galleryPhotos.id,
+      tournamentId: galleryPhotos.tournamentId,
+      tournamentName: galleryPhotos.tournamentName,
+    })
+    .from(galleryPhotos)
+    .where(eq(galleryPhotos.id, photoId))
+    .limit(1);
+
+  if (!photo) throw new Error("Photo not found");
+  if (photo.tournamentId && !canManageTournament(ctx, photo.tournamentId)) {
+    throw new Error(`You do not have access to tournament: ${photo.tournamentName}`);
+  }
+
+  await db
+    .update(galleryPhotos)
+    .set({ caption: caption.trim() })
+    .where(eq(galleryPhotos.id, photoId));
+
+  revalidatePath("/gallery");
+  revalidatePath("/");
+  revalidatePath("/admin");
+}
+
 export async function updateGalleryTournamentNameAction(
   currentName: string,
   newName: string,
