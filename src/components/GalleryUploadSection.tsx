@@ -16,12 +16,15 @@ export function GalleryUploadSection({
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<string | null>(null);
   const [tournamentName, setTournamentName] = useState(tournaments[0]?.name ?? "");
+  const [caption, setCaption] = useState("");
 
   async function handleUpload(files: File[]) {
     if (!tournamentName.trim()) {
       setStatus("Please enter a tournament name first.");
       return;
     }
+
+    const customCaption = caption.trim();
 
     setStatus(`Uploading ${files.length} photo${files.length > 1 ? "s" : ""}...`);
     startTransition(async () => {
@@ -36,11 +39,12 @@ export function GalleryUploadSection({
             tournamentName,
             tournamentId: tournament?.id,
             imageUrl: file.url,
-            caption: nameFromFilename(file.name),
+            caption: customCaption || nameFromFilename(file.name),
           })),
         );
 
         setStatus(`Added ${uploaded.length} photo${uploaded.length > 1 ? "s" : ""} to gallery.`);
+        setCaption("");
         onComplete?.();
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "Upload failed");
@@ -54,7 +58,8 @@ export function GalleryUploadSection({
 
       <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4">
         <p className="text-sm text-gray-600">
-          Drag and drop photos or select a folder. Descriptive filenames become captions; auto-generated names are skipped.
+          Drag and drop photos or select a folder. Add an optional caption, or leave it blank to use
+          descriptive filenames. Auto-generated names like WhatsApp images are skipped.
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -76,6 +81,19 @@ export function GalleryUploadSection({
                 <option key={t.id} value={t.name} />
               ))}
             </datalist>
+          </div>
+          <div>
+            <label htmlFor="galleryCaption" className="mb-1 block text-sm font-medium text-gray-700">
+              Caption <span className="font-normal text-gray-500">(optional)</span>
+            </label>
+            <input
+              id="galleryCaption"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="e.g. Finals celebration"
+              className="input"
+              disabled={isPending}
+            />
           </div>
         </div>
 

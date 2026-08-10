@@ -6,9 +6,18 @@ const UUID_PATTERN =
 const CAMERA_NAME_PATTERN =
   /^(img|dsc|pict|photo|screenshot|image|snap)(\s*|[_-])\d+$/i;
 
+const MESSAGING_APP_PATTERN =
+  /^(whatsapp|telegram|signal|messenger|wechat)\s+(image|photo|video)/i;
+
+const COPY_OF_PATTERN = /^copy\s+of(\s|$)/i;
+
 export function isMeaninglessCaption(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed) return true;
+
+  if (MESSAGING_APP_PATTERN.test(trimmed) || COPY_OF_PATTERN.test(trimmed)) {
+    return true;
+  }
 
   const compact = trimmed.replace(/[\s_-]+/g, "").toLowerCase();
   if (UUID_PATTERN.test(compact) || /^[0-9a-f]{32}$/i.test(compact)) {
