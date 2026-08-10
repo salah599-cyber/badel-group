@@ -163,6 +163,12 @@ export async function getResults() {
   return db.select().from(results).orderBy(desc(results.date));
 }
 
+export async function getTournamentIdsWithResults() {
+  if (!db) return [];
+  const rows = await db.select({ tournamentId: results.tournamentId }).from(results);
+  return rows.map((row) => row.tournamentId);
+}
+
 export async function getPlayerProfiles() {
   if (!db) return [];
   try {

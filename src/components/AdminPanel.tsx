@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { EndTournamentSection } from "@/components/EndTournamentSection";
 import { PlayerPhotosSection } from "@/components/PlayerPhotosSection";
 import { SiteMembersSection } from "@/components/SiteMembersSection";
 import { AdminMembersSection } from "@/components/AdminMembersSection";
@@ -13,7 +14,6 @@ import { TournamentsSection } from "@/components/TournamentsSection";
 import { TournamentRosterSection } from "@/components/TournamentRosterSection";
 import { TournamentTypesSection } from "@/components/TournamentTypesSection";
 import {
-  createResultAction,
   deleteTournamentEntryAction,
   updateEntryStatusAction,
 } from "@/lib/actions";
@@ -38,6 +38,7 @@ type AdminPanelProps = {
   permissions: Permission[];
   isSuperAdmin: boolean;
   scopedTournamentIds: string[];
+  tournamentIdsWithResults: string[];
 };
 
 function canAccess(
@@ -75,6 +76,7 @@ export function AdminPanel({
   permissions,
   isSuperAdmin,
   scopedTournamentIds,
+  tournamentIdsWithResults,
   role,
 }: AdminPanelProps & { role: string }) {
   const [isPending, startTransition] = useTransition();
@@ -285,59 +287,17 @@ export function AdminPanel({
       )}
 
       {canAccess(permissions, "results:manage", isSuperAdmin) && (
-        <section id="results">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">Enter Results</h2>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              const tournamentId = fd.get("tournamentId") as string;
-              const tournament = visibleTournaments.find((t) => t.id === tournamentId);
-              if (tournament) {
-                fd.set("tournamentName", tournament.name);
-                fd.set("date", tournament.date);
-              }
-              const places = [
-                { place: "1st", field: "first", required: true },
-                { place: "2nd", field: "second", required: true },
-                { place: "3rd", field: "third", required: true },
-                { place: "4th", field: "fourth", required: false },
-                { place: "5th", field: "fifth", required: false },
-                { place: "6th", field: "sixth", required: false },
-              ] as const;
-
-              const winners = places
-                .map(({ place, field }) => ({
-                  place,
-                  names: (fd.get(field) as string)?.trim() ?? "",
-                }))
-                .filter((entry) => entry.names.length > 0);
-
-              fd.set("winners", JSON.stringify(winners));
-              wrapAction(() => createResultAction(fd));
-              e.currentTarget.reset();
-            }}
-            className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-2"
-          >
-            <select name="tournamentId" required className="input sm:col-span-2">
-              <option value="">Select tournament</option>
-              {visibleTournaments.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <input name="first" placeholder="1st place (e.g. Player A & Player B)" required className="input" />
-            <input name="second" placeholder="2nd place (e.g. Player A & Player B)" required className="input" />
-            <input name="third" placeholder="3rd place (e.g. Player A & Player B)" required className="input sm:col-span-2" />
-            <input name="fourth" placeholder="4th place (optional)" className="input" />
-            <input name="fifth" placeholder="5th place (optional)" className="input" />
-            <input name="sixth" placeholder="6th place (optional)" className="input sm:col-span-2" />
-            <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
-              Publish Results
-            </button>
-          </form>
-        </section>
+        <EndTournamentSection
+          tournaments={visibleTournaments}
+          entries={manageableEntries.filter((entry) => {
+            if (isSuperAdmin || role === "admin") return true;
+            if (!entry.tournamentId) return false;
+            return scopedTournamentIds.includes(entry.tournamentId);
+          })}
+          tournamentIdsWithResults={tournamentIdsWithResults}
+          isPending={isPending}
+          wrapAction={wrapAction}
+        />
       )}
 
       {canAccess(permissions, "results:manage", isSuperAdmin) && (

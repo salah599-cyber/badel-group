@@ -75,11 +75,6 @@ export function countConfirmedTeams(tournamentEntries: Entry[]) {
   return teams;
 }
 
-/** Approving a with-partner entry occupies a team slot; solo approval does not. */
-export function entryWouldOccupyTeamSlot(entry: Pick<Entry, "signupMode">) {
-  return entry.signupMode === "with_partner";
-}
-
 export function getPairedTeamDisplayEntries(tournamentEntries: Entry[]) {
   const partnershipTeams = tournamentEntries.filter((entry) => isPartnershipTeamEntry(entry));
 
@@ -104,6 +99,41 @@ export function getPairedTeamDisplayEntries(tournamentEntries: Entry[]) {
   }
 
   return { partnershipTeams, manualPairs };
+}
+
+export type ConfirmedTeamOption = {
+  key: string;
+  label: string;
+};
+
+/** Confirmed paired teams for ending a tournament (approved partnership or manual pairs). */
+export function getConfirmedTeamOptions(tournamentEntries: Entry[]): ConfirmedTeamOption[] {
+  const approved = tournamentEntries.filter((entry) => entry.status === "approved");
+  const { partnershipTeams, manualPairs } = getPairedTeamDisplayEntries(approved);
+  const options: ConfirmedTeamOption[] = [];
+
+  for (const entry of partnershipTeams) {
+    if (!entry.partnerName) continue;
+    options.push({
+      key: `partnership:${entry.id}`,
+      label: [entry.name, entry.partnerName].sort((a, b) => a.localeCompare(b)).join(" + "),
+    });
+  }
+
+  for (const { a, b } of manualPairs) {
+    const pairKey = [a.id, b.id].sort().join(":");
+    options.push({
+      key: `manual:${pairKey}`,
+      label: [a.name, b.name].sort((a, b) => a.localeCompare(b)).join(" + "),
+    });
+  }
+
+  return options.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Approving a with-partner entry occupies a team slot; solo approval does not. */
+export function entryWouldOccupyTeamSlot(entry: Pick<Entry, "signupMode">) {
+  return entry.signupMode === "with_partner";
 }
 
 export function entryRepresentsTeam(entry: Entry, allEntries: Entry[]) {

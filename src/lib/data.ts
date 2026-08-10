@@ -60,6 +60,14 @@ export async function fetchResults() {
   return seedResults;
 }
 
+export async function fetchTournamentIdsWithResults() {
+  if (hasDatabase()) {
+    const { getTournamentIdsWithResults } = await import("@/lib/db/queries");
+    return getTournamentIdsWithResults();
+  }
+  return seedResults.map((result) => result.tournamentId);
+}
+
 export async function fetchPlayerProfiles() {
   if (hasDatabase()) return getPlayerProfiles();
   return seedPlayerProfiles;

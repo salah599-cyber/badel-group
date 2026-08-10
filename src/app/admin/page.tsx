@@ -13,6 +13,7 @@ import {
   fetchPlayerProfiles,
   fetchSponsors,
   fetchTopRankings,
+  fetchTournamentIdsWithResults,
   fetchTournamentTypes,
 } from "@/lib/data";
 import { fetchPendingUsers } from "@/lib/clerk-users";
@@ -34,6 +35,7 @@ export default async function AdminPage() {
   const sponsors = await fetchSponsors();
   const playerProfiles = await fetchPlayerProfiles();
   const rankedPlayers = await fetchTopRankings(50);
+  const tournamentIdsWithResults = await fetchTournamentIdsWithResults();
   const pendingEntries = await fetchPendingEntries();
   const pendingUsers = ctx.permissions.includes("users:approve") || ctx.isSuperAdmin
     ? await fetchPendingUsers()
@@ -82,6 +84,7 @@ export default async function AdminPage() {
         permissions={ctx.permissions}
         isSuperAdmin={ctx.isSuperAdmin}
         scopedTournamentIds={ctx.tournamentIds}
+        tournamentIdsWithResults={tournamentIdsWithResults}
         role={ctx.role}
       />
 

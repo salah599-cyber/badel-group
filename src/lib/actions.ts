@@ -27,6 +27,7 @@ import {
 import {
   entryWouldOccupyTeamSlot,
   findManualPairPartner,
+  getConfirmedTeamOptions,
   userCanWithdrawSolo,
   userCanWithdrawTeam,
 } from "@/lib/tournament-teams";
@@ -1317,9 +1318,36 @@ export async function createResultAction(formData: FormData) {
   const ctx = await requirePermission("results:manage");
   if (!db) throw new Error("Database not configured");
 
-  const tournamentId = formData.get("tournamentId") as string;
+  const tournamentId = (formData.get("tournamentId") as string)?.trim();
+  if (!tournamentId) throw new Error("Tournament is required");
   if (!canManageTournament(ctx, tournamentId)) {
     throw new Error("You do not have access to this tournament");
+  }
+
+  const [tournament] = await db
+    .select({
+      id: tournaments.id,
+      name: tournaments.name,
+      date: tournaments.date,
+      status: tournaments.status,
+    })
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (!tournament) throw new Error("Tournament not found");
+  if (tournament.status === "completed") {
+    throw new Error("This tournament is already completed");
+  }
+
+  const [existingResult] = await db
+    .select({ id: results.id })
+    .from(results)
+    .where(eq(results.tournamentId, tournamentId))
+    .limit(1);
+
+  if (existingResult) {
+    throw new Error("Results have already been published for this tournament");
   }
 
   const winners = JSON.parse(formData.get("winners") as string) as {
@@ -1327,10 +1355,41 @@ export async function createResultAction(formData: FormData) {
     names: string;
   }[];
 
-  const tournamentName = formData.get("tournamentName") as string;
-  const date = formData.get("date") as string;
+  const requiredPlaces = ["1st", "2nd", "3rd", "4th"] as const;
+  const normalizedWinners: { place: string; names: string }[] = [];
 
-  await db.insert(results).values({ tournamentId, tournamentName, date, winners });
+  for (const place of requiredPlaces) {
+    const winner = winners.find((entry) => entry.place === place);
+    const names = winner?.names?.trim() ?? "";
+    if (!names) {
+      throw new Error(`${place} place team is required`);
+    }
+    normalizedWinners.push({ place, names });
+  }
+
+  const teamNames = normalizedWinners.map((winner) => winner.names);
+  if (new Set(teamNames).size !== teamNames.length) {
+    throw new Error("Each team can only be placed once");
+  }
+
+  const tournamentEntries = await getEntriesForTournament(tournamentId);
+  const validLabels = new Set(getConfirmedTeamOptions(tournamentEntries).map((team) => team.label));
+  for (const name of teamNames) {
+    if (!validLabels.has(name)) {
+      throw new Error(`"${name}" is not a confirmed team for this tournament`);
+    }
+  }
+
+  if (validLabels.size < 4) {
+    throw new Error("This tournament needs at least 4 confirmed teams before it can end");
+  }
+
+  await db.insert(results).values({
+    tournamentId,
+    tournamentName: tournament.name,
+    date: tournament.date,
+    winners: normalizedWinners,
+  });
   await db
     .update(tournaments)
     .set({ status: "completed" })
@@ -1340,6 +1399,7 @@ export async function createResultAction(formData: FormData) {
   revalidatePath("/rankings");
   revalidatePath("/");
   revalidatePath("/admin");
+  revalidatePath("/signup");
 }
 
 export async function upsertPlayerPhotoAction(input: {
