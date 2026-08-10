@@ -1,5 +1,6 @@
-import { GalleryGrid } from "@/components/GalleryGrid";
+import { GalleryTournamentSection } from "@/components/GalleryTournamentSection";
 import { SectionHeading } from "@/components/SectionHeading";
+import { getAdminContext } from "@/lib/auth";
 import { fetchGalleryPhotos } from "@/lib/data";
 
 export const metadata = {
@@ -8,6 +9,10 @@ export const metadata = {
 
 export default async function GalleryPage() {
   const galleryPhotos = await fetchGalleryPhotos();
+  const adminContext = await getAdminContext();
+  const canManageGallery =
+    Boolean(adminContext?.isSuperAdmin) ||
+    Boolean(adminContext?.permissions.includes("gallery:manage"));
 
   const byTournament = galleryPhotos.reduce<
     Record<string, typeof galleryPhotos>
@@ -27,10 +32,14 @@ export default async function GalleryPage() {
       {Object.keys(byTournament).length > 0 ? (
         <div className="space-y-12">
           {Object.entries(byTournament).map(([name, photos]) => (
-            <section key={name} className="section-shell">
-              <h2 className="mb-5 text-xl font-bold text-primary-dark">{name}</h2>
-              <GalleryGrid photos={photos} />
-            </section>
+            <GalleryTournamentSection
+              key={photos[0]?.tournamentId ?? name}
+              name={name}
+              date={photos[0]?.tournamentDate}
+              tournamentId={photos[0]?.tournamentId ?? null}
+              photos={photos}
+              canManage={canManageGallery}
+            />
           ))}
         </div>
       ) : (

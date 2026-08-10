@@ -155,7 +155,29 @@ export async function getSponsorsByTier(tier: SponsorTier) {
 
 export async function getGalleryPhotos() {
   if (!db) return [];
-  return db.select().from(galleryPhotos).orderBy(desc(galleryPhotos.createdAt));
+
+  const rows = await db
+    .select({
+      id: galleryPhotos.id,
+      tournamentId: galleryPhotos.tournamentId,
+      tournamentName: galleryPhotos.tournamentName,
+      tournamentDate: galleryPhotos.tournamentDate,
+      imageUrl: galleryPhotos.imageUrl,
+      caption: galleryPhotos.caption,
+      linkedTournamentDate: tournaments.date,
+    })
+    .from(galleryPhotos)
+    .leftJoin(tournaments, eq(galleryPhotos.tournamentId, tournaments.id))
+    .orderBy(desc(galleryPhotos.createdAt));
+
+  return rows.map((row) => ({
+    id: row.id,
+    tournamentId: row.tournamentId,
+    tournamentName: row.tournamentName,
+    tournamentDate: row.tournamentDate ?? row.linkedTournamentDate ?? null,
+    imageUrl: row.imageUrl,
+    caption: row.caption,
+  }));
 }
 
 export async function getResults() {

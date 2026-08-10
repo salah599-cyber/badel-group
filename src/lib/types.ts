@@ -50,6 +50,7 @@ export interface GalleryPhoto {
   id: string;
   tournamentId: string | null;
   tournamentName: string;
+  tournamentDate?: string | null;
   imageUrl: string;
   caption: string;
 }

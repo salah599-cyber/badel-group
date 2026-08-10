@@ -16,7 +16,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "entries:manage": "Approve player entries",
   "users:approve": "Approve site member sign-ups",
   "sponsors:manage": "Manage sponsors",
-  "gallery:manage": "Upload gallery photos",
+  "gallery:manage": "Upload and manage gallery photos",
   "results:manage": "Publish tournament results",
   "admins:manage": "Manage admin team & permissions",
 };

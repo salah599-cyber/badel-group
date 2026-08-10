@@ -3,8 +3,9 @@
 import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
 import { FileDropzone } from "@/components/FileDropzone";
-import { createGalleryPhotosBulkAction, deleteGalleryPhotoAction } from "@/lib/actions";
+import { createGalleryPhotosBulkAction, deleteGalleryPhotoAction, updateGalleryTournamentNameAction } from "@/lib/actions";
 import { getMediaSrc } from "@/lib/media";
+import { formatTournamentDate } from "@/lib/dates";
 import { getDisplayCaption, nameFromFilename, uploadFiles } from "@/lib/uploads";
 import type { GalleryPhoto, Tournament } from "@/lib/types";
 
@@ -22,6 +23,8 @@ export function GalleryUploadSection({
   const [error, setError] = useState<string | null>(null);
   const [tournamentName, setTournamentName] = useState(tournaments[0]?.name ?? "");
   const [caption, setCaption] = useState("");
+  const [editingTournament, setEditingTournament] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
 
   const photosByTournament = useMemo(() => {
     return photos.reduce<Record<string, GalleryPhoto[]>>((acc, photo) => {
@@ -52,6 +55,7 @@ export function GalleryUploadSection({
           uploaded.map((file) => ({
             tournamentName,
             tournamentId: tournament?.id,
+            tournamentDate: tournament?.date,
             imageUrl: file.url,
             caption: customCaption || nameFromFilename(file.name),
           })),
@@ -86,6 +90,31 @@ export function GalleryUploadSection({
     });
   }
 
+  function handleRename(currentName: string, tournamentId: string | null) {
+    const trimmed = editingName.trim();
+    if (!trimmed) {
+      setError("Tournament name is required.");
+      return;
+    }
+    if (trimmed === currentName) {
+      setEditingTournament(null);
+      return;
+    }
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        await updateGalleryTournamentNameAction(currentName, trimmed, tournamentId);
+        setEditingTournament(null);
+        setStatus("Tournament name updated.");
+        onComplete?.();
+      } catch (err) {
+        setStatus(null);
+        setError(err instanceof Error ? err.message : "Failed to update tournament name");
+      }
+    });
+  }
+
   return (
     <section id="gallery">
       <h2 className="mb-4 text-xl font-bold text-gray-900">Gallery ({photos.length})</h2>
@@ -106,7 +135,60 @@ export function GalleryUploadSection({
         <div className="mb-6 space-y-4">
           {Object.entries(photosByTournament).map(([name, tournamentPhotos]) => (
             <div key={name} className="rounded-2xl border border-gray-200 bg-white p-4">
-              <h3 className="mb-3 font-semibold text-primary-dark">{name}</h3>
+              <div className="mb-3 flex flex-wrap items-center gap-3">
+                {editingTournament === name ? (
+                  <>
+                    <input
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      className="input max-w-xs"
+                      disabled={isPending}
+                    />
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() =>
+                        handleRename(name, tournamentPhotos[0]?.tournamentId ?? null)
+                      }
+                      className="rounded-lg bg-brand-green px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        setEditingTournament(null);
+                        setEditingName("");
+                      }}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <h3 className="font-semibold text-primary-dark">{name}</h3>
+                      {formatTournamentDate(tournamentPhotos[0]?.tournamentDate) ? (
+                        <p className="text-sm text-gray-500">
+                          {formatTournamentDate(tournamentPhotos[0]?.tournamentDate)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingTournament(name);
+                        setEditingName(name);
+                      }}
+                      className="text-sm font-semibold text-primary hover:text-primary-dark"
+                    >
+                      Edit name
+                    </button>
+                  </>
+                )}
+              </div>
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {tournamentPhotos.map((photo) => {
                   const displayCaption = getDisplayCaption(photo.caption);

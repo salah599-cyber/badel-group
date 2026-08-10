@@ -110,6 +110,7 @@ export const galleryPhotos = pgTable("gallery_photos", {
     onDelete: "set null",
   }),
   tournamentName: text("tournament_name").notNull(),
+  tournamentDate: text("tournament_date"),
   imageUrl: text("image_url").notNull(),
   caption: text("caption").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

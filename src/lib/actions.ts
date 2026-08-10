@@ -1230,6 +1230,7 @@ export async function createGalleryPhotoAction(formData: FormData) {
   await db.insert(galleryPhotos).values({
     tournamentId,
     tournamentName: formData.get("tournamentName") as string,
+    tournamentDate: (formData.get("tournamentDate") as string) || null,
     imageUrl: formData.get("imageUrl") as string,
     caption: formData.get("caption") as string,
   });
@@ -1288,6 +1289,7 @@ export async function createGalleryPhotosBulkAction(
     imageUrl: string;
     caption: string;
     tournamentId?: string;
+    tournamentDate?: string;
   }[],
 ) {
   const ctx = await requirePermission("gallery:manage");
@@ -1304,6 +1306,7 @@ export async function createGalleryPhotosBulkAction(
     items.map((item) => ({
       tournamentId: item.tournamentId ?? null,
       tournamentName: item.tournamentName,
+      tournamentDate: item.tournamentDate ?? null,
       imageUrl: item.imageUrl,
       caption: item.caption,
     })),
@@ -1334,6 +1337,58 @@ export async function deleteGalleryPhotoAction(photoId: string) {
   }
 
   await db.delete(galleryPhotos).where(eq(galleryPhotos.id, photoId));
+
+  revalidatePath("/gallery");
+  revalidatePath("/");
+  revalidatePath("/admin");
+}
+
+export async function updateGalleryTournamentNameAction(
+  currentName: string,
+  newName: string,
+  tournamentId?: string | null,
+) {
+  const ctx = await requirePermission("gallery:manage");
+  if (!db) throw new Error("Database not configured");
+
+  const trimmedCurrent = currentName.trim();
+  const trimmedNew = newName.trim();
+  if (!trimmedCurrent) throw new Error("Current tournament name is required");
+  if (!trimmedNew) throw new Error("Tournament name is required");
+  if (trimmedCurrent === trimmedNew) return;
+
+  const photos = await db
+    .select({
+      id: galleryPhotos.id,
+      tournamentId: galleryPhotos.tournamentId,
+    })
+    .from(galleryPhotos)
+    .where(eq(galleryPhotos.tournamentName, trimmedCurrent));
+
+  if (photos.length === 0) throw new Error("No gallery photos found for this tournament");
+
+  const scopedIds = new Set(
+    photos.map((photo) => photo.tournamentId).filter((id): id is string => Boolean(id)),
+  );
+
+  if (tournamentId && !scopedIds.has(tournamentId) && scopedIds.size > 0) {
+    throw new Error("Tournament group mismatch");
+  }
+
+  for (const id of scopedIds) {
+    if (!canManageTournament(ctx, id)) {
+      throw new Error("You do not have access to this tournament");
+    }
+  }
+
+  if (scopedIds.size === 0 && ctx.role === "tournament_admin" && !ctx.isSuperAdmin) {
+    throw new Error("Only full admins can rename unlinked gallery groups");
+  }
+
+  await db
+    .update(galleryPhotos)
+    .set({ tournamentName: trimmedNew })
+    .where(eq(galleryPhotos.tournamentName, trimmedCurrent));
 
   revalidatePath("/gallery");
   revalidatePath("/");
