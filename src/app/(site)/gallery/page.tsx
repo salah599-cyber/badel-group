@@ -1,6 +1,5 @@
 import { GalleryTournamentSection } from "@/components/GalleryTournamentSection";
 import { SectionHeading } from "@/components/SectionHeading";
-import { getAdminContext } from "@/lib/auth";
 import { fetchGalleryPhotos } from "@/lib/data";
 
 export const metadata = {
@@ -9,10 +8,6 @@ export const metadata = {
 
 export default async function GalleryPage() {
   const galleryPhotos = await fetchGalleryPhotos();
-  const adminContext = await getAdminContext();
-  const canManageGallery =
-    Boolean(adminContext?.isSuperAdmin) ||
-    Boolean(adminContext?.permissions.includes("gallery:manage"));
 
   const byTournament = galleryPhotos.reduce<
     Record<string, typeof galleryPhotos>
@@ -36,9 +31,7 @@ export default async function GalleryPage() {
               key={photos[0]?.tournamentId ?? name}
               name={name}
               date={photos[0]?.tournamentDate}
-              tournamentId={photos[0]?.tournamentId ?? null}
               photos={photos}
-              canManage={canManageGallery}
             />
           ))}
         </div>
