@@ -36,7 +36,9 @@ export function EntryPairingSection({
   onComplete,
 }: EntryPairingSectionProps) {
   const [isPending, startTransition] = useTransition();
-  const manualTournaments = tournaments.filter((t) => t.pairingMode === "manual");
+  const manualTournaments = tournaments.filter(
+    (t) => t.pairingMode === "manual" && t.status === "upcoming",
+  );
   const [selectedTournamentId, setSelectedTournamentId] = useState(
     manualTournaments[0]?.id ?? "",
   );

@@ -74,7 +74,17 @@ export function TournamentRosterSection({
     });
   }
 
-  if (tournaments.length === 0) return null;
+  if (tournaments.length === 0) {
+    return (
+      <section id="roster" className="mb-10">
+        <h2 className="mb-4 text-xl font-bold text-gray-900">Tournament Roster</h2>
+        <p className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+          No upcoming tournaments. Completed tournaments are archived — create a new tournament to
+          manage registrations and pairings.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section id="roster" className="mb-10">

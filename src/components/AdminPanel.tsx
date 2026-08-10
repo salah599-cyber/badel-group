@@ -88,6 +88,8 @@ export function AdminPanel({
     role,
   );
 
+  const activeTournaments = visibleTournaments.filter((tournament) => tournament.status === "upcoming");
+
   const visibleEntries = pendingEntries.filter((entry) => {
     if (isSuperAdmin || role === "admin") return true;
     if (!entry.tournamentId) return false;
@@ -136,7 +138,7 @@ export function AdminPanel({
           />
 
           <EntryPairingSection
-            tournaments={visibleTournaments}
+            tournaments={activeTournaments}
             entries={manageableEntries.filter((entry) => {
               if (entry.status !== "approved") return false;
               if (isSuperAdmin || role === "admin") return true;
@@ -151,12 +153,12 @@ export function AdminPanel({
       {canAccess(permissions, "entries:manage", isSuperAdmin) && (
         <section id="entries">
           <GuestPlayerSection
-            tournaments={visibleTournaments}
+            tournaments={activeTournaments}
             onComplete={() => window.location.reload()}
           />
 
           <TournamentRosterSection
-            tournaments={visibleTournaments}
+            tournaments={activeTournaments}
             entries={manageableEntries.filter((entry) => {
               if (isSuperAdmin || role === "admin") return true;
               if (!entry.tournamentId) return false;

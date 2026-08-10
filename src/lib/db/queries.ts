@@ -262,7 +262,7 @@ export async function getPendingEntries() {
     .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
     .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
     .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
-    .where(eq(entries.status, "pending"))
+    .where(and(eq(entries.status, "pending"), eq(tournaments.status, "upcoming")))
     .orderBy(desc(entries.createdAt));
 }
 
@@ -276,7 +276,7 @@ export async function getManageableEntries() {
     .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
     .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
     .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
-    .where(ne(entries.status, "rejected"))
+    .where(and(ne(entries.status, "rejected"), eq(tournaments.status, "upcoming")))
     .orderBy(desc(entries.createdAt));
 }
 
