@@ -7,9 +7,10 @@ import {
   promoteEntryFromWaitlistAction,
   removeConfirmedEntryAction,
 } from "@/lib/actions";
-import { entryStatusLabels } from "@/lib/entries";
-import { isPartnershipTeamEntry } from "@/lib/partnerships";
+import { entryStatusLabels, getEntryConfirmationLabel } from "@/lib/entries";
+import { isPartnershipTeamEntry, hasManualPairLink } from "@/lib/partnerships";
 import { formatRosterEntryDetails } from "@/lib/roster-display";
+import { countConfirmedTeams } from "@/lib/tournament-teams";
 import type { Entry, Tournament } from "@/lib/types";
 
 type TournamentRosterSectionProps = {
@@ -35,6 +36,11 @@ export function TournamentRosterSection({
 
   const confirmedEntries = useMemo(
     () => tournamentEntries.filter((entry) => entry.status === "approved"),
+    [tournamentEntries],
+  );
+
+  const confirmedTeamCount = useMemo(
+    () => countConfirmedTeams(tournamentEntries),
     [tournamentEntries],
   );
 
@@ -92,8 +98,8 @@ export function TournamentRosterSection({
         {selectedTournament && (
           <p className="mt-2 text-sm text-gray-600">
             {spotsLeft > 0
-              ? `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} available`
-              : "Tournament is full — move a confirmed player to the waiting list before confirming someone new."}
+              ? `${spotsLeft} team spot${spotsLeft === 1 ? "" : "s"} available`
+              : "Tournament is full — free a confirmed team spot before confirming a new team."}
           </p>
         )}
       </div>
@@ -101,14 +107,21 @@ export function TournamentRosterSection({
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <h3 className="mb-3 font-semibold text-primary-dark">
-            Confirmed ({confirmedEntries.length})
+            Approved players ({confirmedEntries.length})
+            <span className="ml-2 text-sm font-normal text-gray-500">
+              · {confirmedTeamCount} confirmed team{confirmedTeamCount === 1 ? "" : "s"}
+            </span>
           </h3>
           <p className="mb-3 text-xs text-gray-500">
-            Move a player to the waiting list or remove their registration entirely.
+            Solo players are approved but not a confirmed team until paired. Move someone to the
+            waiting list or remove their registration entirely.
           </p>
           {confirmedEntries.length > 0 ? (
             <div className="space-y-3">
-              {confirmedEntries.map((entry) => (
+              {confirmedEntries.map((entry) => {
+                const isPairedTeam =
+                  isPartnershipTeamEntry(entry) || hasManualPairLink(entry, tournamentEntries);
+                return (
                 <div
                   key={entry.id}
                   className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -125,8 +138,12 @@ export function TournamentRosterSection({
                     <p className="text-sm text-gray-500">
                       {formatRosterEntryDetails(entry, tournamentEntries)}
                     </p>
-                    <p className="mt-1 text-xs font-medium text-brand-green">
-                      {entryStatusLabels.approved}
+                    <p
+                      className={`mt-1 text-xs font-medium ${
+                        isPairedTeam ? "text-brand-green" : "text-amber-700"
+                      }`}
+                    >
+                      {getEntryConfirmationLabel(entry, isPairedTeam)}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
@@ -160,10 +177,11 @@ export function TournamentRosterSection({
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">No confirmed players yet.</p>
+            <p className="text-sm text-gray-500">No approved players yet.</p>
           )}
         </div>
 
@@ -201,7 +219,8 @@ export function TournamentRosterSection({
                       onClick={() => wrapAction(() => promoteEntryFromWaitlistAction(entry.id))}
                       className="rounded-lg bg-brand-green px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
                     >
-                      Confirm player
+                      Confirm
+                      {entry.signupMode === "with_partner" ? " team" : ""}
                     </button>
                     <button
                       type="button"

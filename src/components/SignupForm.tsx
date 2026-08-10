@@ -21,9 +21,9 @@ function signupHint(tournament: Tournament | undefined, signupMode: SignupMode) 
     return "Sign up solo — teams will be assigned randomly.";
   }
   if (signupMode === "solo") {
-    return "Sign up solo — an admin can assign you a partner later.";
+    return "Sign up solo — an admin can assign you a partner later. You are not a confirmed team until paired.";
   }
-  return "Registered partners must approve your request. Unregistered partners require admin approval.";
+  return "Registered partners must approve your request. Unregistered partners require admin approval. Your team is confirmed once approved.";
 }
 
 export function SignupForm({
@@ -119,10 +119,10 @@ export function SignupForm({
         >
           {tournaments.map((t) => {
             const spotsLeft = t.maxPlayers - t.registeredCount;
-            const capacityLabel =
-              spotsLeft > 0
-                ? `${spotsLeft} team spot${spotsLeft === 1 ? "" : "s"} left`
-                : `Full — waitlist open (${t.waitlistCount} waiting)`;
+            const isFull = spotsLeft <= 0;
+            const capacityLabel = isFull
+              ? `Full — waitlist for teams (${t.waitlistCount} waiting)`
+              : `${spotsLeft} team spot${spotsLeft === 1 ? "" : "s"} left`;
             const alreadyRegistered = registeredSet.has(t.id);
 
             return (
@@ -135,9 +135,18 @@ export function SignupForm({
         {signupHint(selectedTournament, signupMode) && (
           <p className="mt-1 text-xs text-gray-500">{signupHint(selectedTournament, signupMode)}</p>
         )}
-        {selectedTournament && selectedTournament.registeredCount >= selectedTournament.maxPlayers && (
+        {selectedTournament &&
+          selectedTournament.registeredCount >= selectedTournament.maxPlayers &&
+          signupMode === "with_partner" && (
           <p className="mt-1 text-xs font-medium text-amber-700">
-            This tournament is full. New sign-ups will be added to the waiting list.
+            This tournament is full. Partner team sign-ups will be added to the waiting list.
+          </p>
+        )}
+        {selectedTournament &&
+          selectedTournament.registeredCount >= selectedTournament.maxPlayers &&
+          signupMode === "solo" && (
+          <p className="mt-1 text-xs font-medium text-amber-700">
+            Team spots are full. You can still sign up solo and wait to be paired if a spot opens.
           </p>
         )}
       </div>

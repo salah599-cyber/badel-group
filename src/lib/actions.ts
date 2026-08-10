@@ -24,7 +24,12 @@ import {
   tournamentTypes,
   tournaments,
 } from "@/lib/db/schema";
-import { findManualPairPartner, userCanWithdrawSolo, userCanWithdrawTeam } from "@/lib/tournament-teams";
+import {
+  entryWouldOccupyTeamSlot,
+  findManualPairPartner,
+  userCanWithdrawSolo,
+  userCanWithdrawTeam,
+} from "@/lib/tournament-teams";
 import { canAdminApproveEntry, isPartnershipTeamEntry } from "@/lib/partnerships";
 import { parsePlayingSide } from "@/lib/player-profile";
 import { parseNameFields, syncClerkUserProfileNames } from "@/lib/user-profile";
@@ -384,7 +389,9 @@ export async function createEntryAction(formData: FormData): Promise<CreateEntry
       }
     }
 
-    const entryStatus = capacity.isFull ? "waitlisted" : "pending";
+    // Solo players are not a confirmed team until paired; only partner sign-ups take a slot now.
+    const entryStatus =
+      entryWouldOccupyTeamSlot({ signupMode }) && capacity.isFull ? "waitlisted" : "pending";
 
     let firstName: string;
     let lastName: string;
@@ -655,12 +662,9 @@ export async function createGuestEntryAction(formData: FormData) {
   const ctx = await assertGuestTournamentAccess(tournamentId);
   const adminName = await getAdminDisplayName(ctx);
 
-  const capacity = await getTournamentCapacity(tournamentId);
-  if (!capacity) throw new Error("Tournament not found");
-
+  // Solo guests do not occupy a team slot until they are paired.
   const phone = (formData.get("phone") as string | null)?.trim() || "—";
   const playingSide = parsePlayingSide(formData.get("playingSide"));
-  const entryStatus = capacity.isFull ? "waitlisted" : "approved";
 
   await db!.insert(entries).values({
     tournamentId,
@@ -672,7 +676,7 @@ export async function createGuestEntryAction(formData: FormData) {
     partnershipStatus: "not_applicable",
     playingSide,
     skillLevel: "intermediate",
-    status: entryStatus,
+    status: "approved",
     isGuest: true,
     addedByAdminId: ctx.userId,
     addedByAdminName: adminName,
@@ -786,6 +790,12 @@ export async function pairEntriesAction(entryIdA: string, entryIdB: string) {
 
   if (await isEntryPaired(entryIdA) || (await isEntryPaired(entryIdB))) {
     throw new Error("One or both players are already paired. Unpair first.");
+  }
+
+  if (!entryA.tournamentId) throw new Error("Tournament not found");
+  const capacity = await getTournamentCapacity(entryA.tournamentId);
+  if (!capacity || capacity.isFull) {
+    throw new Error("Tournament is full. Free a team spot before creating a new pair.");
   }
 
   // Guest entries (userId null) are valid manual pair targets alongside registered members.
@@ -929,20 +939,18 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
     throw new Error("This partnership was rejected and cannot be approved");
   }
 
-  if (status === "approved" && entry.tournamentId) {
+  if (status === "approved" && entry.tournamentId && entryWouldOccupyTeamSlot(entry)) {
     const capacity = await getTournamentCapacity(entry.tournamentId);
     if (capacity?.isFull) {
-      const waitlistUpdates =
-        entry.signupMode === "with_partner" || entry.partnershipStatus === "pending_admin"
-          ? { status: "waitlisted" as const, partnershipStatus: "approved" as const }
-          : { status: "waitlisted" as const };
-
-      await db.update(entries).set(waitlistUpdates).where(eq(entries.id, entryId));
+      await db
+        .update(entries)
+        .set({ status: "waitlisted", partnershipStatus: "approved" })
+        .where(eq(entries.id, entryId));
 
       await notifyUserSafe(await resolveEntryUserId(entry), {
         type: "entry_waitlisted",
         title: "Added to waiting list",
-        message: `${entry.tournamentName} is full. Your entry has been placed on the waiting list.`,
+        message: `${entry.tournamentName} is full. Your team has been placed on the waiting list.`,
         href: "/signup",
       });
 
@@ -964,22 +972,25 @@ export async function updateEntryStatusAction(entryId: string, status: "approved
   if (status === "approved") {
     const playerUserId = await resolveEntryUserId(entry);
     const partnerLabel = entry.partnerName ?? entry.partnerPlayerName;
-    const approvalMessage = partnerLabel
-      ? `Your entry for ${entry.tournamentName} with ${partnerLabel} has been approved.`
-      : `Your entry for ${entry.tournamentName} has been approved.`;
 
     await notifyUserSafe(playerUserId, {
       type: "entry_approved",
-      title: "Tournament entry approved",
-      message: approvalMessage,
+      title: entryWouldOccupyTeamSlot(entry)
+        ? "Team confirmed"
+        : "Registration approved",
+      message: partnerLabel
+        ? `Your team for ${entry.tournamentName} with ${partnerLabel} has been confirmed.`
+        : entryWouldOccupyTeamSlot(entry)
+          ? `Your team for ${entry.tournamentName} has been confirmed.`
+          : `Your registration for ${entry.tournamentName} is approved. You will be confirmed once paired into a team.`,
       href: "/signup",
     });
 
     if (entry.signupMode === "with_partner" && entry.partnerUserId) {
       await notifyUserSafe(entry.partnerUserId, {
         type: "entry_approved",
-        title: "Tournament entry approved",
-        message: `Your team entry for ${entry.tournamentName} with ${entry.name} has been approved.`,
+        title: "Team confirmed",
+        message: `Your team for ${entry.tournamentName} with ${entry.name} has been confirmed.`,
         href: "/signup",
       });
     }
@@ -1107,17 +1118,21 @@ export async function promoteEntryFromWaitlistAction(entryId: string) {
 
   if (!entry.tournamentId) throw new Error("Tournament not found");
 
-  const capacity = await getTournamentCapacity(entry.tournamentId);
-  if (!capacity || capacity.isFull) {
-    throw new Error("Tournament is full. Remove a confirmed player first.");
+  if (entryWouldOccupyTeamSlot(entry)) {
+    const capacity = await getTournamentCapacity(entry.tournamentId);
+    if (!capacity || capacity.isFull) {
+      throw new Error("Tournament is full. Remove a confirmed team first.");
+    }
   }
 
   await db.update(entries).set({ status: "approved" }).where(eq(entries.id, entryId));
 
   await notifyUserSafe(await resolveEntryUserId(entry), {
     type: "entry_approved",
-    title: "Spot confirmed",
-    message: `A spot opened up for ${entry.tournamentName}. You are now confirmed to play.`,
+    title: entryWouldOccupyTeamSlot(entry) ? "Team confirmed" : "Registration approved",
+    message: entryWouldOccupyTeamSlot(entry)
+      ? `A team spot opened up for ${entry.tournamentName}. Your team is now confirmed.`
+      : `Your registration for ${entry.tournamentName} is approved. You will be confirmed once paired into a team.`,
     href: "/signup",
   });
 

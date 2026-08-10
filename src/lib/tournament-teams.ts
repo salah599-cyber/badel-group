@@ -43,7 +43,14 @@ export function isManualPairCoveredByPartnership(
   );
 }
 
-/** Each approved entry row or linked pair counts as one team slot. */
+/** A team is only confirmed once it is a pair (partnership or manual link). */
+export function isConfirmedTeamEntry(entry: Entry, tournamentEntries: Entry[]) {
+  if (entry.status !== "approved") return false;
+  if (isPartnershipTeamEntry(entry)) return true;
+  return Boolean(findManualPairPartner(entry, tournamentEntries));
+}
+
+/** Each confirmed pair counts as one team slot. Unpaired solos do not. */
 export function countConfirmedTeams(tournamentEntries: Entry[]) {
   const approved = tournamentEntries.filter((entry) => entry.status === "approved");
   const seen = new Set<string>();
@@ -62,13 +69,15 @@ export function countConfirmedTeams(tournamentEntries: Entry[]) {
       seen.add(entry.id);
       seen.add(partner.id);
       teams += 1;
-      continue;
     }
-
-    teams += 1;
   }
 
   return teams;
+}
+
+/** Approving a with-partner entry occupies a team slot; solo approval does not. */
+export function entryWouldOccupyTeamSlot(entry: Pick<Entry, "signupMode">) {
+  return entry.signupMode === "with_partner";
 }
 
 export function getPairedTeamDisplayEntries(tournamentEntries: Entry[]) {
