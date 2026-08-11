@@ -86,7 +86,7 @@ export function RankingPlayerCard({ player }: { player: PlayerRanking }) {
         </div>
         <div className="text-center">
           <p className="text-[10px] font-semibold tracking-[0.12em] text-white/50 uppercase">
-            Games Played
+                          Tournaments Played
           </p>
           <p className="mt-0.5 text-xl font-bold text-white sm:text-2xl">{player.placements}</p>
         </div>
