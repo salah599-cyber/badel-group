@@ -44,21 +44,19 @@ function PlayerAvatar({ name, photoUrl }: { name: string; photoUrl?: string | nu
 
   return (
     <div
-      className="size-20 shrink-0 self-center rounded-full border-2 border-white/10 bg-white/10 sm:size-24"
-      style={
-        src
-          ? {
-              backgroundImage: `url("${src}")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center top",
-              backgroundRepeat: "no-repeat",
-            }
-          : undefined
-      }
+      className="relative size-20 shrink-0 self-center overflow-hidden rounded-full border-2 border-white/10 bg-white/10 sm:size-24"
       role={src ? "img" : undefined}
       aria-label={src ? name : undefined}
     >
-      {!src && (
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element -- avatar crop needs explicit object-position control
+        <img
+          src={src}
+          alt=""
+          className="absolute inset-0 h-full w-full max-w-none object-cover"
+          style={{ objectFit: "cover", objectPosition: "center center" }}
+        />
+      ) : (
         <div className="flex h-full w-full items-center justify-center text-lg font-bold text-white">
           {getInitials(name)}
         </div>
