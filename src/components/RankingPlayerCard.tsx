@@ -54,7 +54,7 @@ function PlayerAvatar({ name, photoUrl }: { name: string; photoUrl?: string | nu
           src={src}
           alt=""
           className="absolute inset-0 h-full w-full max-w-none object-cover"
-          style={{ objectFit: "cover", objectPosition: "center center" }}
+          style={{ objectFit: "cover", objectPosition: "center 20%" }}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-lg font-bold text-white">
