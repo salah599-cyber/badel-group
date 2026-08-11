@@ -93,7 +93,8 @@ async function processImageForUpload(
     ? Math.min(bitmap.width, bitmap.height)
     : Math.max(bitmap.width, bitmap.height);
   const sx = needsSquareCrop ? Math.floor((bitmap.width - sourceSize) / 2) : 0;
-  const sy = needsSquareCrop ? Math.floor((bitmap.height - sourceSize) / 2) : 0;
+  // Bias portrait crops toward the upper body/face instead of true center.
+  const sy = needsSquareCrop ? Math.floor((bitmap.height - sourceSize) * 0.2) : 0;
   const scale = Math.min(1, maxEdge / sourceSize);
   const width = Math.max(1, Math.round((needsSquareCrop ? sourceSize : bitmap.width) * scale));
   const height = Math.max(
