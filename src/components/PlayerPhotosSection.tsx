@@ -115,12 +115,13 @@ export function PlayerPhotosSection({
             className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-100">
+              <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-gray-100">
                 <Image
                   src={getMediaSrc(profile.photoUrl)}
                   alt={profile.displayName}
                   fill
-                  className="object-cover"
+                  className="rounded-full object-cover"
+                  style={{ objectFit: "cover" }}
                   sizes="48px"
                 />
               </div>
@@ -193,8 +194,16 @@ export function PlayerPhotosSection({
           />
           {photoPreview && (
             <div className="mt-3 flex items-center gap-3">
-              <div className="relative h-16 w-16 overflow-hidden rounded-full">
-                <Image src={photoPreview} alt="Preview" fill className="object-cover" sizes="64px" />
+              <div className="relative size-16 overflow-hidden rounded-full">
+                <Image
+                  src={photoPreview}
+                  alt="Preview"
+                  fill
+                  className="rounded-full object-cover"
+                  style={{ objectFit: "cover" }}
+                  sizes="64px"
+                  unoptimized
+                />
               </div>
               <button
                 type="button"

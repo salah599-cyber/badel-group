@@ -73,19 +73,33 @@ function safeFilename(filename: string) {
   return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-async function compressImageIfNeeded(file: File, maxEdge = 2400): Promise<File> {
+async function processImageForUpload(
+  file: File,
+  maxEdge = 2400,
+  options?: { squareCrop?: boolean },
+): Promise<File> {
   if (!file.type.startsWith("image/") || file.type === "image/gif" || file.type === "image/svg+xml") {
     return file;
   }
 
-  if (file.size <= 2 * 1024 * 1024) {
+  const needsCompress = file.size > 2 * 1024 * 1024;
+  const needsSquareCrop = Boolean(options?.squareCrop);
+  if (!needsCompress && !needsSquareCrop) {
     return file;
   }
 
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const sourceSize = needsSquareCrop
+    ? Math.min(bitmap.width, bitmap.height)
+    : Math.max(bitmap.width, bitmap.height);
+  const sx = needsSquareCrop ? Math.floor((bitmap.width - sourceSize) / 2) : 0;
+  const sy = needsSquareCrop ? Math.floor((bitmap.height - sourceSize) / 2) : 0;
+  const scale = Math.min(1, maxEdge / sourceSize);
+  const width = Math.max(1, Math.round((needsSquareCrop ? sourceSize : bitmap.width) * scale));
+  const height = Math.max(
+    1,
+    Math.round((needsSquareCrop ? sourceSize : bitmap.height) * scale),
+  );
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -97,7 +111,11 @@ async function compressImageIfNeeded(file: File, maxEdge = 2400): Promise<File> 
     return file;
   }
 
-  context.drawImage(bitmap, 0, 0, width, height);
+  if (needsSquareCrop) {
+    context.drawImage(bitmap, sx, sy, sourceSize, sourceSize, 0, 0, width, height);
+  } else {
+    context.drawImage(bitmap, 0, 0, width, height);
+  }
   bitmap.close();
 
   const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
@@ -105,11 +123,13 @@ async function compressImageIfNeeded(file: File, maxEdge = 2400): Promise<File> 
     canvas.toBlob(resolve, outputType, outputType === "image/jpeg" ? 0.85 : undefined);
   });
 
-  if (!blob || blob.size >= file.size) {
+  if (!blob || (!needsSquareCrop && blob.size >= file.size)) {
     return file;
   }
 
-  return new File([blob], file.name, { type: outputType });
+  const extension = outputType === "image/png" ? ".png" : ".jpg";
+  const baseName = file.name.replace(/\.[^.]+$/, "");
+  return new File([blob], `${baseName}${extension}`, { type: outputType });
 }
 
 export async function uploadFiles(
@@ -122,7 +142,9 @@ export async function uploadFiles(
 
   for (let index = 0; index < files.length; index++) {
     const original = files[index];
-    const file = await compressImageIfNeeded(original, maxEdge);
+    const file = await processImageForUpload(original, maxEdge, {
+      squareCrop: folder === "players",
+    });
 
     if (file.size > MAX_UPLOAD_BYTES) {
       throw new Error(`File too large (max 10MB): ${original.name}`);
