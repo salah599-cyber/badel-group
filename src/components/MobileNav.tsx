@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 type NavLink = { href: string; label: string };
@@ -15,7 +16,12 @@ type MobileNavProps = {
 
 export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { isSignedIn } = useAuth();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -32,30 +38,11 @@ export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) 
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  return (
-    <div className="md:hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-700 transition hover:bg-white hover:text-primary"
-        aria-expanded={open}
-        aria-controls="mobile-nav-panel"
-        aria-label={open ? "Close menu" : "Open menu"}
-      >
-        {open ? (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden>
-            <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden>
-            <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
-        )}
-      </button>
-
+  const menuPanel = (
+    <>
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-black/40 transition-opacity duration-200",
+          "fixed inset-0 z-[100] bg-black/40 transition-opacity duration-200",
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={() => setOpen(false)}
@@ -65,7 +52,7 @@ export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) 
       <nav
         id="mobile-nav-panel"
         className={cn(
-          "fixed top-0 right-0 z-50 flex h-full w-[min(100%,20rem)] flex-col border-l border-primary/10 bg-cream shadow-xl transition-transform duration-200 ease-out",
+          "fixed top-0 right-0 z-[110] flex h-full w-[min(100%,20rem)] flex-col border-l border-primary/10 bg-cream shadow-xl transition-transform duration-200 ease-out",
           open ? "translate-x-0" : "translate-x-full",
         )}
         aria-hidden={!open}
@@ -135,6 +122,31 @@ export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) 
           )}
         </div>
       </nav>
+    </>
+  );
+
+  return (
+    <div className="md:hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-700 transition hover:bg-white hover:text-primary"
+        aria-expanded={open}
+        aria-controls="mobile-nav-panel"
+        aria-label={open ? "Close menu" : "Open menu"}
+      >
+        {open ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden>
+            <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden>
+            <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        )}
+      </button>
+
+      {mounted ? createPortal(menuPanel, document.body) : null}
     </div>
   );
 }
