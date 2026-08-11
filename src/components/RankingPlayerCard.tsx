@@ -53,14 +53,16 @@ export function RankingPlayerCard({ player }: { player: PlayerRanking }) {
           <p className="text-4xl font-black leading-none text-white sm:text-5xl">{player.rank}</p>
         </div>
 
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-white/10 sm:h-24 sm:w-24">
+        <div className="relative aspect-square size-20 shrink-0 self-center overflow-hidden rounded-full border-2 border-white/10 sm:size-24">
           {player.photoUrl ? (
             <Image
               src={getMediaSrc(player.photoUrl)}
               alt={player.name}
-              fill
-              className="object-cover object-top"
+              width={192}
+              height={192}
+              className="h-full w-full object-cover object-center"
               sizes="96px"
+              style={{ objectFit: "cover", objectPosition: "center top" }}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-white/10 text-lg font-bold text-white">
@@ -86,7 +88,7 @@ export function RankingPlayerCard({ player }: { player: PlayerRanking }) {
         </div>
         <div className="text-center">
           <p className="text-[10px] font-semibold tracking-[0.12em] text-white/50 uppercase">
-                          Tournaments Played
+            Tournaments Played
           </p>
           <p className="mt-0.5 text-xl font-bold text-white sm:text-2xl">{player.placements}</p>
         </div>
