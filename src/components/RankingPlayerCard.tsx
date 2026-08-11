@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { getMediaSrc } from "@/lib/media";
 import type { PlayerRanking } from "@/lib/types";
 
@@ -40,6 +39,34 @@ function RankMedal({ rank }: { rank: number }) {
   );
 }
 
+function PlayerAvatar({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
+  const src = photoUrl ? getMediaSrc(photoUrl) : null;
+
+  return (
+    <div
+      className="size-20 shrink-0 self-center rounded-full border-2 border-white/10 bg-white/10 sm:size-24"
+      style={
+        src
+          ? {
+              backgroundImage: `url("${src}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center top",
+              backgroundRepeat: "no-repeat",
+            }
+          : undefined
+      }
+      role={src ? "img" : undefined}
+      aria-label={src ? name : undefined}
+    >
+      {!src && (
+        <div className="flex h-full w-full items-center justify-center text-lg font-bold text-white">
+          {getInitials(name)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RankingPlayerCard({ player }: { player: PlayerRanking }) {
   const { firstName, lastName } = splitName(player.name);
 
@@ -47,31 +74,15 @@ export function RankingPlayerCard({ player }: { player: PlayerRanking }) {
     <article className="relative overflow-hidden rounded-2xl border border-white/5 bg-[#1e1e2e] p-4 shadow-lg sm:p-5">
       <RankMedal rank={player.rank} />
 
-      <div className="mb-4 flex items-start gap-4">
+      <div className="mb-4 flex items-center gap-4">
         <div className="shrink-0">
           <p className="text-[10px] font-semibold tracking-[0.15em] text-white/50 uppercase">Rank</p>
           <p className="text-4xl font-black leading-none text-white sm:text-5xl">{player.rank}</p>
         </div>
 
-        <div className="relative aspect-square size-20 shrink-0 self-center overflow-hidden rounded-full border-2 border-white/10 sm:size-24">
-          {player.photoUrl ? (
-            <Image
-              src={getMediaSrc(player.photoUrl)}
-              alt={player.name}
-              width={192}
-              height={192}
-              className="h-full w-full object-cover object-center"
-              sizes="96px"
-              style={{ objectFit: "cover", objectPosition: "center top" }}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-white/10 text-lg font-bold text-white">
-              {getInitials(player.name)}
-            </div>
-          )}
-        </div>
+        <PlayerAvatar name={player.name} photoUrl={player.photoUrl} />
 
-        <div className="min-w-0 flex-1 pt-1 pr-10">
+        <div className="min-w-0 flex-1 pr-10">
           {firstName && (
             <p className="truncate text-sm font-medium text-white/80">{firstName}</p>
           )}
