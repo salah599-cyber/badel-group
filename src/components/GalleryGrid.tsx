@@ -24,7 +24,7 @@ export function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
 
   return (
     <>
-      <div className="columns-2 gap-3 sm:columns-3 sm:gap-4 lg:columns-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
         {photos.map((photo, index) => {
           const caption = getDisplayCaption(photo.caption);
 
@@ -33,7 +33,7 @@ export function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
             key={photo.id}
             role="button"
             tabIndex={0}
-            className="group relative mb-3 cursor-pointer break-inside-avoid overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:mb-4"
+            className="group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             onClick={() => openLightbox(index)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             aria-label={`View photo: ${caption || "Gallery image"}`}
@@ -43,7 +43,7 @@ export function GalleryGrid({ photos }: { photos: GalleryPhoto[] }) {
               src={getMediaSrc(photo.imageUrl)}
               alt={caption ?? "Gallery image"}
               loading="lazy"
-              className="block h-auto w-full"
+              className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
             />
             {caption ? (
               <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 text-xs font-medium text-white sm:translate-y-full sm:transition sm:duration-300 sm:group-hover:translate-y-0">
