@@ -1,30 +1,37 @@
+import { ResultPlacementCard } from "@/components/ResultPlacementCard";
 import { SectionHeading } from "@/components/SectionHeading";
-import { fetchResults } from "@/lib/data";
+import { fetchPlayerProfiles, fetchResults } from "@/lib/data";
 
 export const metadata = {
   title: "Results | Badel Group",
 };
 
 export default async function ResultsPage() {
-  const results = await fetchResults();
+  const [results, profiles] = await Promise.all([fetchResults(), fetchPlayerProfiles()]);
+  const photoByKey = new Map(profiles.map((p) => [p.nameKey, p.photoUrl]));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+    <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 sm:py-16">
       <SectionHeading
         title="Tournament Results"
         subtitle="Past tournament winners and standings"
+        align="center"
       />
 
       {results.length > 0 ? (
-        <div className="space-y-6">
+        <div className="space-y-10">
           {results.map((result) => (
-            <article
-              key={result.id}
-              className="section-shell card-hover overflow-hidden"
-            >
-              <div className="mb-5 flex flex-col gap-2 border-b border-primary/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">{result.tournamentName}</h2>
-                <time className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary-dark">
+            <section key={result.id} className="space-y-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold tracking-[0.15em] text-gray-500 uppercase">
+                    Tournament
+                  </p>
+                  <h2 className="text-xl font-black tracking-tight text-gray-900 sm:text-2xl">
+                    {result.tournamentName}
+                  </h2>
+                </div>
+                <time className="text-sm font-medium text-primary-dark">
                   {new Date(result.date).toLocaleDateString("en-US", {
                     month: "long",
                     day: "numeric",
@@ -33,30 +40,17 @@ export default async function ResultsPage() {
                 </time>
               </div>
 
-              <div className="divide-y divide-gray-100">
+              <div className="space-y-4">
                 {result.winners.map((winner) => (
-                  <div
-                    key={winner.place}
-                    className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <span
-                      className={`inline-flex w-fit min-w-16 items-center justify-center rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                        winner.place === "1st"
-                          ? "bg-primary/15 text-primary"
-                          : winner.place === "2nd"
-                            ? "bg-secondary/20 text-primary-dark"
-                            : winner.place === "3rd"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {winner.place}
-                    </span>
-                    <span className="font-semibold text-gray-800">{winner.names}</span>
-                  </div>
+                  <ResultPlacementCard
+                    key={`${result.id}-${winner.place}`}
+                    place={winner.place}
+                    names={winner.names}
+                    photoByKey={photoByKey}
+                  />
                 ))}
               </div>
-            </article>
+            </section>
           ))}
         </div>
       ) : (
