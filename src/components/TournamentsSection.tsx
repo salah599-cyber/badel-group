@@ -7,6 +7,7 @@ import {
   deleteTournamentAction,
   updateTournamentAction,
 } from "@/lib/actions";
+import { formatTournamentDateTimeShort } from "@/lib/dates";
 import type { Tournament, TournamentType } from "@/lib/types";
 
 type TournamentsSectionProps = {
@@ -60,7 +61,9 @@ export function TournamentsSection({
                   <tr key={t.id}>
                     <td className="px-4 py-3 font-medium">{t.name}</td>
                     <td className="px-4 py-3 text-gray-600">{t.typeName}</td>
-                    <td className="px-4 py-3 text-gray-600">{t.date}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {formatTournamentDateTimeShort(t.date, t.startTime) ?? t.date}
+                    </td>
                     <td className="px-4 py-3 capitalize text-gray-600">{t.status}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {t.countsTowardRankings ? "Yes" : "No"}
@@ -143,6 +146,13 @@ export function TournamentsSection({
             required
             className="input"
           />
+          <input
+            name="startTime"
+            type="time"
+            defaultValue={editingTournament.startTime ?? ""}
+            required
+            className="input"
+          />
           <LocationSelect
             className="input"
             defaultLocation={editingTournament.location}
@@ -219,6 +229,7 @@ export function TournamentsSection({
         <h3 className="sm:col-span-2 font-semibold text-primary-dark">Create Tournament</h3>
         <input name="name" placeholder="Tournament name" required className="input" />
         <input name="date" type="date" required className="input" />
+        <input name="startTime" type="time" required className="input" />
         <LocationSelect className="input" />
         <select
           name="tournamentTypeId"

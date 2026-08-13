@@ -59,6 +59,7 @@ async function seed() {
     await db.insert(tournaments).values({
       name: t.name,
       date: t.date,
+      startTime: t.startTime,
       location: t.location,
       tournamentTypeId,
       status: t.status,

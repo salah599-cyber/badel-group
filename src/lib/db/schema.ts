@@ -53,6 +53,7 @@ export const tournaments = pgTable("tournaments", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   date: text("date").notNull(),
+  startTime: text("start_time"),
   location: text("location").notNull(),
   tournamentTypeId: uuid("tournament_type_id")
     .notNull()

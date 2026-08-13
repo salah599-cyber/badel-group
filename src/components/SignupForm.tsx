@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createEntryAction } from "@/lib/actions";
+import { formatTournamentDateTimeShort } from "@/lib/dates";
 import { playingSideLabels } from "@/lib/player-profile";
 import type { PlayingSide, SignupMode, Tournament } from "@/lib/types";
 
@@ -127,7 +128,9 @@ export function SignupForm({
 
             return (
               <option key={t.id} value={t.id} disabled={alreadyRegistered}>
-                {alreadyRegistered ? `${t.name} — already registered` : `${t.name} — ${new Date(t.date).toLocaleDateString()} (${t.typeName}) · ${capacityLabel}`}
+                {alreadyRegistered
+                  ? `${t.name} — already registered`
+                  : `${t.name} — ${formatTournamentDateTimeShort(t.date, t.startTime) ?? new Date(t.date).toLocaleDateString()} (${t.typeName}) · ${capacityLabel}`}
               </option>
             );
           })}

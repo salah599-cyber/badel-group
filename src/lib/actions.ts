@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
+import { parseTournamentStartTime } from "@/lib/dates";
 import { ensureMembershipNumber, findUserByMembershipNumber, getMembershipFromMetadata, normalizeMembershipNumber } from "@/lib/membership";
 import { hasRequiredProfile, normalizeProfileName, validateRegistrationNames } from "@/lib/registration";
 import { getUserDisplayName } from "@/lib/user-display";
@@ -129,9 +130,13 @@ export async function createTournamentAction(formData: FormData) {
   const location = (formData.get("location") as string)?.trim();
   if (!location) throw new Error("Location is required");
 
+  const startTime = parseTournamentStartTime(formData.get("startTime"));
+  if (!startTime) throw new Error("Start time is required");
+
   await db.insert(tournaments).values({
     name: formData.get("name") as string,
     date: formData.get("date") as string,
+    startTime,
     location,
     tournamentTypeId,
     description: formData.get("description") as string,
@@ -166,11 +171,15 @@ export async function updateTournamentAction(formData: FormData) {
     throw new Error("Invalid tournament status");
   }
 
+  const startTime = parseTournamentStartTime(formData.get("startTime"));
+  if (!startTime) throw new Error("Start time is required");
+
   await db
     .update(tournaments)
     .set({
       name: formData.get("name") as string,
       date: formData.get("date") as string,
+      startTime,
       location,
       tournamentTypeId,
       description: formData.get("description") as string,

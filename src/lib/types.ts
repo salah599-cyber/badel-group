@@ -24,6 +24,7 @@ export interface Tournament {
   id: string;
   name: string;
   date: string;
+  startTime?: string | null;
   location: string;
   tournamentTypeId: string;
   typeName: string;

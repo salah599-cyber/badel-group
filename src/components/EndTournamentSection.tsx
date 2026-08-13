@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createResultAction } from "@/lib/actions";
+import { formatTournamentDateTimeShort } from "@/lib/dates";
 import { getConfirmedTeamOptions } from "@/lib/tournament-teams";
 import type { Entry, Tournament } from "@/lib/types";
 
@@ -128,7 +129,9 @@ export function EndTournamentSection({
           >
             {endableTournaments.map((tournament) => (
               <option key={tournament.id} value={tournament.id}>
-                {tournament.name} — {new Date(tournament.date).toLocaleDateString()}
+                {tournament.name} —{" "}
+                {formatTournamentDateTimeShort(tournament.date, tournament.startTime) ??
+                  new Date(tournament.date).toLocaleDateString()}
               </option>
             ))}
           </select>
