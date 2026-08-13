@@ -60,6 +60,7 @@ export const tournaments = pgTable("tournaments", {
   status: tournamentStatusEnum("status").notNull().default("upcoming"),
   description: text("description").notNull(),
   maxPlayers: integer("max_players").notNull().default(32),
+  countsTowardRankings: boolean("counts_toward_rankings").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

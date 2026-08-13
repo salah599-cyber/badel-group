@@ -50,6 +50,7 @@ export function TournamentsSection({
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Rankings</th>
                   <th className="px-4 py-3">Entries</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
@@ -61,6 +62,9 @@ export function TournamentsSection({
                     <td className="px-4 py-3 text-gray-600">{t.typeName}</td>
                     <td className="px-4 py-3 text-gray-600">{t.date}</td>
                     <td className="px-4 py-3 capitalize text-gray-600">{t.status}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {t.countsTowardRankings ? "Yes" : "No"}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">
                       {t.registeredCount}/{t.maxPlayers}
                       {t.waitlistCount > 0 ? ` (+${t.waitlistCount} waiting)` : ""}
@@ -176,6 +180,15 @@ export function TournamentsSection({
             className="input sm:col-span-2"
             rows={2}
           />
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              name="countsTowardRankings"
+              value="true"
+              defaultChecked={editingTournament.countsTowardRankings}
+            />
+            <span>Count toward player rankings</span>
+          </label>
           <div className="flex gap-2 sm:col-span-2">
             <button type="submit" disabled={isPending} className="btn-primary">
               Save changes
@@ -232,6 +245,15 @@ export function TournamentsSection({
           className="input sm:col-span-2"
           rows={2}
         />
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            name="countsTowardRankings"
+            value="true"
+            defaultChecked
+          />
+          <span>Count toward player rankings</span>
+        </label>
         <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
           + Create Tournament
         </button>

@@ -136,6 +136,7 @@ export async function createTournamentAction(formData: FormData) {
     tournamentTypeId,
     description: formData.get("description") as string,
     maxPlayers: Number(formData.get("maxPlayers")),
+    countsTowardRankings: formData.get("countsTowardRankings") === "true",
     status: "upcoming",
   });
 
@@ -174,6 +175,7 @@ export async function updateTournamentAction(formData: FormData) {
       tournamentTypeId,
       description: formData.get("description") as string,
       maxPlayers: Number(formData.get("maxPlayers")),
+      countsTowardRankings: formData.get("countsTowardRankings") === "true",
       status,
     })
     .where(eq(tournaments.id, id));
@@ -182,6 +184,7 @@ export async function updateTournamentAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/signup");
   revalidatePath("/results");
+  revalidatePath("/rankings");
 }
 
 export async function deleteTournamentAction(tournamentId: string) {

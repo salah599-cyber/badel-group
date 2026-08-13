@@ -64,6 +64,7 @@ async function seed() {
       status: t.status,
       description: t.description,
       maxPlayers: t.maxPlayers,
+      countsTowardRankings: t.countsTowardRankings,
     });
   }
 
