@@ -117,8 +117,9 @@ export function TournamentsSection({
           key={editingTournament.id}
           onSubmit={(e) => {
             e.preventDefault();
+            const form = e.currentTarget;
             wrapAction(async () => {
-              await updateTournamentAction(new FormData(e.currentTarget));
+              await updateTournamentAction(new FormData(form));
               setEditingId(null);
             });
           }}
@@ -207,9 +208,10 @@ export function TournamentsSection({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          const form = e.currentTarget;
           wrapAction(async () => {
-            await createTournamentAction(new FormData(e.currentTarget));
-            e.currentTarget.reset();
+            await createTournamentAction(new FormData(form));
+            form.reset();
           });
         }}
         className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-2"
