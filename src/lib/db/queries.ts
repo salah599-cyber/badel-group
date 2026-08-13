@@ -23,6 +23,7 @@ function tournamentSelect() {
     status: tournaments.status,
     description: tournaments.description,
     maxPlayers: tournaments.maxPlayers,
+    countsTowardRankings: tournaments.countsTowardRankings,
     tournamentTypeId: tournaments.tournamentTypeId,
     typeName: tournamentTypes.name,
     typeSlug: tournamentTypes.slug,

@@ -33,6 +33,7 @@ export interface Tournament {
   status: "upcoming" | "completed";
   description: string;
   maxPlayers: number;
+  countsTowardRankings: boolean;
   registeredCount: number;
   waitlistCount: number;
 }
