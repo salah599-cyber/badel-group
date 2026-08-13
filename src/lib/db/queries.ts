@@ -19,6 +19,7 @@ function tournamentSelect() {
     id: tournaments.id,
     name: tournaments.name,
     date: tournaments.date,
+    startTime: tournaments.startTime,
     location: tournaments.location,
     status: tournaments.status,
     description: tournaments.description,
