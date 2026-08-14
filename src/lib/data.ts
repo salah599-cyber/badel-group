@@ -13,7 +13,7 @@ import {
   getTournamentWithCounts,
   getUpcomingWithCounts,
 } from "@/lib/db/queries";
-import { resolveSponsorLogos } from "@/lib/media";
+import { resolveSponsorLogosForDisplay } from "@/lib/media";
 import {
   defaultTournamentTypes,
   getSeedSponsorsByTier,
@@ -41,12 +41,12 @@ export async function fetchAllTournaments() {
 }
 
 export async function fetchSponsors() {
-  if (hasDatabase()) return resolveSponsorLogos(await getSponsors());
+  if (hasDatabase()) return resolveSponsorLogosForDisplay(await getSponsors());
   return seedSponsors;
 }
 
 export async function fetchSponsorsByTier(tier: SponsorTier) {
-  if (hasDatabase()) return resolveSponsorLogos(await getSponsorsByTier(tier));
+  if (hasDatabase()) return resolveSponsorLogosForDisplay(await getSponsorsByTier(tier));
   return getSeedSponsorsByTier(tier);
 }
 

@@ -1,8 +1,9 @@
 import { clerkClient } from "@clerk/nextjs/server";
-import { listAllClerkUsers } from "@/lib/clerk-user-list";
 import type { AdminMetadata } from "@/lib/permissions";
 import {
+  deleteMembershipIndex,
   getUserIdByMembershipNumber,
+  reserveMembershipNumber,
   upsertMembershipIndex,
 } from "@/lib/membership-index";
 
@@ -37,10 +38,6 @@ function randomMembershipNumber() {
   return String(Math.floor(Math.random() * (MEMBERSHIP_MAX - MEMBERSHIP_MIN + 1)) + MEMBERSHIP_MIN);
 }
 
-async function listAllUsers() {
-  return listAllClerkUsers();
-}
-
 async function persistMembershipNumber(userId: string, membershipNumber: string) {
   const normalized = normalizeMembershipNumber(membershipNumber);
   if (!normalized) return;
@@ -48,7 +45,8 @@ async function persistMembershipNumber(userId: string, membershipNumber: string)
 }
 
 export async function rebuildMembershipIndexFromClerk() {
-  const users = await listAllUsers();
+  const { listAllClerkUsers } = await import("@/lib/clerk-user-list");
+  const users = await listAllClerkUsers();
   const client = await clerkClient();
 
   for (const user of users) {
@@ -96,14 +94,6 @@ async function lookupUserByMembershipNumber(normalized: string) {
     }
   }
 
-  const users = await listAllUsers();
-  for (const user of users) {
-    if (getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized) {
-      await persistMembershipNumber(user.id, normalized);
-      return user;
-    }
-  }
-
   return null;
 }
 
@@ -115,26 +105,14 @@ export async function isMembershipNumberTaken(
   if (!normalized) return false;
 
   const indexedUserId = await getUserIdByMembershipNumber(normalized);
-  if (indexedUserId && indexedUserId !== excludeUserId) {
-    return true;
-  }
-
-  const users = await listAllUsers();
-
-  return users.some((user) => {
-    if (excludeUserId && user.id === excludeUserId) return false;
-    return getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized;
-  });
+  if (!indexedUserId) return false;
+  if (excludeUserId && indexedUserId === excludeUserId) return false;
+  return true;
 }
 
 export async function findUserByMembershipNumber(membershipNumber: string) {
   const normalized = normalizeMembershipNumber(membershipNumber);
   if (!normalized) return null;
-
-  const found = await lookupUserByMembershipNumber(normalized);
-  if (found) return found;
-
-  await rebuildMembershipIndexFromClerk();
   return lookupUserByMembershipNumber(normalized);
 }
 
@@ -145,24 +123,25 @@ export async function ensureMembershipNumber(userId: string): Promise<string> {
 
   const existing = getMembershipFromMetadata(metadata);
   if (existing) {
-    await persistMembershipNumber(userId, existing);
     return existing;
   }
 
   for (let attempt = 0; attempt < MAX_ASSIGN_ATTEMPTS; attempt += 1) {
     const membershipNumber = randomMembershipNumber();
-    const taken = await isMembershipNumberTaken(membershipNumber, userId);
-    if (taken) continue;
+    const reserved = await reserveMembershipNumber(userId, membershipNumber);
+    if (!reserved) continue;
 
-    await client.users.updateUserMetadata(userId, {
-      publicMetadata: {
-        ...user.publicMetadata,
-        membershipNumber,
-      },
-    });
-
-    await persistMembershipNumber(userId, membershipNumber);
-    return membershipNumber;
+    try {
+      await client.users.updateUserMetadata(userId, {
+        publicMetadata: {
+          ...user.publicMetadata,
+          membershipNumber,
+        },
+      });
+      return membershipNumber;
+    } catch {
+      await deleteMembershipIndex(userId);
+    }
   }
 
   throw new Error("Could not assign a unique membership number. Please try again.");

@@ -1,15 +1,24 @@
 import { SectionHeading } from "@/components/SectionHeading";
 import { SponsorTierSection } from "@/components/SponsorSection";
-import { fetchSponsorsByTier } from "@/lib/data";
-import { tierOrder } from "@/lib/types";
+import { fetchSponsors } from "@/lib/data";
+import { tierOrder, type SponsorTier } from "@/lib/types";
 
 export const metadata = {
   title: "Sponsors | Badel Group",
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function SponsorsPage() {
+  const allSponsors = await fetchSponsors();
+  const sponsorsByTier = tierOrder.reduce<Record<SponsorTier, typeof allSponsors>>(
+    (acc, tier) => {
+      acc[tier] = allSponsors.filter((sponsor) => sponsor.tier === tier);
+      return acc;
+    },
+    { platinum: [], gold: [], silver: [], bronze: [] },
+  );
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
       <SectionHeading
@@ -19,12 +28,9 @@ export default async function SponsorsPage() {
       />
 
       <div className="section-shell space-y-12">
-        {await Promise.all(
-          tierOrder.map(async (tier) => {
-            const sponsors = await fetchSponsorsByTier(tier);
-            return <SponsorTierSection key={tier} tier={tier} sponsors={sponsors} />;
-          }),
-        )}
+        {tierOrder.map((tier) => (
+          <SponsorTierSection key={tier} tier={tier} sponsors={sponsorsByTier[tier]} />
+        ))}
       </div>
 
       <div className="mt-12 overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-secondary p-8 text-center text-white shadow-xl sm:rounded-3xl sm:p-10">

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ne, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "./index";
 import {
@@ -117,7 +117,8 @@ export async function getTournamentCapacity(tournamentId: string) {
 
   if (!tournament) return null;
 
-  const confirmedCount = await countConfirmedEntries(tournamentId);
+  const [withCounts] = await attachTournamentCounts([{ id: tournamentId, maxPlayers: tournament.maxPlayers }]);
+  const confirmedCount = withCounts?.registeredCount ?? 0;
 
   return {
     maxPlayers: tournament.maxPlayers,
@@ -127,22 +128,65 @@ export async function getTournamentCapacity(tournamentId: string) {
   };
 }
 
+async function attachTournamentCounts<T extends { id: string }>(
+  tournamentList: T[],
+): Promise<(T & { registeredCount: number; waitlistCount: number })[]> {
+  if (!db || tournamentList.length === 0) {
+    return tournamentList.map((tournament) => ({
+      ...tournament,
+      registeredCount: 0,
+      waitlistCount: 0,
+    }));
+  }
+
+  const ids = tournamentList.map((tournament) => tournament.id);
+  const partnerEntry = alias(entries, "partner_entry");
+
+  const entryRows = await db
+    .select(entrySelect())
+    .from(entries)
+    .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .leftJoin(partnerEntry, eq(entries.partnerEntryId, partnerEntry.id))
+    .where(inArray(entries.tournamentId, ids));
+
+  const entriesByTournament = new Map<string, typeof entryRows>();
+  for (const row of entryRows) {
+    const tournamentEntries = entriesByTournament.get(row.tournamentId) ?? [];
+    tournamentEntries.push(row);
+    entriesByTournament.set(row.tournamentId, tournamentEntries);
+  }
+
+  const waitlistRows = await db
+    .select({
+      tournamentId: entries.tournamentId,
+      value: count(),
+    })
+    .from(entries)
+    .where(and(inArray(entries.tournamentId, ids), eq(entries.status, "waitlisted")))
+    .groupBy(entries.tournamentId);
+
+  const waitlistByTournament = new Map(
+    waitlistRows.map((row) => [row.tournamentId, Number(row.value)]),
+  );
+
+  return tournamentList.map((tournament) => ({
+    ...tournament,
+    registeredCount: countConfirmedTeams(entriesByTournament.get(tournament.id) ?? []),
+    waitlistCount: waitlistByTournament.get(tournament.id) ?? 0,
+  }));
+}
+
 export async function getTournamentWithCounts() {
   if (!db) return [];
   const all = await getTournaments();
-  const counts = await Promise.all(
-    all.map(async (t) => {
-      const registeredCount = await countConfirmedEntries(t.id);
-      const waitlistCount = await countWaitlistedEntries(t.id);
-      return { ...t, registeredCount, waitlistCount };
-    }),
-  );
-  return counts;
+  return attachTournamentCounts(all);
 }
 
 export async function getUpcomingWithCounts() {
-  const all = await getTournamentWithCounts();
-  return all.filter((t) => t.status === "upcoming");
+  if (!db) return [];
+  const upcoming = await getUpcomingTournaments();
+  return attachTournamentCounts(upcoming);
 }
 
 export async function getSponsors() {

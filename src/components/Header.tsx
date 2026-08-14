@@ -1,11 +1,13 @@
+"use client";
+
 import Link from "next/link";
-import { currentUser } from "@clerk/nextjs/server";
+import { useUser } from "@clerk/nextjs";
 import { AuthNav } from "@/components/AuthNav";
 import { Logo } from "@/components/Logo";
 import { MobileNav } from "@/components/MobileNav";
-import { isAdmin } from "@/lib/auth";
-import { ensureMembershipNumber } from "@/lib/membership";
-import { getUnreadNotificationCount } from "@/lib/notifications";
+import { useNotifications } from "@/components/NotificationProvider";
+import { getMembershipFromMetadata } from "@/lib/membership";
+import { hasAdminAccess, type AdminMetadata } from "@/lib/permissions";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -19,6 +21,7 @@ function SignupLink({ pendingCount }: { pendingCount: number }) {
   return (
     <Link
       href="/signup"
+      prefetch={false}
       className="relative hidden rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark md:inline-flex"
     >
       Sign Up
@@ -31,15 +34,18 @@ function SignupLink({ pendingCount }: { pendingCount: number }) {
   );
 }
 
-export async function Header() {
-  const [admin, user] = await Promise.all([isAdmin(), currentUser()]);
-  const pendingCount = user?.id ? await getUnreadNotificationCount(user.id) : 0;
-  const membershipNumber = user?.id ? await ensureMembershipNumber(user.id) : null;
+export function Header() {
+  const { user } = useUser();
+  const { unreadCount } = useNotifications();
+  const admin = user ? hasAdminAccess(user.publicMetadata as AdminMetadata) : false;
+  const membershipNumber = user
+    ? getMembershipFromMetadata(user.publicMetadata as AdminMetadata)
+    : null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-primary/10 bg-cream/90 shadow-sm backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <Link href="/" className="group min-w-0 shrink-0">
+        <Link href="/" prefetch={false} className="group min-w-0 shrink-0">
           <Logo
             size="md"
             showText
@@ -52,6 +58,7 @@ export async function Header() {
             <Link
               key={link.href}
               href={link.href}
+              prefetch={false}
               className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-white hover:text-primary"
             >
               {link.label}
@@ -60,6 +67,7 @@ export async function Header() {
           {admin && (
             <Link
               href="/admin"
+              prefetch={false}
               className="rounded-lg px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/10"
             >
               Admin
@@ -68,9 +76,9 @@ export async function Header() {
         </nav>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <SignupLink pendingCount={pendingCount} />
+          <SignupLink pendingCount={unreadCount} />
           <AuthNav membershipNumber={membershipNumber} />
-          <MobileNav links={navLinks} isAdmin={admin} pendingCount={pendingCount} />
+          <MobileNav links={navLinks} isAdmin={admin} pendingCount={unreadCount} />
         </div>
       </div>
     </header>

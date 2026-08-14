@@ -77,6 +77,7 @@ export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) 
               <li key={link.href}>
                 <Link
                   href={link.href}
+                  prefetch={false}
                   onClick={() => setOpen(false)}
                   className="block rounded-xl px-4 py-3 text-base font-medium text-gray-800 transition hover:bg-white hover:text-primary"
                 >
@@ -88,6 +89,7 @@ export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) 
               <li>
                 <Link
                   href="/admin"
+                  prefetch={false}
                   onClick={() => setOpen(false)}
                   className="block rounded-xl px-4 py-3 text-base font-semibold text-primary transition hover:bg-primary/10"
                 >
@@ -101,6 +103,7 @@ export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) 
         <div className="space-y-3 border-t border-primary/10 p-4">
           <Link
             href="/signup"
+            prefetch={false}
             onClick={() => setOpen(false)}
             className="btn-primary relative block w-full py-3 text-center"
           >
@@ -114,6 +117,7 @@ export function MobileNav({ links, isAdmin, pendingCount = 0 }: MobileNavProps) 
           {!isSignedIn && (
             <Link
               href="/sign-in"
+              prefetch={false}
               onClick={() => setOpen(false)}
               className="block w-full rounded-xl border border-gray-200 bg-white py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-primary/30 hover:text-primary"
             >

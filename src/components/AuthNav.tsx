@@ -110,6 +110,7 @@ export function AuthNav({ membershipNumber }: AuthNavProps) {
   return (
     <Link
       href="/sign-in"
+      prefetch={false}
       className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary"
     >
       Sign In

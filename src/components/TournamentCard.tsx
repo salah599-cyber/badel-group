@@ -60,6 +60,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
 
         <Link
           href="/signup"
+          prefetch={false}
           className="rounded-xl bg-primary py-3 text-center text-sm font-semibold text-white transition hover:bg-primary-dark"
         >
           {isFull ? "Join Waitlist" : "Sign Up"}

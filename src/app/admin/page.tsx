@@ -2,10 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { SectionHeading } from "@/components/SectionHeading";
 import { AdminPanel } from "@/components/AdminPanel";
-import {
-  fetchAdminMembers,
-  fetchSiteMembers,
-} from "@/lib/admin-members";
+import { fetchAdminUserLists } from "@/lib/admin-members";
 import {
   fetchAllTournaments,
   fetchGalleryPhotos,
@@ -17,7 +14,6 @@ import {
   fetchTournamentIdsWithResults,
   fetchTournamentTypes,
 } from "@/lib/data";
-import { fetchPendingUsers } from "@/lib/clerk-users";
 import { getAdminContext } from "@/lib/auth";
 import { hasDatabase } from "@/lib/db";
 import { redirect } from "next/navigation";
@@ -30,23 +26,31 @@ export default async function AdminPage() {
   const ctx = await getAdminContext();
   if (!ctx) redirect("/?error=unauthorized");
 
-  const allTournaments = await fetchAllTournaments();
-  const tournamentTypes = await fetchTournamentTypes();
-  const manageableEntries = await fetchManageableEntries();
-  const sponsors = await fetchSponsors();
-  const galleryPhotos = await fetchGalleryPhotos();
-  const playerProfiles = await fetchPlayerProfiles();
-  const rankedPlayers = await fetchTopRankings(50);
-  const tournamentIdsWithResults = await fetchTournamentIdsWithResults();
-  const pendingEntries = await fetchPendingEntries();
-  const pendingUsers = ctx.permissions.includes("users:approve") || ctx.isSuperAdmin
-    ? await fetchPendingUsers()
-    : [];
-  const adminMembers = ctx.isSuperAdmin ? await fetchAdminMembers() : [];
-  const siteMembers =
-    ctx.permissions.includes("users:approve") || ctx.isSuperAdmin
-      ? await fetchSiteMembers()
-      : [];
+  const [
+    allTournaments,
+    tournamentTypes,
+    manageableEntries,
+    sponsors,
+    galleryPhotos,
+    playerProfiles,
+    rankedPlayers,
+    tournamentIdsWithResults,
+    pendingEntries,
+    userLists,
+  ] = await Promise.all([
+    fetchAllTournaments(),
+    fetchTournamentTypes(),
+    fetchManageableEntries(),
+    fetchSponsors(),
+    fetchGalleryPhotos(),
+    fetchPlayerProfiles(),
+    fetchTopRankings(50),
+    fetchTournamentIdsWithResults(),
+    fetchPendingEntries(),
+    fetchAdminUserLists(ctx),
+  ]);
+
+  const { pendingUsers, adminMembers, siteMembers } = userLists;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
@@ -91,7 +95,7 @@ export default async function AdminPage() {
         role={ctx.role}
       />
 
-      <Link href="/" className="mt-8 inline-block text-sm font-semibold text-primary hover:text-primary-dark">
+      <Link href="/" prefetch={false} className="mt-8 inline-block text-sm font-semibold text-primary hover:text-primary-dark">
         ← Back to site
       </Link>
     </div>

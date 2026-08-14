@@ -1,5 +1,3 @@
-import { getDownloadUrl } from "@vercel/blob";
-
 export function isBlobUrl(url: string) {
   return url.includes("blob.vercel-storage.com");
 }
@@ -21,6 +19,7 @@ export function isPublicMediaPath(url: string) {
 
 export async function resolveMediaUrl(url: string) {
   if (!isBlobUrl(url) || isPublicBlobUrl(url)) return url;
+  const { getDownloadUrl } = await import("@vercel/blob");
   return getDownloadUrl(url);
 }
 
@@ -32,15 +31,14 @@ export function getMediaSrc(url: string) {
   return url;
 }
 
+export function resolveSponsorLogosForDisplay<T extends { logoUrl: string }>(items: T[]) {
+  return items.map((item) => ({
+    ...item,
+    logoUrl: getMediaSrc(item.logoUrl),
+  }));
+}
+
+/** @deprecated Prefer resolveSponsorLogosForDisplay to avoid server-side download URL resolution. */
 export async function resolveSponsorLogos<T extends { logoUrl: string }>(items: T[]) {
-  return Promise.all(
-    items.map(async (item) => ({
-      ...item,
-      logoUrl: isPublicBlobUrl(item.logoUrl)
-        ? item.logoUrl
-        : isBlobUrl(item.logoUrl)
-          ? await getDownloadUrl(item.logoUrl)
-          : item.logoUrl,
-    })),
-  );
+  return resolveSponsorLogosForDisplay(items);
 }

@@ -4,6 +4,7 @@ import { Geist } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { NotificationPopups } from "@/components/NotificationPopups";
+import { NotificationProvider } from "@/components/NotificationProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -47,10 +48,12 @@ export default function RootLayout({
             },
           }}
         >
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <NotificationPopups />
+          <NotificationProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <NotificationPopups />
+          </NotificationProvider>
         </ClerkProvider>
       </body>
     </html>

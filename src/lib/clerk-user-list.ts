@@ -1,7 +1,8 @@
+import { cache } from "react";
 import { clerkClient } from "@clerk/nextjs/server";
 
 /** Paginate through every Clerk user (do not rely on totalCount alone). */
-export async function listAllClerkUsers() {
+export const listAllClerkUsers = cache(async () => {
   const client = await clerkClient();
   const users = [];
   let offset = 0;
@@ -18,4 +19,4 @@ export async function listAllClerkUsers() {
   }
 
   return users;
-}
+});

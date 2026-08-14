@@ -6,6 +6,8 @@ export const metadata = {
   title: "Results | Badel Group",
 };
 
+export const revalidate = 60;
+
 export default async function ResultsPage() {
   const [results, profiles] = await Promise.all([fetchResults(), fetchPlayerProfiles()]);
   const photoByKey = new Map(profiles.map((p) => [p.nameKey, p.photoUrl]));

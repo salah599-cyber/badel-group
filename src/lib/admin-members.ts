@@ -7,6 +7,7 @@ import {
   isMemberApproved,
   isPendingMemberApproval,
   PERMISSIONS,
+  type AdminContext,
   type AdminMetadata,
   type AdminRole,
   type Permission,
@@ -44,6 +45,8 @@ export type SiteMember = {
   createdAt: number;
 };
 
+type ClerkUser = Awaited<ReturnType<typeof listAllClerkUsers>>[number];
+
 function getUserName(user: {
   firstName: string | null;
   lastName: string | null;
@@ -66,10 +69,7 @@ function getMembershipNumberFromMeta(meta: AdminMetadata): string | null {
   return getMembershipFromMetadata(meta);
 }
 
-export async function fetchPendingUsers(): Promise<PendingUser[]> {
-  await requirePermission("users:approve");
-  const data = await listAllClerkUsers();
-
+function mapPendingUsers(data: ClerkUser[]): PendingUser[] {
   return data
     .filter((user) => {
       const meta = user.publicMetadata as AdminMetadata;
@@ -84,10 +84,7 @@ export async function fetchPendingUsers(): Promise<PendingUser[]> {
     }));
 }
 
-export async function fetchAdminMembers(): Promise<AdminMember[]> {
-  await requireSuperAdmin();
-  const data = await listAllClerkUsers();
-
+function mapAdminMembers(data: ClerkUser[]): AdminMember[] {
   return data
     .filter((user) => isAdminRole((user.publicMetadata as AdminMetadata)?.role))
     .map((user) => {
@@ -117,10 +114,7 @@ export async function fetchAdminMembers(): Promise<AdminMember[]> {
     });
 }
 
-export async function fetchSiteMembers(): Promise<SiteMember[]> {
-  await requirePermission("users:approve");
-  const data = await listAllClerkUsers();
-
+function mapSiteMembers(data: ClerkUser[]): SiteMember[] {
   return data
     .filter((user) => {
       const meta = user.publicMetadata as AdminMetadata;
@@ -134,6 +128,44 @@ export async function fetchSiteMembers(): Promise<SiteMember[]> {
       status: (user.publicMetadata as AdminMetadata)?.status ?? "approved",
       createdAt: user.createdAt,
     }));
+}
+
+export async function fetchAdminUserLists(ctx: AdminContext): Promise<{
+  pendingUsers: PendingUser[];
+  adminMembers: AdminMember[];
+  siteMembers: SiteMember[];
+}> {
+  const canViewMembers = ctx.isSuperAdmin || ctx.permissions.includes("users:approve");
+  if (!canViewMembers) {
+    return { pendingUsers: [], adminMembers: [], siteMembers: [] };
+  }
+
+  await requirePermission("users:approve");
+  const data = await listAllClerkUsers();
+
+  return {
+    pendingUsers: mapPendingUsers(data),
+    adminMembers: ctx.isSuperAdmin ? mapAdminMembers(data) : [],
+    siteMembers: mapSiteMembers(data),
+  };
+}
+
+export async function fetchPendingUsers(): Promise<PendingUser[]> {
+  await requirePermission("users:approve");
+  const data = await listAllClerkUsers();
+  return mapPendingUsers(data);
+}
+
+export async function fetchAdminMembers(): Promise<AdminMember[]> {
+  await requireSuperAdmin();
+  const data = await listAllClerkUsers();
+  return mapAdminMembers(data);
+}
+
+export async function fetchSiteMembers(): Promise<SiteMember[]> {
+  await requirePermission("users:approve");
+  const data = await listAllClerkUsers();
+  return mapSiteMembers(data);
 }
 
 export async function findUserByEmail(email: string) {

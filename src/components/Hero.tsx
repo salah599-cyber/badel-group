@@ -35,12 +35,14 @@ export function Hero() {
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
             <Link
               href="/signup"
+              prefetch={false}
               className="rounded-xl bg-white px-7 py-3.5 text-center font-semibold text-primary shadow-lg transition hover:bg-cream hover:shadow-xl"
             >
               Register for a Tournament
             </Link>
             <Link
               href="/gallery"
+              prefetch={false}
               className="rounded-xl border border-white/50 bg-white/10 px-7 py-3.5 text-center font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
             >
               View Gallery

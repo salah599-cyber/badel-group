@@ -5,18 +5,25 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { getInstagramProfileUrl } from "@/lib/instagram";
 import { SponsorTierSection } from "@/components/SponsorSection";
 import { TournamentCard } from "@/components/TournamentCard";
-import {
-  fetchGalleryPhotos,
-  fetchSponsorsByTier,
-  fetchUpcomingTournaments,
-} from "@/lib/data";
-import { tierOrder } from "@/lib/types";
+import { fetchGalleryPhotos, fetchSponsors, fetchUpcomingTournaments } from "@/lib/data";
+import { tierOrder, type SponsorTier } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function HomePage() {
-  const upcoming = await fetchUpcomingTournaments();
-  const galleryPhotos = await fetchGalleryPhotos();
+  const [upcoming, galleryPhotos, allSponsors] = await Promise.all([
+    fetchUpcomingTournaments(),
+    fetchGalleryPhotos(),
+    fetchSponsors(),
+  ]);
+
+  const sponsorsByTier = tierOrder.reduce<Record<SponsorTier, typeof allSponsors>>(
+    (acc, tier) => {
+      acc[tier] = allSponsors.filter((sponsor) => sponsor.tier === tier);
+      return acc;
+    },
+    { platinum: [], gold: [], silver: [], bronze: [] },
+  );
 
   return (
     <>
@@ -52,14 +59,9 @@ export default async function HomePage() {
             align="center"
           />
           <div className="space-y-12">
-            {await Promise.all(
-              tierOrder.map(async (tier) => {
-                const sponsors = await fetchSponsorsByTier(tier);
-                return (
-                  <SponsorTierSection key={tier} tier={tier} sponsors={sponsors} />
-                );
-              }),
-            )}
+            {tierOrder.map((tier) => (
+              <SponsorTierSection key={tier} tier={tier} sponsors={sponsorsByTier[tier]} />
+            ))}
           </div>
         </section>
 

@@ -2,58 +2,45 @@
 
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   dismissAllNotificationsAction,
   dismissNotificationAction,
-  fetchUnreadNotificationsAction,
 } from "@/lib/actions";
-import type { AppNotification } from "@/lib/notifications";
+import { useNotifications } from "@/components/NotificationProvider";
 
 export function NotificationPopups() {
   const { isSignedIn } = useAuth();
-  const [items, setItems] = useState<AppNotification[]>([]);
+  const { notifications, dismissLocal, dismissAllLocal } = useNotifications();
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
 
-  const loadNotifications = useCallback(async () => {
+  useEffect(() => {
     if (!isSignedIn) {
-      setItems([]);
       setVisibleIds([]);
       return;
     }
 
-    const unread = await fetchUnreadNotificationsAction();
-    setItems(unread);
     setVisibleIds((current) => {
-      const nextIds = unread.map((item) => item.id);
+      const nextIds = notifications.map((item) => item.id);
       const preserved = current.filter((id) => nextIds.includes(id));
       const added = nextIds.filter((id) => !preserved.includes(id));
       return [...preserved, ...added];
     });
-  }, [isSignedIn]);
-
-  useEffect(() => {
-    void loadNotifications();
-    const interval = window.setInterval(() => {
-      void loadNotifications();
-    }, 30000);
-
-    return () => window.clearInterval(interval);
-  }, [loadNotifications]);
+  }, [isSignedIn, notifications]);
 
   async function dismiss(id: string) {
     setVisibleIds((current) => current.filter((itemId) => itemId !== id));
-    setItems((current) => current.filter((item) => item.id !== id));
+    dismissLocal(id);
     await dismissNotificationAction(id);
   }
 
   async function dismissAll() {
     setVisibleIds([]);
-    setItems([]);
+    dismissAllLocal();
     await dismissAllNotificationsAction();
   }
 
-  const visibleItems = items.filter((item) => visibleIds.includes(item.id));
+  const visibleItems = notifications.filter((item) => visibleIds.includes(item.id));
 
   if (visibleItems.length === 0) return null;
 
@@ -82,6 +69,7 @@ export function NotificationPopups() {
           {item.href && (
             <Link
               href={item.href}
+              prefetch={false}
               onClick={() => void dismiss(item.id)}
               className="text-sm font-semibold text-primary hover:text-primary-dark"
             >

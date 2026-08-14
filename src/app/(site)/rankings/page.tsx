@@ -7,6 +7,8 @@ export const metadata = {
   title: "Rankings | Badel Group",
 };
 
+export const revalidate = 60;
+
 export default async function RankingsPage() {
   const rankings = await fetchTopRankings(12);
 

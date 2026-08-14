@@ -18,11 +18,11 @@ export function Footer() {
             <div>
               <p className="mb-3 font-semibold text-secondary">Explore</p>
               <ul className="space-y-2 text-white/80">
-                <li><Link href="/gallery" className="hover:text-white">Gallery</Link></li>
-                <li><Link href="/results" className="hover:text-white">Results</Link></li>
-                <li><Link href="/rankings" className="hover:text-white">Rankings</Link></li>
-                <li><Link href="/sponsors" className="hover:text-white">Sponsors</Link></li>
-                <li><Link href="/signup" className="hover:text-white">Sign Up</Link></li>
+                <li><Link href="/gallery" prefetch={false} className="hover:text-white">Gallery</Link></li>
+                <li><Link href="/results" prefetch={false} className="hover:text-white">Results</Link></li>
+                <li><Link href="/rankings" prefetch={false} className="hover:text-white">Rankings</Link></li>
+                <li><Link href="/sponsors" prefetch={false} className="hover:text-white">Sponsors</Link></li>
+                <li><Link href="/signup" prefetch={false} className="hover:text-white">Sign Up</Link></li>
               </ul>
             </div>
             <div>
@@ -39,7 +39,7 @@ export function Footer() {
                   </a>
                 </li>
                 <li>
-                  <Link href="/admin" className="text-white/50 hover:text-white/80">
+                  <Link href="/admin" prefetch={false} className="text-white/50 hover:text-white/80">
                     Admin
                   </Link>
                 </li>
