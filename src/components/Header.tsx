@@ -6,7 +6,7 @@ import { AuthNav } from "@/components/AuthNav";
 import { Logo } from "@/components/Logo";
 import { MobileNav } from "@/components/MobileNav";
 import { useNotifications } from "@/components/NotificationProvider";
-import { getMembershipFromMetadata } from "@/lib/membership";
+import { getMembershipFromMetadata } from "@/lib/membership-utils";
 import { hasAdminAccess, type AdminMetadata } from "@/lib/permissions";
 
 const navLinks = [
