@@ -24,6 +24,7 @@ export interface Tournament {
   id: string;
   name: string;
   date: string;
+  startTime?: string | null;
   location: string;
   tournamentTypeId: string;
   typeName: string;
@@ -33,6 +34,7 @@ export interface Tournament {
   status: "upcoming" | "completed";
   description: string;
   maxPlayers: number;
+  countsTowardRankings: boolean;
   registeredCount: number;
   waitlistCount: number;
 }

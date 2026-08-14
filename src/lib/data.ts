@@ -74,10 +74,18 @@ export async function fetchPlayerProfiles() {
 }
 
 export async function fetchTopRankings(limit = 12) {
-  const [results, profiles] = await Promise.all([fetchResults(), fetchPlayerProfiles()]);
+  const [results, tournaments, profiles] = await Promise.all([
+    fetchResults(),
+    fetchAllTournaments(),
+    fetchPlayerProfiles(),
+  ]);
+  const excludedTournamentIds = new Set(
+    tournaments.filter((t) => !t.countsTowardRankings).map((t) => t.id),
+  );
+  const rankingResults = results.filter((r) => !excludedTournamentIds.has(r.tournamentId));
   const photoMap = new Map(profiles.map((p) => [p.nameKey, p.photoUrl]));
 
-  return calculatePlayerRankings(results, limit).map((ranking) => ({
+  return calculatePlayerRankings(rankingResults, limit).map((ranking) => ({
     ...ranking,
     photoUrl: photoMap.get(normalizePlayerKey(ranking.name)) ?? null,
   }));

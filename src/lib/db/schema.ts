@@ -53,6 +53,7 @@ export const tournaments = pgTable("tournaments", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   date: text("date").notNull(),
+  startTime: text("start_time"),
   location: text("location").notNull(),
   tournamentTypeId: uuid("tournament_type_id")
     .notNull()
@@ -60,6 +61,7 @@ export const tournaments = pgTable("tournaments", {
   status: tournamentStatusEnum("status").notNull().default("upcoming"),
   description: text("description").notNull(),
   maxPlayers: integer("max_players").notNull().default(32),
+  countsTowardRankings: boolean("counts_toward_rankings").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

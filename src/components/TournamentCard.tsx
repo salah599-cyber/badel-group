@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatTournamentDateTimeShort } from "@/lib/dates";
 import type { Tournament } from "@/lib/types";
 
 export function TournamentCard({ tournament }: { tournament: Tournament }) {
@@ -8,12 +9,14 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
     100,
     Math.round((tournament.registeredCount / tournament.maxPlayers) * 100),
   );
-  const dateFormatted = new Date(tournament.date).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const dateFormatted =
+    formatTournamentDateTimeShort(tournament.date, tournament.startTime) ??
+    new Date(tournament.date).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
 
   return (
     <article className="card-hover group flex flex-col overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-sm">

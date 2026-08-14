@@ -7,6 +7,7 @@ import {
   deleteTournamentAction,
   updateTournamentAction,
 } from "@/lib/actions";
+import { formatTournamentDateTimeShort } from "@/lib/dates";
 import type { Tournament, TournamentType } from "@/lib/types";
 
 type TournamentsSectionProps = {
@@ -50,6 +51,7 @@ export function TournamentsSection({
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Rankings</th>
                   <th className="px-4 py-3">Entries</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
@@ -59,8 +61,13 @@ export function TournamentsSection({
                   <tr key={t.id}>
                     <td className="px-4 py-3 font-medium">{t.name}</td>
                     <td className="px-4 py-3 text-gray-600">{t.typeName}</td>
-                    <td className="px-4 py-3 text-gray-600">{t.date}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {formatTournamentDateTimeShort(t.date, t.startTime) ?? t.date}
+                    </td>
                     <td className="px-4 py-3 capitalize text-gray-600">{t.status}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {t.countsTowardRankings ? "Yes" : "No"}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">
                       {t.registeredCount}/{t.maxPlayers}
                       {t.waitlistCount > 0 ? ` (+${t.waitlistCount} waiting)` : ""}
@@ -113,8 +120,9 @@ export function TournamentsSection({
           key={editingTournament.id}
           onSubmit={(e) => {
             e.preventDefault();
+            const form = e.currentTarget;
             wrapAction(async () => {
-              await updateTournamentAction(new FormData(e.currentTarget));
+              await updateTournamentAction(new FormData(form));
               setEditingId(null);
             });
           }}
@@ -135,6 +143,13 @@ export function TournamentsSection({
             name="date"
             type="date"
             defaultValue={editingTournament.date}
+            required
+            className="input"
+          />
+          <input
+            name="startTime"
+            type="time"
+            defaultValue={editingTournament.startTime ?? ""}
             required
             className="input"
           />
@@ -176,6 +191,15 @@ export function TournamentsSection({
             className="input sm:col-span-2"
             rows={2}
           />
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              name="countsTowardRankings"
+              value="true"
+              defaultChecked={editingTournament.countsTowardRankings}
+            />
+            <span>Count toward player rankings</span>
+          </label>
           <div className="flex gap-2 sm:col-span-2">
             <button type="submit" disabled={isPending} className="btn-primary">
               Save changes
@@ -194,9 +218,10 @@ export function TournamentsSection({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          const form = e.currentTarget;
           wrapAction(async () => {
-            await createTournamentAction(new FormData(e.currentTarget));
-            e.currentTarget.reset();
+            await createTournamentAction(new FormData(form));
+            form.reset();
           });
         }}
         className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-2"
@@ -204,6 +229,7 @@ export function TournamentsSection({
         <h3 className="sm:col-span-2 font-semibold text-primary-dark">Create Tournament</h3>
         <input name="name" placeholder="Tournament name" required className="input" />
         <input name="date" type="date" required className="input" />
+        <input name="startTime" type="time" required className="input" />
         <LocationSelect className="input" />
         <select
           name="tournamentTypeId"
@@ -232,6 +258,15 @@ export function TournamentsSection({
           className="input sm:col-span-2"
           rows={2}
         />
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            name="countsTowardRankings"
+            value="true"
+            defaultChecked
+          />
+          <span>Count toward player rankings</span>
+        </label>
         <button type="submit" disabled={isPending} className="btn-primary sm:col-span-2">
           + Create Tournament
         </button>
