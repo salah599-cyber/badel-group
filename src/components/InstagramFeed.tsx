@@ -1,10 +1,6 @@
-import Image from "next/image";
 import { SectionHeading } from "@/components/SectionHeading";
-import {
-  fetchInstagramPosts,
-  getInstagramProfileLabel,
-  getInstagramProfileUrl,
-} from "@/lib/instagram";
+import { SociableKitInstagramEmbed } from "@/components/SociableKitInstagramEmbed";
+import { getInstagramProfileLabel, getInstagramProfileUrl } from "@/lib/instagram";
 
 function InstagramIcon({ className }: { className?: string }) {
   return (
@@ -19,15 +15,7 @@ function InstagramIcon({ className }: { className?: string }) {
   );
 }
 
-function truncateCaption(caption: string | null, maxLength = 80): string | null {
-  if (!caption) return null;
-  const trimmed = caption.trim();
-  if (trimmed.length <= maxLength) return trimmed;
-  return `${trimmed.slice(0, maxLength).trimEnd()}…`;
-}
-
-export async function InstagramFeed() {
-  const posts = await fetchInstagramPosts(6);
+export function InstagramFeed() {
   const profileUrl = getInstagramProfileUrl();
   const profileLabel = getInstagramProfileLabel();
 
@@ -50,60 +38,7 @@ export async function InstagramFeed() {
         </a>
       </div>
 
-      {posts.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-          {posts.map((post) => (
-            <a
-              key={post.id}
-              href={post.permalink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative aspect-square overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-black/5"
-            >
-              <Image
-                src={post.imageUrl}
-                alt={truncateCaption(post.caption) ?? "Instagram post"}
-                fill
-                sizes="(max-width: 640px) 50vw, 33vw"
-                className="object-cover transition duration-500 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-black/0 transition duration-300 group-hover:bg-black/20" />
-              {post.mediaType === "VIDEO" && (
-                <span className="absolute top-3 right-3 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold tracking-wide text-white uppercase">
-                  Video
-                </span>
-              )}
-              {post.caption && (
-                <p className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 text-xs font-medium text-white sm:translate-y-full sm:transition sm:duration-300 sm:group-hover:translate-y-0">
-                  {truncateCaption(post.caption)}
-                </p>
-              )}
-            </a>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-dashed border-primary/20 bg-cream/50 px-6 py-12 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af] text-white shadow-md">
-            <InstagramIcon className="h-7 w-7" />
-          </div>
-          <p className="mb-2 text-lg font-semibold text-gray-900">
-            Follow us on Instagram
-          </p>
-          <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
-            Tournament highlights, behind-the-scenes moments, and community updates
-            are posted on our Instagram page.
-          </p>
-          <a
-            href={profileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark"
-          >
-            <InstagramIcon className="h-4 w-4" />
-            Follow {profileLabel}
-          </a>
-        </div>
-      )}
+      <SociableKitInstagramEmbed />
     </section>
   );
 }

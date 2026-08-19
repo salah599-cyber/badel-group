@@ -9,6 +9,20 @@ export interface InstagramPost {
 
 const INSTAGRAM_API = "https://graph.instagram.com";
 const DEFAULT_INSTAGRAM_HANDLE = "badelgroup.om";
+const DEFAULT_SOCIABLEKIT_EMBED_ID = "25706818";
+const SOCIABLEKIT_FEED_SCRIPT =
+  "https://widgets.sociablekit.com/instagram-feed/widget.js";
+
+export function getSociableKitEmbedId(): string {
+  return (
+    process.env.NEXT_PUBLIC_SOCIABLEKIT_EMBED_ID?.trim() ||
+    DEFAULT_SOCIABLEKIT_EMBED_ID
+  );
+}
+
+export function getSociableKitFeedScriptUrl(): string {
+  return SOCIABLEKIT_FEED_SCRIPT;
+}
 
 export function getInstagramHandle(): string {
   return process.env.NEXT_PUBLIC_INSTAGRAM_HANDLE?.trim() || DEFAULT_INSTAGRAM_HANDLE;
