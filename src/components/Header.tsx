@@ -11,6 +11,7 @@ import { hasAdminAccess, type AdminMetadata } from "@/lib/permissions";
 
 const navLinks = [
   { href: "/", label: "Home" },
+  { href: "/tournaments", label: "Live" },
   { href: "/gallery", label: "Gallery" },
   { href: "/results", label: "Results" },
   { href: "/rankings", label: "Rankings" },

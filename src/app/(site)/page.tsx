@@ -1,18 +1,20 @@
 import { GalleryPreview } from "@/components/GalleryGrid";
+import { LiveTournamentCard } from "@/components/bracket/LiveTournamentCard";
 import { Hero } from "@/components/Hero";
 import { InstagramFeed } from "@/components/InstagramFeed";
 import { SectionHeading } from "@/components/SectionHeading";
 import { getInstagramProfileUrl } from "@/lib/instagram";
 import { SponsorTierSection } from "@/components/SponsorSection";
 import { TournamentCard } from "@/components/TournamentCard";
-import { fetchGalleryPhotos, fetchSponsors, fetchUpcomingTournaments } from "@/lib/data";
+import { fetchGalleryPhotos, fetchLiveTournaments, fetchSponsors, fetchUpcomingTournaments } from "@/lib/data";
 import { tierOrder, type SponsorTier } from "@/lib/types";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [upcoming, galleryPhotos, allSponsors] = await Promise.all([
+  const [upcoming, live, galleryPhotos, allSponsors] = await Promise.all([
     fetchUpcomingTournaments(),
+    fetchLiveTournaments(),
     fetchGalleryPhotos(),
     fetchSponsors(),
   ]);
@@ -30,6 +32,20 @@ export default async function HomePage() {
       <Hero />
 
       <div className="mx-auto max-w-6xl space-y-12 px-4 py-12 sm:space-y-20 sm:px-6 sm:py-16 md:py-20">
+        {live.length > 0 && (
+          <section>
+            <SectionHeading
+              title="Live now"
+              subtitle="Follow group standings and knockout scores as they happen"
+            />
+            <div className="grid gap-6 sm:grid-cols-2">
+              {live.map((tournament) => (
+                <LiveTournamentCard key={tournament.id} tournament={tournament} />
+              ))}
+            </div>
+          </section>
+        )}
+
         <section>
           <SectionHeading
             title="Upcoming Tournaments"

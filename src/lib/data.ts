@@ -12,6 +12,7 @@ import {
   getTournamentTypes,
   getTournamentWithCounts,
   getUpcomingWithCounts,
+  getLiveWithCounts,
 } from "@/lib/db/queries";
 import { resolveSponsorLogosForDisplay } from "@/lib/media";
 import {
@@ -33,6 +34,13 @@ export async function fetchTournamentTypes() {
 export async function fetchUpcomingTournaments() {
   if (hasDatabase()) return getUpcomingWithCounts();
   return seedTournaments.filter((t) => t.status === "upcoming");
+}
+
+export async function fetchLiveTournaments() {
+  if (hasDatabase()) return getLiveWithCounts();
+  return seedTournaments.filter(
+    (t) => t.status === "group_stage" || t.status === "knockout_stage",
+  );
 }
 
 export async function fetchAllTournaments() {

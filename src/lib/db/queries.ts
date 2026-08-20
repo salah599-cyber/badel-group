@@ -75,6 +75,23 @@ export async function getUpcomingTournaments() {
     .orderBy(tournaments.date);
 }
 
+export async function getLiveTournaments() {
+  if (!db) return [];
+  const live = await tournamentSelect()
+    .where(inArray(tournaments.status, ["group_stage", "knockout_stage"]))
+    .orderBy(tournaments.date);
+
+  const { getTournamentIdsWithBracket } = await import("@/lib/db/bracket-queries");
+  const bracketIds = new Set(await getTournamentIdsWithBracket());
+  return live.filter((t) => bracketIds.has(t.id));
+}
+
+export async function getLiveWithCounts() {
+  if (!db) return [];
+  const live = await getLiveTournaments();
+  return attachTournamentCounts(live);
+}
+
 export async function getTournamentById(id: string) {
   if (!db) return null;
   const rows = await tournamentSelect().where(eq(tournaments.id, id)).limit(1);
