@@ -77,12 +77,21 @@ export function TournamentsSection({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <Link
-                          href={`/admin/tournaments/${t.id}`}
-                          className="rounded-lg border border-primary/30 px-3 py-1.5 text-sm font-semibold text-primary"
-                        >
-                          Run
-                        </Link>
+                        {t.status === "completed" ? (
+                          <Link
+                            href={`/admin/tournaments/${t.id}`}
+                            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-semibold text-gray-700"
+                          >
+                            View
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/admin/tournaments/${t.id}`}
+                            className="rounded-lg border border-primary/30 px-3 py-1.5 text-sm font-semibold text-primary"
+                          >
+                            Run
+                          </Link>
+                        )}
                         <button
                           type="button"
                           disabled={isPending}
