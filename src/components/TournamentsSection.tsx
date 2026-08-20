@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { LocationSelect } from "@/components/LocationSelect";
 import {
@@ -64,7 +65,9 @@ export function TournamentsSection({
                     <td className="px-4 py-3 text-gray-600">
                       {formatTournamentDateTimeShort(t.date, t.startTime) ?? t.date}
                     </td>
-                    <td className="px-4 py-3 capitalize text-gray-600">{t.status}</td>
+                    <td className="px-4 py-3 capitalize text-gray-600">
+                      {t.status.replace(/_/g, " ")}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">
                       {t.countsTowardRankings ? "Yes" : "No"}
                     </td>
@@ -73,7 +76,13 @@ export function TournamentsSection({
                       {t.waitlistCount > 0 ? ` (+${t.waitlistCount} waiting)` : ""}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/admin/tournaments/${t.id}`}
+                          className="rounded-lg border border-primary/30 px-3 py-1.5 text-sm font-semibold text-primary"
+                        >
+                          Run
+                        </Link>
                         <button
                           type="button"
                           disabled={isPending}
@@ -182,8 +191,28 @@ export function TournamentsSection({
             className="input"
           >
             <option value="upcoming">Upcoming</option>
+            <option value="registration_closed">Registration closed</option>
+            <option value="group_stage">Group stage</option>
+            <option value="knockout_stage">Knockout stage</option>
             <option value="completed">Completed</option>
           </select>
+          <select
+            name="matchFormat"
+            defaultValue={editingTournament.matchFormat}
+            className="input"
+          >
+            <option value="best_of_1">Best of 1</option>
+            <option value="best_of_3_full">Best of 3 (full sets)</option>
+            <option value="best_of_3_super_tiebreak">Best of 3 (super tiebreak decider)</option>
+          </select>
+          <input
+            name="superTiebreakPoints"
+            type="number"
+            min={1}
+            defaultValue={editingTournament.superTiebreakPoints}
+            className="input"
+            placeholder="Super tiebreak points"
+          />
           <textarea
             name="description"
             defaultValue={editingTournament.description}
@@ -250,6 +279,19 @@ export function TournamentsSection({
           defaultValue={32}
           required
           className="input"
+        />
+        <select name="matchFormat" defaultValue="best_of_1" className="input">
+          <option value="best_of_1">Best of 1</option>
+          <option value="best_of_3_full">Best of 3 (full sets)</option>
+          <option value="best_of_3_super_tiebreak">Best of 3 (super tiebreak decider)</option>
+        </select>
+        <input
+          name="superTiebreakPoints"
+          type="number"
+          min={1}
+          defaultValue={10}
+          className="input"
+          placeholder="Super tiebreak points"
         />
         <textarea
           name="description"

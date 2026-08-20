@@ -120,6 +120,26 @@ function getPartnerDisplayName(user: {
   return getUserDisplayName(user, user.emailAddresses[0]?.emailAddress || "Your partner");
 }
 
+function parseMatchFormat(value: FormDataEntryValue | null) {
+  const format = String(value ?? "best_of_1");
+  if (
+    format !== "best_of_1" &&
+    format !== "best_of_3_full" &&
+    format !== "best_of_3_super_tiebreak"
+  ) {
+    throw new Error("Invalid match format");
+  }
+  return format as "best_of_1" | "best_of_3_full" | "best_of_3_super_tiebreak";
+}
+
+const TOURNAMENT_STATUSES = [
+  "upcoming",
+  "registration_closed",
+  "group_stage",
+  "knockout_stage",
+  "completed",
+] as const;
+
 export async function createTournamentAction(formData: FormData) {
   await requirePermission("tournaments:manage");
   if (!db) throw new Error("Database not configured");
@@ -133,6 +153,9 @@ export async function createTournamentAction(formData: FormData) {
   const startTime = parseTournamentStartTime(formData.get("startTime"));
   if (!startTime) throw new Error("Start time is required");
 
+  const matchFormat = parseMatchFormat(formData.get("matchFormat"));
+  const superTiebreakPoints = Number(formData.get("superTiebreakPoints")) || 10;
+
   await db.insert(tournaments).values({
     name: formData.get("name") as string,
     date: formData.get("date") as string,
@@ -142,6 +165,8 @@ export async function createTournamentAction(formData: FormData) {
     description: formData.get("description") as string,
     maxPlayers: Number(formData.get("maxPlayers")),
     countsTowardRankings: formData.get("countsTowardRankings") === "true",
+    matchFormat,
+    superTiebreakPoints,
     status: "upcoming",
   });
 
@@ -167,9 +192,27 @@ export async function updateTournamentAction(formData: FormData) {
   if (!location) throw new Error("Location is required");
 
   const status = formData.get("status") as string;
-  if (status !== "upcoming" && status !== "completed") {
+  if (!TOURNAMENT_STATUSES.includes(status as typeof TOURNAMENT_STATUSES[number])) {
     throw new Error("Invalid tournament status");
   }
+
+  const [existing] = await db
+    .select({ status: tournaments.status })
+    .from(tournaments)
+    .where(eq(tournaments.id, id))
+    .limit(1);
+
+  const bracketLocked =
+    existing &&
+    existing.status !== "upcoming" &&
+    existing.status !== "registration_closed";
+
+  const matchFormat = bracketLocked
+    ? undefined
+    : parseMatchFormat(formData.get("matchFormat"));
+  const superTiebreakPoints = bracketLocked
+    ? undefined
+    : Number(formData.get("superTiebreakPoints")) || 10;
 
   const startTime = parseTournamentStartTime(formData.get("startTime"));
   if (!startTime) throw new Error("Start time is required");
@@ -185,7 +228,8 @@ export async function updateTournamentAction(formData: FormData) {
       description: formData.get("description") as string,
       maxPlayers: Number(formData.get("maxPlayers")),
       countsTowardRankings: formData.get("countsTowardRankings") === "true",
-      status,
+      status: status as typeof TOURNAMENT_STATUSES[number],
+      ...(matchFormat ? { matchFormat, superTiebreakPoints } : {}),
     })
     .where(eq(tournaments.id, id));
 
@@ -286,6 +330,7 @@ export async function createEntryAction(formData: FormData): Promise<CreateEntry
       .select({
         id: tournaments.id,
         name: tournaments.name,
+        status: tournaments.status,
         pairingMode: tournamentTypes.pairingMode,
         maxPlayers: tournaments.maxPlayers,
       })
@@ -295,6 +340,9 @@ export async function createEntryAction(formData: FormData): Promise<CreateEntry
       .limit(1);
 
     if (!tournament) return entryError("Tournament not found.");
+    if (tournament.status !== "upcoming") {
+      return entryError("Registration is closed for this tournament.");
+    }
 
     const capacity = await getTournamentCapacity(tournamentId);
     if (!capacity) return entryError("Tournament not found.");
@@ -557,6 +605,7 @@ async function assertEntryPairingAccess(entryId: string) {
       tournamentId: entries.tournamentId,
       status: entries.status,
       pairingMode: tournamentTypes.pairingMode,
+      tournamentStatus: tournaments.status,
     })
     .from(entries)
     .innerJoin(tournaments, eq(entries.tournamentId, tournaments.id))
@@ -565,6 +614,9 @@ async function assertEntryPairingAccess(entryId: string) {
     .limit(1);
 
   if (!entry) throw new Error("Entry not found");
+  if (entry.tournamentStatus !== "upcoming") {
+    throw new Error("Pairing is only available while registration is open");
+  }
   if (entry.status !== "approved") {
     throw new Error("Only confirmed players can be paired");
   }
@@ -1460,6 +1512,13 @@ export async function createResultAction(formData: FormData) {
   if (!tournament) throw new Error("Tournament not found");
   if (tournament.status === "completed") {
     throw new Error("This tournament is already completed");
+  }
+
+  const { hasBracketForTournament } = await import("@/lib/db/bracket-queries");
+  if (await hasBracketForTournament(tournamentId)) {
+    throw new Error(
+      "This tournament uses the bracket system — results are published when the final completes",
+    );
   }
 
   const [existingResult] = await db

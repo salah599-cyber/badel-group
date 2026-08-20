@@ -10,6 +10,7 @@ type EndTournamentSectionProps = {
   tournaments: Tournament[];
   entries: Entry[];
   tournamentIdsWithResults: string[];
+  tournamentIdsWithBracket: string[];
   isPending: boolean;
   wrapAction: (action: () => Promise<void>) => void;
 };
@@ -25,6 +26,7 @@ export function EndTournamentSection({
   tournaments,
   entries,
   tournamentIdsWithResults,
+  tournamentIdsWithBracket,
   isPending,
   wrapAction,
 }: EndTournamentSectionProps) {
@@ -32,9 +34,11 @@ export function EndTournamentSection({
     () =>
       tournaments.filter(
         (tournament) =>
-          tournament.status === "upcoming" && !tournamentIdsWithResults.includes(tournament.id),
+          tournament.status === "upcoming" &&
+          !tournamentIdsWithResults.includes(tournament.id) &&
+          !tournamentIdsWithBracket.includes(tournament.id),
       ),
-    [tournaments, tournamentIdsWithResults],
+    [tournaments, tournamentIdsWithResults, tournamentIdsWithBracket],
   );
 
   const [selectedTournamentId, setSelectedTournamentId] = useState(endableTournaments[0]?.id ?? "");

@@ -5,6 +5,7 @@ import type { Tournament } from "@/lib/types";
 export function TournamentCard({ tournament }: { tournament: Tournament }) {
   const spotsLeft = tournament.maxPlayers - tournament.registeredCount;
   const isFull = spotsLeft <= 0;
+  const isOpen = tournament.status === "upcoming";
   const fillPercent = Math.min(
     100,
     Math.round((tournament.registeredCount / tournament.maxPlayers) * 100),
@@ -61,13 +62,23 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
           </div>
         </div>
 
-        <Link
-          href="/signup"
-          prefetch={false}
-          className="rounded-xl bg-primary py-3 text-center text-sm font-semibold text-white transition hover:bg-primary-dark"
-        >
-          {isFull ? "Join Waitlist" : "Sign Up"}
-        </Link>
+        {isOpen ? (
+          <Link
+            href="/signup"
+            prefetch={false}
+            className="rounded-xl bg-primary py-3 text-center text-sm font-semibold text-white transition hover:bg-primary-dark"
+          >
+            {isFull ? "Join Waitlist" : "Sign Up"}
+          </Link>
+        ) : (
+          <Link
+            href={`/tournaments/${tournament.id}`}
+            prefetch={false}
+            className="rounded-xl border border-primary/30 bg-primary/5 py-3 text-center text-sm font-semibold text-primary-dark transition hover:bg-primary/10"
+          >
+            {tournament.status === "completed" ? "View results" : "View groups & bracket"}
+          </Link>
+        )}
       </div>
     </article>
   );

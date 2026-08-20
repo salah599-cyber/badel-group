@@ -37,6 +37,7 @@ export default async function AdminPage() {
     tournamentIdsWithResults,
     pendingEntries,
     userLists,
+    tournamentIdsWithBracket,
   ] = await Promise.all([
     fetchAllTournaments(),
     fetchTournamentTypes(),
@@ -48,6 +49,7 @@ export default async function AdminPage() {
     fetchTournamentIdsWithResults(),
     fetchPendingEntries(),
     fetchAdminUserLists(ctx),
+    import("@/lib/db/bracket-queries").then((m) => m.getTournamentIdsWithBracket()),
   ]);
 
   const { pendingUsers, adminMembers, siteMembers } = userLists;
@@ -92,6 +94,7 @@ export default async function AdminPage() {
         isSuperAdmin={ctx.isSuperAdmin}
         scopedTournamentIds={ctx.tournamentIds}
         tournamentIdsWithResults={tournamentIdsWithResults}
+        tournamentIdsWithBracket={tournamentIdsWithBracket}
         role={ctx.role}
       />
 

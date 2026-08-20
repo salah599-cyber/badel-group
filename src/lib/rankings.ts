@@ -5,7 +5,12 @@ export const PLACEMENT_POINTS: Record<string, number> = {
   "2nd": 6,
   "3rd": 4,
   "4th": 2,
+  "5th": 1,
 };
+
+export function pointsForPlace(place: string): number {
+  return PLACEMENT_POINTS[place] ?? 0;
+}
 
 const PAIR_SEPARATORS = /\s*(?:&|\/|\+|\band\b)\s*/i;
 
@@ -54,8 +59,7 @@ export function calculatePlayerRankings(
     const winners = Array.isArray(result.winners) ? result.winners : [];
     for (const winner of winners) {
       if (!winner?.names || !winner?.place) continue;
-      const points = PLACEMENT_POINTS[winner.place];
-      if (!points) continue;
+      const points = pointsForPlace(winner.place);
 
       for (const playerName of parsePairNames(winner.names)) {
         const key = normalizePlayerKey(playerName);

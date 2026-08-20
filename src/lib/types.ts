@@ -20,6 +20,33 @@ export interface TournamentType {
   sortOrder: number;
 }
 
+export type TournamentStatus =
+  | "upcoming"
+  | "registration_closed"
+  | "group_stage"
+  | "knockout_stage"
+  | "completed";
+
+export type MatchFormat =
+  | "best_of_1"
+  | "best_of_3_full"
+  | "best_of_3_super_tiebreak";
+
+export type KnockoutRound =
+  | "round_of_16"
+  | "quarterfinal"
+  | "semifinal"
+  | "final"
+  | "third_place";
+
+export interface MatchSet {
+  a: number;
+  b: number;
+  tiebreakA?: number;
+  tiebreakB?: number;
+  isSuperTiebreak?: boolean;
+}
+
 export interface Tournament {
   id: string;
   name: string;
@@ -31,12 +58,63 @@ export interface Tournament {
   typeSlug: string;
   requiresPartner: boolean;
   pairingMode: PairingMode;
-  status: "upcoming" | "completed";
+  status: TournamentStatus;
   description: string;
   maxPlayers: number;
   countsTowardRankings: boolean;
+  matchFormat: MatchFormat;
+  superTiebreakPoints: number;
+  teamsPerGroup: number;
+  advancePerGroup?: number | null;
+  knockoutStartRound?: KnockoutRound | null;
+  thirdPlacePlayoff: boolean;
+  pointsWin: number;
+  pointsLoss: number;
+  groupDrawSeed?: number | null;
+  championTeamId?: string | null;
   registeredCount: number;
   waitlistCount: number;
+}
+
+export interface TournamentTeam {
+  id: string;
+  tournamentId: string;
+  label: string;
+  entryIds: string[];
+}
+
+export interface TournamentGroup {
+  id: string;
+  tournamentId: string;
+  label: string;
+  teamIds: string[];
+  manualTiebreakOrder?: string[] | null;
+}
+
+export interface GroupMatch {
+  id: string;
+  groupId: string;
+  teamAId: string;
+  teamBId: string;
+  sets: MatchSet[];
+  status: "scheduled" | "completed";
+  winnerId?: string | null;
+  outcome: "played" | "walkover";
+}
+
+export interface KnockoutMatch {
+  id: string;
+  tournamentId: string;
+  round: KnockoutRound;
+  slot: number;
+  teamAId?: string | null;
+  teamBId?: string | null;
+  sourceA?: { type: string; groupLabel?: string; rank?: number; matchId?: string } | null;
+  sourceB?: { type: string; groupLabel?: string; rank?: number; matchId?: string } | null;
+  sets: MatchSet[];
+  status: "scheduled" | "completed";
+  winnerId?: string | null;
+  outcome: "played" | "walkover";
 }
 
 export interface Sponsor {

@@ -40,6 +40,7 @@ type AdminPanelProps = {
   isSuperAdmin: boolean;
   scopedTournamentIds: string[];
   tournamentIdsWithResults: string[];
+  tournamentIdsWithBracket: string[];
 };
 
 function canAccess(
@@ -79,6 +80,7 @@ export function AdminPanel({
   isSuperAdmin,
   scopedTournamentIds,
   tournamentIdsWithResults,
+  tournamentIdsWithBracket,
   role,
 }: AdminPanelProps & { role: string }) {
   const [isPending, startTransition] = useTransition();
@@ -304,6 +306,7 @@ export function AdminPanel({
             return scopedTournamentIds.includes(entry.tournamentId);
           })}
           tournamentIdsWithResults={tournamentIdsWithResults}
+          tournamentIdsWithBracket={tournamentIdsWithBracket}
           isPending={isPending}
           wrapAction={wrapAction}
         />

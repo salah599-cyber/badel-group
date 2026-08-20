@@ -1,5 +1,5 @@
 import { getMediaSrc } from "@/lib/media";
-import { normalizePlayerKey, parsePairNames, PLACEMENT_POINTS } from "@/lib/rankings";
+import { normalizePlayerKey, parsePairNames, pointsForPlace } from "@/lib/rankings";
 
 function getInitials(name: string) {
   return name
@@ -80,7 +80,7 @@ export function ResultPlacementCard({
 }) {
   const rank = placeNumber(place);
   const players = parsePairNames(names);
-  const points = PLACEMENT_POINTS[place];
+  const points = pointsForPlace(place);
   const displayPlayers = players.length > 0 ? players : [names];
 
   return (
@@ -123,14 +123,12 @@ export function ResultPlacementCard({
         </div>
       </div>
 
-      {points != null && (
-        <div className="rounded-xl bg-cream-dark/60 px-4 py-3 text-center">
-          <p className="text-[10px] font-semibold tracking-[0.12em] text-gray-500 uppercase">
-            Points Earned
-          </p>
-          <p className="mt-0.5 text-xl font-bold text-gray-900 sm:text-2xl">{points}</p>
-        </div>
-      )}
+      <div className="rounded-xl bg-cream-dark/60 px-4 py-3 text-center">
+        <p className="text-[10px] font-semibold tracking-[0.12em] text-gray-500 uppercase">
+          Points Earned
+        </p>
+        <p className="mt-0.5 text-xl font-bold text-gray-900 sm:text-2xl">{points}</p>
+      </div>
     </article>
   );
 }
