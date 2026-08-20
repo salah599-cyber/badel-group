@@ -12,14 +12,16 @@ import { getUserDisplayName } from "@/lib/user-display";
 import {
   getAdminContext,
   requireApprovedUser,
+  requireClubAdmin,
   requirePermission,
   requireSuperAdmin,
 } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { countTournamentsByType, deletePlayerProfile, findTournamentParticipation, getEntriesForTournament, getEntryById, getTournamentCapacity, hasExistingEntry, upsertPlayerProfile } from "@/lib/db/queries";
+import { countTournamentsByType, deletePlayerProfile, findTournamentParticipation, getCurrentRankingSeasonId, getEntriesForTournament, getEntryById, getResultsForSeason, getTournamentCapacity, getTournamentWithCounts, hasExistingEntry, upsertPlayerProfile } from "@/lib/db/queries";
 import {
   entries,
   galleryPhotos,
+  rankingSeasons,
   results,
   sponsors,
   tournamentTypes,
@@ -35,7 +37,7 @@ import {
 import { canAdminApproveEntry, isPartnershipTeamEntry } from "@/lib/partnerships";
 import { parsePlayingSide } from "@/lib/player-profile";
 import { parseNameFields, syncClerkUserProfileNames } from "@/lib/user-profile";
-import { normalizePlayerKey } from "@/lib/rankings";
+import { calculatePlayerRankings, normalizePlayerKey } from "@/lib/rankings";
 import {
   createNotification,
   getUnreadNotificationCount,
@@ -1565,8 +1567,12 @@ export async function createResultAction(formData: FormData) {
     throw new Error("This tournament needs at least 4 confirmed teams before it can end");
   }
 
+  const seasonId = await getCurrentRankingSeasonId();
+  if (!seasonId) throw new Error("No active ranking season");
+
   await db.insert(results).values({
     tournamentId,
+    seasonId,
     tournamentName: tournament.name,
     date: tournament.date,
     winners: normalizedWinners,
@@ -1581,6 +1587,59 @@ export async function createResultAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/signup");
+}
+
+export async function endRankingSeasonAction(formData: FormData) {
+  await requireClubAdmin();
+  if (!db) throw new Error("Database not configured");
+
+  const seasonName = (formData.get("seasonName") as string)?.trim();
+  if (!seasonName) throw new Error("Season name is required");
+
+  const { getCurrentRankingSeason } = await import("@/lib/db/queries");
+  const currentSeason = await getCurrentRankingSeason();
+  if (!currentSeason) throw new Error("No active ranking season found");
+
+  const [seasonResults, allTournaments] = await Promise.all([
+    getResultsForSeason(currentSeason.id),
+    getTournamentWithCounts(),
+  ]);
+
+  const excludedTournamentIds = new Set(
+    allTournaments.filter((t) => !t.countsTowardRankings).map((t) => t.id),
+  );
+  const rankingResults = seasonResults.filter(
+    (result) => !excludedTournamentIds.has(result.tournamentId),
+  );
+
+  const snapshot = calculatePlayerRankings(rankingResults, null);
+  if (snapshot.length === 0) {
+    throw new Error("Cannot end season with no ranked players");
+  }
+
+  const now = new Date();
+
+  await db
+    .update(rankingSeasons)
+    .set({
+      name: seasonName,
+      endedAt: now,
+      rankings: snapshot.map(({ rank, name, points, placements }) => ({
+        rank,
+        name,
+        points,
+        placements,
+      })),
+    })
+    .where(eq(rankingSeasons.id, currentSeason.id));
+
+  await db.insert(rankingSeasons).values({
+    name: "Current Season",
+    startedAt: now,
+  });
+
+  revalidatePath("/rankings");
+  revalidatePath("/admin");
 }
 
 export async function upsertPlayerPhotoAction(input: {

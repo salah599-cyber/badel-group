@@ -138,9 +138,25 @@ export interface GalleryPhoto {
 export interface TournamentResult {
   id: string;
   tournamentId: string;
+  seasonId?: string | null;
   tournamentName: string;
   date: string;
   winners: { place: string; names: string }[];
+}
+
+export interface RankingSeason {
+  id: string;
+  name: string;
+  startedAt: Date;
+  endedAt?: Date | null;
+  rankings?: PlayerRankingSnapshot[] | null;
+}
+
+export interface PlayerRankingSnapshot {
+  rank: number;
+  name: string;
+  points: number;
+  placements: number;
 }
 
 export interface PlayerRanking {

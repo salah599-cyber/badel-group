@@ -51,7 +51,7 @@ export function assignCompetitionRanks(players: RankedPlayer[]): PlayerRanking[]
 
 export function calculatePlayerRankings(
   results: TournamentResult[],
-  limit = 12,
+  limit: number | null = 12,
 ): PlayerRanking[] {
   const players = new Map<string, { name: string; points: number; placements: number }>();
 
@@ -81,5 +81,6 @@ export function calculatePlayerRankings(
     return a.name.localeCompare(b.name);
   });
 
-  return assignCompetitionRanks(sorted).slice(0, limit);
+  const ranked = assignCompetitionRanks(sorted);
+  return limit === null ? ranked : ranked.slice(0, limit);
 }

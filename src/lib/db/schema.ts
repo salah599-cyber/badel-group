@@ -219,11 +219,28 @@ export const galleryPhotos = pgTable("gallery_photos", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export type SeasonRankingSnapshot = {
+  rank: number;
+  name: string;
+  points: number;
+  placements: number;
+};
+
+export const rankingSeasons = pgTable("ranking_seasons", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  rankings: jsonb("rankings").$type<SeasonRankingSnapshot[] | null>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const results = pgTable("results", {
   id: uuid("id").defaultRandom().primaryKey(),
   tournamentId: uuid("tournament_id")
     .notNull()
     .references(() => tournaments.id, { onDelete: "cascade" }),
+  seasonId: uuid("season_id").references(() => rankingSeasons.id),
   tournamentName: text("tournament_name").notNull(),
   date: text("date").notNull(),
   winners: jsonb("winners").$type<{ place: string; names: string }[]>().notNull(),

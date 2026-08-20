@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { EndTournamentSection } from "@/components/EndTournamentSection";
+import { SeasonResetSection } from "@/components/SeasonResetSection";
 import { PlayerPhotosSection } from "@/components/PlayerPhotosSection";
 import { SiteMembersSection } from "@/components/SiteMembersSection";
 import { AdminMembersSection } from "@/components/AdminMembersSection";
@@ -21,7 +22,7 @@ import type { AdminMember, SiteMember } from "@/lib/admin-members";
 import { partnershipStatusLabels } from "@/lib/partnerships";
 import { playingSideLabels } from "@/lib/player-profile";
 import type { Permission } from "@/lib/permissions";
-import type { Entry, GalleryPhoto, PlayerProfile, PlayerRanking, Sponsor, Tournament, TournamentType } from "@/lib/types";
+import type { Entry, GalleryPhoto, PlayerProfile, PlayerRanking, RankingSeason, Sponsor, Tournament, TournamentType } from "@/lib/types";
 import type { PendingUser } from "@/lib/clerk-users";
 
 type AdminPanelProps = {
@@ -32,6 +33,9 @@ type AdminPanelProps = {
   galleryPhotos: GalleryPhoto[];
   playerProfiles: PlayerProfile[];
   rankedPlayers: PlayerRanking[];
+  currentSeason: RankingSeason | null;
+  archivedSeasons: RankingSeason[];
+  currentSeasonPlayerCount: number;
   pendingEntries: Entry[];
   pendingUsers: PendingUser[];
   adminMembers: AdminMember[];
@@ -72,6 +76,9 @@ export function AdminPanel({
   galleryPhotos,
   playerProfiles,
   rankedPlayers,
+  currentSeason,
+  archivedSeasons,
+  currentSeasonPlayerCount,
   pendingEntries,
   pendingUsers,
   adminMembers,
@@ -316,6 +323,15 @@ export function AdminPanel({
         <PlayerPhotosSection
           profiles={playerProfiles}
           rankedPlayers={rankedPlayers}
+          onComplete={() => window.location.reload()}
+        />
+      )}
+
+      {(isSuperAdmin || role === "admin") && (
+        <SeasonResetSection
+          currentSeason={currentSeason}
+          archivedSeasons={archivedSeasons}
+          currentSeasonPlayerCount={currentSeasonPlayerCount}
           onComplete={() => window.location.reload()}
         />
       )}

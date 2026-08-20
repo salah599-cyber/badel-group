@@ -32,6 +32,14 @@ export async function requireSuperAdmin(): Promise<AdminContext> {
   return ctx;
 }
 
+export async function requireClubAdmin(): Promise<AdminContext> {
+  const ctx = await requireAdminContext();
+  if (ctx.role === "tournament_admin") {
+    throw new Error("Club admin access required");
+  }
+  return ctx;
+}
+
 export async function requireAdmin() {
   const user = await currentUser();
   if (!user) return null;

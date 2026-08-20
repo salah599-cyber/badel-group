@@ -5,6 +5,8 @@ import { AdminPanel } from "@/components/AdminPanel";
 import { fetchAdminUserLists } from "@/lib/admin-members";
 import {
   fetchAllTournaments,
+  fetchArchivedRankingSeasons,
+  fetchCurrentRankingSeason,
   fetchGalleryPhotos,
   fetchManageableEntries,
   fetchPendingEntries,
@@ -34,6 +36,9 @@ export default async function AdminPage() {
     galleryPhotos,
     playerProfiles,
     rankedPlayers,
+    currentSeasonRankings,
+    currentSeason,
+    archivedSeasons,
     tournamentIdsWithResults,
     pendingEntries,
     userLists,
@@ -46,6 +51,9 @@ export default async function AdminPage() {
     fetchGalleryPhotos(),
     fetchPlayerProfiles(),
     fetchTopRankings(50),
+    fetchTopRankings(null),
+    fetchCurrentRankingSeason(),
+    fetchArchivedRankingSeasons(),
     fetchTournamentIdsWithResults(),
     fetchPendingEntries(),
     fetchAdminUserLists(ctx),
@@ -86,6 +94,9 @@ export default async function AdminPage() {
         galleryPhotos={galleryPhotos}
         playerProfiles={playerProfiles}
         rankedPlayers={rankedPlayers}
+        currentSeason={currentSeason}
+        archivedSeasons={archivedSeasons}
+        currentSeasonPlayerCount={currentSeasonRankings.length}
         pendingEntries={pendingEntries}
         pendingUsers={pendingUsers}
         adminMembers={adminMembers}

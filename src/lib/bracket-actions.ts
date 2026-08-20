@@ -20,7 +20,7 @@ import { deriveMatchWinner, validateSets } from "@/lib/bracket/score";
 import { computeStandings } from "@/lib/bracket/standings";
 import { getTournamentBracketState } from "@/lib/db/bracket-queries";
 import { db } from "@/lib/db";
-import { getEntriesForTournament } from "@/lib/db/queries";
+import { getEntriesForTournament, getCurrentRankingSeasonId } from "@/lib/db/queries";
 import {
   entries,
   groupMatches,
@@ -636,6 +636,7 @@ async function publishTournamentResults(tournamentId: string) {
 
   const winners = placementsToWinners(placements);
   const champion = placements.find((p) => p.place === 1);
+  const seasonId = await getCurrentRankingSeasonId();
 
   const [existing] = await db!
     .select({ id: results.id })
@@ -655,6 +656,7 @@ async function publishTournamentResults(tournamentId: string) {
   } else {
     await db!.insert(results).values({
       tournamentId,
+      seasonId,
       tournamentName: tournament.name,
       date: tournament.date,
       winners,

@@ -1,12 +1,17 @@
 import { hasDatabase } from "@/lib/db";
 import { calculatePlayerRankings, normalizePlayerKey } from "@/lib/rankings";
 import {
+  getArchivedRankingSeasons,
+  getCurrentRankingSeason,
   getGalleryPhotos,
   getManageableEntries,
   getPartnershipRequestsForUser,
   getPendingEntries,
   getPlayerProfiles,
+  getRankingSeasonById,
+  getRankingSeasons,
   getResults,
+  getResultsForSeason,
   getSponsors,
   getSponsorsByTier,
   getTournamentTypes,
@@ -24,7 +29,30 @@ import {
   seedSponsors,
   seedTournaments,
 } from "@/lib/seed";
-import type { SponsorTier } from "@/lib/types";
+import type { PlayerRanking, PlayerRankingSnapshot, RankingSeason, SponsorTier, TournamentResult } from "@/lib/types";
+
+function filterRankingEligibleResults(
+  results: TournamentResult[],
+  excludedTournamentIds: Set<string>,
+  seasonId?: string | null,
+) {
+  return results.filter((result) => {
+    if (excludedTournamentIds.has(result.tournamentId)) return false;
+    if (seasonId && result.seasonId !== seasonId) return false;
+    return true;
+  });
+}
+
+function attachRankingPhotos(
+  rankings: PlayerRankingSnapshot[],
+  profiles: Awaited<ReturnType<typeof fetchPlayerProfiles>>,
+): PlayerRanking[] {
+  const photoMap = new Map(profiles.map((profile) => [profile.nameKey, profile.photoUrl]));
+  return rankings.map((ranking) => ({
+    ...ranking,
+    photoUrl: photoMap.get(normalizePlayerKey(ranking.name)) ?? null,
+  }));
+}
 
 export async function fetchTournamentTypes() {
   if (hasDatabase()) return getTournamentTypes();
@@ -81,7 +109,44 @@ export async function fetchPlayerProfiles() {
   return seedPlayerProfiles;
 }
 
-export async function fetchTopRankings(limit = 12) {
+export async function fetchCurrentRankingSeason(): Promise<RankingSeason | null> {
+  if (!hasDatabase()) return null;
+  const season = await getCurrentRankingSeason();
+  if (!season) return null;
+  return {
+    id: season.id,
+    name: season.name,
+    startedAt: season.startedAt,
+    endedAt: season.endedAt,
+    rankings: season.rankings,
+  };
+}
+
+export async function fetchRankingSeasonsForDisplay(): Promise<RankingSeason[]> {
+  if (!hasDatabase()) return [];
+  const seasons = await getRankingSeasons();
+  return seasons.map((season) => ({
+    id: season.id,
+    name: season.name,
+    startedAt: season.startedAt,
+    endedAt: season.endedAt,
+    rankings: season.rankings,
+  }));
+}
+
+export async function fetchArchivedRankingSeasons(): Promise<RankingSeason[]> {
+  if (!hasDatabase()) return [];
+  const seasons = await getArchivedRankingSeasons();
+  return seasons.map((season) => ({
+    id: season.id,
+    name: season.name,
+    startedAt: season.startedAt,
+    endedAt: season.endedAt,
+    rankings: season.rankings,
+  }));
+}
+
+export async function fetchTopRankings(limit: number | null = 12) {
   const [results, tournaments, profiles] = await Promise.all([
     fetchResults(),
     fetchAllTournaments(),
@@ -90,13 +155,77 @@ export async function fetchTopRankings(limit = 12) {
   const excludedTournamentIds = new Set(
     tournaments.filter((t) => !t.countsTowardRankings).map((t) => t.id),
   );
-  const rankingResults = results.filter((r) => !excludedTournamentIds.has(r.tournamentId));
-  const photoMap = new Map(profiles.map((p) => [p.nameKey, p.photoUrl]));
 
-  return calculatePlayerRankings(rankingResults, limit).map((ranking) => ({
-    ...ranking,
-    photoUrl: photoMap.get(normalizePlayerKey(ranking.name)) ?? null,
-  }));
+  if (hasDatabase()) {
+    const currentSeason = await getCurrentRankingSeason();
+    const rankingResults = filterRankingEligibleResults(
+      results,
+      excludedTournamentIds,
+      currentSeason?.id,
+    );
+    return attachRankingPhotos(calculatePlayerRankings(rankingResults, limit), profiles);
+  }
+
+  const rankingResults = filterRankingEligibleResults(results, excludedTournamentIds);
+  return attachRankingPhotos(calculatePlayerRankings(rankingResults, limit), profiles);
+}
+
+export async function fetchSeasonRankings(seasonId: string): Promise<{
+  season: RankingSeason | null;
+  rankings: PlayerRanking[];
+  isCurrent: boolean;
+}> {
+  if (!hasDatabase()) {
+    return { season: null, rankings: [], isCurrent: false };
+  }
+
+  const [season, profiles, tournaments] = await Promise.all([
+    getRankingSeasonById(seasonId),
+    fetchPlayerProfiles(),
+    fetchAllTournaments(),
+  ]);
+
+  if (!season) {
+    return { season: null, rankings: [], isCurrent: false };
+  }
+
+  const mappedSeason: RankingSeason = {
+    id: season.id,
+    name: season.name,
+    startedAt: season.startedAt,
+    endedAt: season.endedAt,
+    rankings: season.rankings,
+  };
+
+  const isCurrent = season.endedAt === null;
+
+  if (!isCurrent && season.rankings) {
+    return {
+      season: mappedSeason,
+      rankings: attachRankingPhotos(season.rankings, profiles),
+      isCurrent: false,
+    };
+  }
+
+  const excludedTournamentIds = new Set(
+    tournaments.filter((t) => !t.countsTowardRankings).map((t) => t.id),
+  );
+  const seasonResults = await getResultsForSeason(seasonId);
+  const rankingResults = filterRankingEligibleResults(
+    seasonResults,
+    excludedTournamentIds,
+    seasonId,
+  );
+  const limit = isCurrent ? 12 : null;
+
+  return {
+    season: mappedSeason,
+    rankings: attachRankingPhotos(
+      calculatePlayerRankings(rankingResults, isCurrent ? limit : null),
+      profiles,
+    ),
+    isCurrent,
+  };
 }
 
 export async function fetchManageableEntries() {

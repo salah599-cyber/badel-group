@@ -5,6 +5,7 @@ import {
   entries,
   galleryPhotos,
   playerProfiles,
+  rankingSeasons,
   results,
   sponsors,
   tournamentTypes,
@@ -256,6 +257,54 @@ export async function getGalleryPhotos() {
 export async function getResults() {
   if (!db) return [];
   return db.select().from(results).orderBy(desc(results.date));
+}
+
+export async function getResultsForSeason(seasonId: string) {
+  if (!db) return [];
+  return db
+    .select()
+    .from(results)
+    .where(eq(results.seasonId, seasonId))
+    .orderBy(desc(results.date));
+}
+
+export async function getCurrentRankingSeason() {
+  if (!db) return null;
+  const [season] = await db
+    .select()
+    .from(rankingSeasons)
+    .where(sql`${rankingSeasons.endedAt} IS NULL`)
+    .limit(1);
+  return season ?? null;
+}
+
+export async function getCurrentRankingSeasonId() {
+  const season = await getCurrentRankingSeason();
+  return season?.id ?? null;
+}
+
+export async function getRankingSeasonById(id: string) {
+  if (!db) return null;
+  const [season] = await db
+    .select()
+    .from(rankingSeasons)
+    .where(eq(rankingSeasons.id, id))
+    .limit(1);
+  return season ?? null;
+}
+
+export async function getRankingSeasons() {
+  if (!db) return [];
+  return db.select().from(rankingSeasons).orderBy(desc(rankingSeasons.startedAt));
+}
+
+export async function getArchivedRankingSeasons() {
+  if (!db) return [];
+  return db
+    .select()
+    .from(rankingSeasons)
+    .where(sql`${rankingSeasons.endedAt} IS NOT NULL`)
+    .orderBy(desc(rankingSeasons.endedAt));
 }
 
 export async function getTournamentIdsWithResults() {
