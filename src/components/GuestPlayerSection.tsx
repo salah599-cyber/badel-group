@@ -38,7 +38,7 @@ export function GuestPlayerSection({ tournaments, onComplete }: GuestPlayerSecti
       <h2 className="mb-2 text-xl font-bold text-gray-900">Add Guest Players</h2>
       <p className="mb-4 text-sm text-gray-600">
         Guest players are added only for this tournament and do not need a site account.
-        Pair solo guests with members in the Player Pairing section below.
+        Pair solo guests and registered members together in the Player Pairing section below.
       </p>
 
       <form

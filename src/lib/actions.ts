@@ -687,7 +687,7 @@ async function assertGuestTournamentAccess(tournamentId: string) {
 
   if (!tournament) throw new Error("Tournament not found");
   if (tournament.status !== "upcoming") {
-    throw new Error("Guest players can only be added to upcoming tournaments");
+    throw new Error("Players can only be added to upcoming tournaments");
   }
 
   return ctx;
@@ -747,6 +747,108 @@ export async function createGuestEntryAction(formData: FormData) {
     isGuest: true,
     addedByAdminId: ctx.userId,
     addedByAdminName: adminName,
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/signup");
+  revalidatePath("/");
+}
+
+export async function createMemberEntryAction(formData: FormData) {
+  const tournamentId = (formData.get("tournamentId") as string)?.trim();
+  if (!tournamentId) throw new Error("Tournament is required");
+
+  const lookup =
+    (formData.get("memberLookup") as "membership_number" | "email" | null) ??
+    "membership_number";
+  const membershipNumber = (formData.get("membershipNumber") as string | null)?.trim() || null;
+  const memberEmail = (formData.get("memberEmail") as string | null)?.trim().toLowerCase() || null;
+
+  const ctx = await assertGuestTournamentAccess(tournamentId);
+  const adminName = await getAdminDisplayName(ctx);
+
+  const [tournament] = await db!
+    .select({ name: tournaments.name })
+    .from(tournaments)
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  let memberUser = null;
+
+  if (lookup === "email") {
+    if (!memberEmail) throw new Error("Member email is required");
+    memberUser = await findUserByEmail(memberEmail);
+    if (!memberUser) {
+      throw new Error("No registered member found with that email.");
+    }
+  } else {
+    if (!membershipNumber) throw new Error("Membership number is required");
+    const normalizedMembershipNumber = normalizeMembershipNumber(membershipNumber);
+    if (!normalizedMembershipNumber) {
+      throw new Error("Enter a valid 3-digit membership number between 100 and 999.");
+    }
+    memberUser = await findUserByMembershipNumber(normalizedMembershipNumber);
+    if (!memberUser) {
+      throw new Error("No registered member found with that membership number.");
+    }
+  }
+
+  const memberMeta = memberUser.publicMetadata as AdminMetadata;
+  if (!hasAdminAccess(memberMeta) && !isMemberApproved(memberMeta)) {
+    throw new Error("This member must be approved before they can be added to a tournament.");
+  }
+
+  if (memberUser.id === ctx.userId) {
+    throw new Error("You cannot add yourself to a tournament from the admin panel.");
+  }
+
+  const email = memberUser.emailAddresses[0]?.emailAddress?.toLowerCase();
+  if (!email) throw new Error("Member has no email on file.");
+
+  if (await hasExistingEntry(tournamentId, email, memberUser.id)) {
+    const participation = await findTournamentParticipation(tournamentId, email, memberUser.id);
+    if (participation?.role === "partner") {
+      throw new Error("This member is already registered as someone else's partner.");
+    }
+    throw new Error("This member is already registered for this tournament.");
+  }
+
+  const fullName = getUserDisplayName(
+    {
+      firstName: memberUser.firstName,
+      lastName: memberUser.lastName,
+      emailAddresses: memberUser.emailAddresses,
+      publicMetadata: memberMeta,
+    },
+    email,
+  );
+
+  const formSide = formData.get("playingSide");
+  const playingSide = formSide
+    ? parsePlayingSide(formSide)
+    : parsePlayingSide(memberMeta.playingSide);
+
+  await db!.insert(entries).values({
+    tournamentId,
+    userId: memberUser.id,
+    name: fullName,
+    email,
+    phone: "—",
+    signupMode: "solo",
+    partnershipStatus: "not_applicable",
+    playingSide,
+    skillLevel: "intermediate",
+    status: "approved",
+    isGuest: false,
+    addedByAdminId: ctx.userId,
+    addedByAdminName: adminName,
+  });
+
+  await notifyUserSafe(memberUser.id, {
+    type: "admin_entry_added",
+    title: "Tournament registration",
+    message: `${adminName} registered you for ${tournament?.name ?? "a tournament"}. An admin may still need to pair you before your team is confirmed.`,
+    href: "/signup",
   });
 
   revalidatePath("/admin");

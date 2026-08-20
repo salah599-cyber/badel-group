@@ -10,6 +10,7 @@ import { GalleryUploadSection } from "@/components/GalleryUploadSection";
 import { SponsorUploadSection } from "@/components/SponsorUploadSection";
 import { UserApprovalsSection } from "@/components/UserApprovalsSection";
 import { EntryPairingSection } from "@/components/EntryPairingSection";
+import { RegisteredMemberSection } from "@/components/RegisteredMemberSection";
 import { GuestPlayerSection } from "@/components/GuestPlayerSection";
 import { TournamentsSection } from "@/components/TournamentsSection";
 import { TournamentRosterSection } from "@/components/TournamentRosterSection";
@@ -147,6 +148,20 @@ export function AdminPanel({
             tournamentTypes={tournamentTypes}
             onComplete={() => window.location.reload()}
           />
+        </>
+      )}
+
+      {canAccess(permissions, "entries:manage", isSuperAdmin) && (
+        <section id="entries">
+          <RegisteredMemberSection
+            tournaments={activeTournaments}
+            onComplete={() => window.location.reload()}
+          />
+
+          <GuestPlayerSection
+            tournaments={activeTournaments}
+            onComplete={() => window.location.reload()}
+          />
 
           <EntryPairingSection
             tournaments={activeTournaments}
@@ -156,15 +171,6 @@ export function AdminPanel({
               if (!entry.tournamentId) return false;
               return scopedTournamentIds.includes(entry.tournamentId);
             })}
-            onComplete={() => window.location.reload()}
-          />
-        </>
-      )}
-
-      {canAccess(permissions, "entries:manage", isSuperAdmin) && (
-        <section id="entries">
-          <GuestPlayerSection
-            tournaments={activeTournaments}
             onComplete={() => window.location.reload()}
           />
 

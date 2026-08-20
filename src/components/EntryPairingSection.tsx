@@ -87,8 +87,8 @@ export function EntryPairingSection({
       <h3 className="mb-2 font-semibold text-primary-dark">Player Pairing</h3>
       <p className="mb-4 text-sm text-gray-600">
         Players who signed up together are listed automatically as teams after admin approval.
-        Use this section only to pair solo registrants into teams. A team is only
-        confirmed (and counts toward capacity) after it is paired.
+        Use this section to pair solo registrants — registered members and guests — into teams.
+        A team is only confirmed (and counts toward capacity) after it is paired.
       </p>
 
       <div className="mb-4">
