@@ -73,10 +73,12 @@ export function ResultPlacementCard({
   place,
   names,
   photoByKey,
+  showPoints = true,
 }: {
   place: string;
   names: string;
   photoByKey: Map<string, string>;
+  showPoints?: boolean;
 }) {
   const rank = placeNumber(place);
   const players = parsePairNames(names);
@@ -123,12 +125,14 @@ export function ResultPlacementCard({
         </div>
       </div>
 
-      <div className="rounded-xl bg-cream-dark/60 px-4 py-3 text-center">
-        <p className="text-[10px] font-semibold tracking-[0.12em] text-gray-500 uppercase">
-          Points Earned
-        </p>
-        <p className="mt-0.5 text-xl font-bold text-gray-900 sm:text-2xl">{points}</p>
-      </div>
+      {showPoints && (
+        <div className="rounded-xl bg-cream-dark/60 px-4 py-3 text-center">
+          <p className="text-[10px] font-semibold tracking-[0.12em] text-gray-500 uppercase">
+            Points Earned
+          </p>
+          <p className="mt-0.5 text-xl font-bold text-gray-900 sm:text-2xl">{points}</p>
+        </div>
+      )}
     </article>
   );
 }

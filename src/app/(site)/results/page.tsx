@@ -2,7 +2,7 @@ import { ResultPlacementCard } from "@/components/ResultPlacementCard";
 import { ResultPlacementRow } from "@/components/ResultPlacementRow";
 import { SectionHeading } from "@/components/SectionHeading";
 import { pointsForPlace } from "@/lib/rankings";
-import { fetchPlayerProfiles, fetchResults } from "@/lib/data";
+import { fetchAllTournaments, fetchPlayerProfiles, fetchResults } from "@/lib/data";
 
 export const metadata = {
   title: "Results | Badel Group",
@@ -16,8 +16,15 @@ function placeNumber(place: string) {
 }
 
 export default async function ResultsPage() {
-  const [results, profiles] = await Promise.all([fetchResults(), fetchPlayerProfiles()]);
+  const [results, profiles, tournaments] = await Promise.all([
+    fetchResults(),
+    fetchPlayerProfiles(),
+    fetchAllTournaments(),
+  ]);
   const photoByKey = new Map(profiles.map((p) => [p.nameKey, p.photoUrl]));
+  const countsTowardRankingsByTournamentId = new Map(
+    tournaments.map((t) => [t.id, t.countsTowardRankings]),
+  );
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 sm:py-16">
@@ -35,6 +42,8 @@ export default async function ResultsPage() {
             );
             const featured = sorted.filter((w) => placeNumber(w.place) <= 3);
             const rest = sorted.filter((w) => placeNumber(w.place) > 3);
+            const showPoints =
+              countsTowardRankingsByTournamentId.get(result.tournamentId) ?? true;
 
             return (
               <section key={result.id} className="space-y-4">
@@ -63,6 +72,7 @@ export default async function ResultsPage() {
                       place={winner.place}
                       names={winner.names}
                       photoByKey={photoByKey}
+                      showPoints={showPoints}
                     />
                   ))}
                 </div>
@@ -75,6 +85,7 @@ export default async function ResultsPage() {
                         place={winner.place}
                         names={winner.names}
                         points={pointsForPlace(winner.place)}
+                        showPoints={showPoints}
                       />
                     ))}
                   </div>

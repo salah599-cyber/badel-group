@@ -2,10 +2,12 @@ export function ResultPlacementRow({
   place,
   names,
   points,
+  showPoints = true,
 }: {
   place: string;
   names: string;
   points: number;
+  showPoints?: boolean;
 }) {
   const rank = Number(place.match(/\d+/)?.[0] ?? 0);
 
@@ -15,9 +17,11 @@ export function ResultPlacementRow({
         <span className="w-8 shrink-0 text-lg font-black text-gray-400">{rank}</span>
         <span className="truncate font-semibold text-primary-dark">{names}</span>
       </div>
-      <span className="shrink-0 text-xs font-medium text-gray-500">
-        {points} pt{points === 1 ? "" : "s"}
-      </span>
+      {showPoints && (
+        <span className="shrink-0 text-xs font-medium text-gray-500">
+          {points} pt{points === 1 ? "" : "s"}
+        </span>
+      )}
     </div>
   );
 }
