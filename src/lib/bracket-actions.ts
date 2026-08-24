@@ -420,6 +420,55 @@ export async function configureKnockoutAction(input: {
   revalidateTournament(input.tournamentId);
 }
 
+function feedsFromMatch(
+  source: { type?: string; matchId?: string } | null | undefined,
+  matchId: string,
+): boolean {
+  return (
+    (source?.type === "winner" || source?.type === "loser") &&
+    source.matchId === matchId
+  );
+}
+
+async function resetKnockoutDependents(
+  tournamentId: string,
+  matchId: string,
+): Promise<boolean> {
+  const feeders = await db!
+    .select()
+    .from(knockoutMatches)
+    .where(eq(knockoutMatches.tournamentId, tournamentId));
+
+  let resetAny = false;
+  for (const feeder of feeders) {
+    const slotA = feedsFromMatch(feeder.sourceA, matchId);
+    const slotB = feedsFromMatch(feeder.sourceB, matchId);
+    if (!slotA && !slotB) continue;
+
+    if (feeder.status === "completed") {
+      const nested = await resetKnockoutDependents(tournamentId, feeder.id);
+      resetAny = resetAny || nested;
+    }
+
+    const updates: Partial<typeof knockoutMatches.$inferInsert> = {
+      sets: [],
+      status: "scheduled",
+      winnerId: null,
+      outcome: "played",
+    };
+    if (slotA) updates.teamAId = null;
+    if (slotB) updates.teamBId = null;
+
+    await db!
+      .update(knockoutMatches)
+      .set(updates)
+      .where(eq(knockoutMatches.id, feeder.id));
+    resetAny = true;
+  }
+
+  return resetAny;
+}
+
 async function resolveKnockoutFeeders(
   tournamentId: string,
   completedMatchId: string,
@@ -459,8 +508,8 @@ async function applyByeAdvances(tournamentId: string) {
 
   for (const m of matches) {
     if (m.status === "completed") continue;
-    const aBye = m.sourceA?.type === "bye" || (!m.teamAId && m.sourceB?.type !== "bye");
-    const bBye = m.sourceB?.type === "bye" || (!m.teamBId && m.sourceA?.type !== "bye");
+    const aBye = m.sourceA?.type === "bye";
+    const bBye = m.sourceB?.type === "bye";
 
     if (m.teamAId && bBye && !m.teamBId) {
       await db!
@@ -735,6 +784,17 @@ export async function saveKnockoutMatchScoreAction(input: {
         : match.teamAId
       : null;
 
+  const winnerChanged =
+    match.status === "completed" && match.winnerId !== winnerId;
+
+  let dependentsReset = false;
+  if (winnerChanged) {
+    dependentsReset = await resetKnockoutDependents(
+      match.tournamentId,
+      input.matchId,
+    );
+  }
+
   await db!
     .update(knockoutMatches)
     .set({
@@ -748,8 +808,38 @@ export async function saveKnockoutMatchScoreAction(input: {
   await resolveKnockoutFeeders(match.tournamentId, input.matchId, winnerId!, loserId);
   await applyByeAdvances(match.tournamentId);
 
-  if (match.round === "final" && winnerId) {
-    await publishTournamentResults(match.tournamentId);
+  if (dependentsReset && tournament.status === "completed") {
+    await db!
+      .update(tournaments)
+      .set({ status: "knockout_stage", championTeamId: null })
+      .where(eq(tournaments.id, match.tournamentId));
+    await db!
+      .delete(results)
+      .where(eq(results.tournamentId, match.tournamentId));
+  } else {
+    const [finalMatch] = await db!
+      .select({
+        status: knockoutMatches.status,
+        winnerId: knockoutMatches.winnerId,
+      })
+      .from(knockoutMatches)
+      .where(
+        and(
+          eq(knockoutMatches.tournamentId, match.tournamentId),
+          eq(knockoutMatches.round, "final"),
+        ),
+      )
+      .limit(1);
+
+    const shouldPublish =
+      (match.round === "final" && Boolean(winnerId)) ||
+      (tournament.status === "completed" &&
+        finalMatch?.status === "completed" &&
+        Boolean(finalMatch.winnerId));
+
+    if (shouldPublish && finalMatch?.status === "completed" && finalMatch.winnerId) {
+      await publishTournamentResults(match.tournamentId);
+    }
   }
 
   revalidateTournament(match.tournamentId);

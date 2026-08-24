@@ -22,7 +22,7 @@ import type {
   TournamentGroup,
   TournamentTeam,
 } from "@/lib/types";
-import { MatchScoreForm } from "@/components/bracket/MatchScoreForm";
+import { MatchScoreCard } from "@/components/bracket/MatchScoreCard";
 import { StandingsTable } from "@/components/bracket/StandingsTable";
 import { KnockoutBracketView } from "@/components/bracket/KnockoutBracketView";
 import { GroupDrawEditor } from "@/components/bracket/GroupDrawEditor";
@@ -138,7 +138,9 @@ export function TournamentRunPanel({
         </section>
       )}
 
-      {(tournament.status === "group_stage" || tournament.status === "knockout_stage") &&
+      {(tournament.status === "group_stage" ||
+        tournament.status === "knockout_stage" ||
+        tournament.status === "completed") &&
         groups.length > 0 && (
           <section className="space-y-6">
             <h2 className="text-lg font-bold">Group stage</h2>
@@ -163,42 +165,38 @@ export function TournamentRunPanel({
                   <StandingsTable rows={standings} teamLabels={teamLabels} />
                   <div className="space-y-3">
                     {gMatches.map((match) => (
-                      <div
+                      <MatchScoreCard
                         key={match.id}
-                        className="rounded-xl border border-gray-100 bg-cream-dark/30 p-3"
-                      >
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm font-medium">
-                            {teamLabels.get(match.teamAId)} vs {teamLabels.get(match.teamBId)}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {match.status === "completed"
-                              ? formatMatchScore(match.sets)
-                              : "Scheduled"}
-                          </p>
-                        </div>
-                        {match.status !== "completed" && tournament.status !== "completed" && (
-                          <MatchScoreForm
-                            matchFormat={tournament.matchFormat}
-                            superTiebreakPoints={tournament.superTiebreakPoints}
-                            teamAName={teamLabels.get(match.teamAId) ?? "A"}
-                            teamBName={teamLabels.get(match.teamBId) ?? "B"}
-                            teamAId={match.teamAId}
-                            teamBId={match.teamBId}
-                            disabled={isPending}
-                            onSubmit={(data) =>
-                              run(() =>
-                                saveGroupMatchScoreAction({
-                                  matchId: match.id,
-                                  sets: data.sets,
-                                  walkover: data.walkover,
-                                  walkoverWinnerId: data.walkoverWinnerId,
-                                }),
-                              )
-                            }
-                          />
-                        )}
-                      </div>
+                        teamAName={teamLabels.get(match.teamAId) ?? "A"}
+                        teamBName={teamLabels.get(match.teamBId) ?? "B"}
+                        teamAId={match.teamAId}
+                        teamBId={match.teamBId}
+                        scoreText={
+                          match.status === "completed"
+                            ? match.outcome === "walkover" && match.winnerId
+                              ? `${teamLabels.get(match.winnerId) ?? "Winner"} — Walkover`
+                              : formatMatchScore(match.sets)
+                            : "Scheduled"
+                        }
+                        status={match.status}
+                        matchFormat={tournament.matchFormat}
+                        superTiebreakPoints={tournament.superTiebreakPoints}
+                        initialSets={match.sets}
+                        initialWalkover={match.outcome === "walkover"}
+                        initialWalkoverWinnerId={match.winnerId ?? undefined}
+                        disabled={isPending}
+                        alwaysShowFormWhenScheduled
+                        onSubmit={(data) =>
+                          run(() =>
+                            saveGroupMatchScoreAction({
+                              matchId: match.id,
+                              sets: data.sets,
+                              walkover: data.walkover,
+                              walkoverWinnerId: data.walkoverWinnerId,
+                            }),
+                          )
+                        }
+                      />
                     ))}
                   </div>
                 </div>
@@ -290,7 +288,7 @@ export function TournamentRunPanel({
             admin
             matchFormat={tournament.matchFormat}
             superTiebreakPoints={tournament.superTiebreakPoints}
-            disabled={isPending || tournament.status === "completed"}
+            disabled={isPending}
             onSaveKnockout={(matchId, data) =>
               run(() =>
                 saveKnockoutMatchScoreAction({

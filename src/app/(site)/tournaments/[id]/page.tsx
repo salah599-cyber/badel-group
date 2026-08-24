@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { LiveTournamentRefresh } from "@/components/bracket/LiveTournamentRefresh";
 import { PublicTournamentView } from "@/components/bracket/PublicTournamentView";
 import { SectionHeading } from "@/components/SectionHeading";
+import { getAdminContext } from "@/lib/auth";
 import { getTournamentBracketState } from "@/lib/db/bracket-queries";
 import { getTournamentById } from "@/lib/db/queries";
 import { formatTournamentDateTimeShort } from "@/lib/dates";
+import { canManageTournament, hasPermission } from "@/lib/permissions";
 import type { KnockoutRound, Tournament } from "@/lib/types";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -49,6 +51,13 @@ export default async function PublicTournamentPage({
 
   const isLive =
     tournament.status === "group_stage" || tournament.status === "knockout_stage";
+
+  const adminCtx = await getAdminContext();
+  const canEditScores = Boolean(
+    adminCtx &&
+      hasPermission(adminCtx, "results:manage") &&
+      canManageTournament(adminCtx, id),
+  );
 
   const content = (
     <PublicTournamentView
@@ -91,6 +100,7 @@ export default async function PublicTournamentPage({
       pointsWin={bracketState?.tournament.pointsWin ?? 1}
       pointsLoss={bracketState?.tournament.pointsLoss ?? 0}
       championTeamId={bracketState?.tournament.championTeamId}
+      canEditScores={canEditScores}
     />
   );
 

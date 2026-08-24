@@ -1,4 +1,4 @@
-import { KnockoutBracketView } from "@/components/bracket/KnockoutBracketView";
+import { LiveKnockoutSection, LiveMatchesSection, type LivePublicMatch } from "@/components/bracket/LiveMatchesSection";
 import { StandingsTable } from "@/components/bracket/StandingsTable";
 import { computeStandings } from "@/lib/bracket/standings";
 import { formatMatchScore } from "@/lib/bracket/score-format";
@@ -27,17 +27,6 @@ const STATUS_BANNER: Record<TournamentStatus, string> = {
   completed: "Tournament completed",
 };
 
-type PublicMatch = {
-  id: string;
-  label: string;
-  teamAId: string;
-  teamBId: string;
-  sets: GroupMatch["sets"];
-  status: "scheduled" | "completed";
-  winnerId?: string | null;
-  outcome: "played" | "walkover";
-};
-
 type PublicTournamentViewProps = {
   tournament: Tournament;
   teams: TournamentTeam[];
@@ -47,15 +36,21 @@ type PublicTournamentViewProps = {
   pointsWin: number;
   pointsLoss: number;
   championTeamId?: string | null;
+  canEditScores?: boolean;
 };
 
 function formatMatchResult(
-  match: PublicMatch,
-  teamLabels: Map<string, string>,
+  match: {
+    status: "scheduled" | "completed";
+    outcome: "played" | "walkover";
+    winnerId?: string | null;
+    sets: GroupMatch["sets"];
+  },
+  teamLabels: Record<string, string>,
 ): string {
   if (match.status !== "completed") return "Scheduled";
   if (match.outcome === "walkover" && match.winnerId) {
-    return `${teamLabels.get(match.winnerId) ?? "Winner"} — Walkover`;
+    return `${teamLabels[match.winnerId] ?? "Winner"} — Walkover`;
   }
   return formatMatchScore(match.sets);
 }
@@ -69,23 +64,31 @@ export function PublicTournamentView({
   pointsWin,
   pointsLoss,
   championTeamId,
+  canEditScores = false,
 }: PublicTournamentViewProps) {
-  const teamLabels = new Map(teams.map((t) => [t.id, t.label]));
+  const teamLabels: Record<string, string> = Object.fromEntries(
+    teams.map((t) => [t.id, t.label]),
+  );
+  const teamLabelMap = new Map(Object.entries(teamLabels));
 
-  const allMatches: PublicMatch[] = [];
+  const allMatches: LivePublicMatch[] = [];
 
   for (const group of groups) {
     const gMatches = groupMatches.filter((m) => m.groupId === group.id);
     for (const m of gMatches) {
       allMatches.push({
         id: m.id,
+        kind: "group",
         label: `Group ${group.label}`,
         teamAId: m.teamAId,
         teamBId: m.teamBId,
+        teamAName: teamLabels[m.teamAId] ?? "A",
+        teamBName: teamLabels[m.teamBId] ?? "B",
         sets: m.sets,
         status: m.status,
         winnerId: m.winnerId,
         outcome: m.outcome,
+        scoreText: formatMatchResult(m, teamLabels),
       });
     }
   }
@@ -95,13 +98,17 @@ export function PublicTournamentView({
     const roundLabel = ROUND_LABELS[m.round] ?? m.round;
     allMatches.push({
       id: m.id,
+      kind: "knockout",
       label: roundLabel,
       teamAId: m.teamAId ?? "",
       teamBId: m.teamBId ?? "",
+      teamAName: teamLabels[m.teamAId ?? ""] ?? "TBD",
+      teamBName: teamLabels[m.teamBId ?? ""] ?? "TBD",
       sets: m.sets,
       status: m.status,
       winnerId: m.winnerId,
       outcome: m.outcome,
+      scoreText: formatMatchResult(m, teamLabels),
     });
   }
 
@@ -110,8 +117,8 @@ export function PublicTournamentView({
       m.status === "scheduled" &&
       m.teamAId &&
       m.teamBId &&
-      teamLabels.get(m.teamAId) &&
-      teamLabels.get(m.teamBId),
+      teamLabels[m.teamAId] &&
+      teamLabels[m.teamBId],
   );
 
   const completed = allMatches.filter((m) => m.status === "completed");
@@ -135,7 +142,7 @@ export function PublicTournamentView({
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Champion</p>
           <p className="mt-1 text-2xl font-black text-primary-dark">
-            {teamLabels.get(championTeamId) ?? "—"}
+            {teamLabels[championTeamId] ?? "—"}
           </p>
         </div>
       )}
@@ -146,58 +153,13 @@ export function PublicTournamentView({
         </p>
       ) : (
         <>
-          {(scheduled.length > 0 || completed.length > 0) && (
-            <section className="space-y-4">
-              <h2 className="text-xl font-bold">Matches</h2>
-
-              {scheduled.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                    Upcoming
-                  </h3>
-                  <ul className="space-y-2">
-                    {scheduled.map((m) => (
-                      <li
-                        key={m.id}
-                        className="rounded-xl border border-primary/15 bg-white px-4 py-3"
-                      >
-                        <p className="text-xs font-medium text-gray-500">{m.label}</p>
-                        <p className="mt-1 text-sm font-semibold text-primary-dark">
-                          {teamLabels.get(m.teamAId)} vs {teamLabels.get(m.teamBId)}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {completed.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                    Results
-                  </h3>
-                  <ul className="space-y-2">
-                    {completed.map((m) => (
-                      <li
-                        key={m.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm"
-                      >
-                        <div>
-                          <p className="text-xs text-gray-500">{m.label}</p>
-                          <p className="font-medium text-primary-dark">
-                            {teamLabels.get(m.teamAId)} vs {teamLabels.get(m.teamBId)}
-                          </p>
-                        </div>
-                        <span className="font-semibold text-gray-700">
-                          {formatMatchResult(m, teamLabels)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
-          )}
+          <LiveMatchesSection
+            canEditScores={canEditScores}
+            matchFormat={tournament.matchFormat}
+            superTiebreakPoints={tournament.superTiebreakPoints}
+            scheduled={scheduled}
+            completed={completed}
+          />
 
           <section className="space-y-6">
             <h2 className="text-xl font-bold">Group standings</h2>
@@ -219,22 +181,20 @@ export function PublicTournamentView({
               return (
                 <div key={group.id} className="space-y-3">
                   <h3 className="font-bold text-primary-dark">Group {group.label}</h3>
-                  <StandingsTable rows={standings} teamLabels={teamLabels} />
+                  <StandingsTable rows={standings} teamLabels={teamLabelMap} />
                 </div>
               );
             })}
           </section>
 
-          {knockoutMatches.length > 0 && (
-            <section>
-              <h2 className="mb-4 text-xl font-bold">Knockout bracket</h2>
-              <KnockoutBracketView
-                matches={knockoutMatches}
-                teamLabels={teamLabels}
-                roundLabels={ROUND_LABELS}
-              />
-            </section>
-          )}
+          <LiveKnockoutSection
+            canEditScores={canEditScores}
+            matchFormat={tournament.matchFormat}
+            superTiebreakPoints={tournament.superTiebreakPoints}
+            knockoutMatches={knockoutMatches}
+            teamLabels={teamLabels}
+            roundLabels={ROUND_LABELS}
+          />
         </>
       )}
     </div>

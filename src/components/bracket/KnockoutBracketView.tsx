@@ -5,9 +5,11 @@ import { formatMatchScore } from "@/lib/bracket/score-format";
 import type { KnockoutMatch, MatchFormat } from "@/lib/types";
 import { MatchScoreForm } from "@/components/bracket/MatchScoreForm";
 
+type TeamLabels = Map<string, string> | Record<string, string>;
+
 type KnockoutBracketViewProps = {
   matches: KnockoutMatch[];
-  teamLabels: Map<string, string>;
+  teamLabels: TeamLabels;
   roundLabels: Record<string, string>;
   admin?: boolean;
   matchFormat?: MatchFormat;
@@ -19,9 +21,10 @@ type KnockoutBracketViewProps = {
   ) => void;
 };
 
-function teamName(id: string | null | undefined, labels: Map<string, string>) {
+function teamName(id: string | null | undefined, labels: TeamLabels) {
   if (!id) return "TBD";
-  return labels.get(id) ?? "TBD";
+  if (labels instanceof Map) return labels.get(id) ?? "TBD";
+  return labels[id] ?? "TBD";
 }
 
 export function KnockoutBracketView({
@@ -64,29 +67,53 @@ export function KnockoutBracketView({
                 {teamName(match.teamBId, teamLabels)}
               </p>
               {match.status === "completed" && (
-                <p className="mt-1 text-xs text-gray-600">{formatMatchScore(match.sets)}</p>
+                <p className="mt-1 text-xs text-gray-600">
+                  {match.outcome === "walkover"
+                    ? `${teamName(match.winnerId, teamLabels)} — Walkover`
+                    : formatMatchScore(match.sets)}
+                </p>
               )}
-              {admin && match.status !== "completed" && match.teamAId && match.teamBId && (
+              {admin && match.teamAId && match.teamBId && (
                 <>
                   <button
                     type="button"
                     className="mt-2 text-xs font-semibold text-primary"
+                    disabled={disabled}
                     onClick={() =>
                       setExpandedId(expandedId === match.id ? null : match.id)
                     }
                   >
-                    {expandedId === match.id ? "Hide score form" : "Enter score"}
+                    {expandedId === match.id
+                      ? "Hide score form"
+                      : match.status === "completed"
+                        ? "Edit"
+                        : "Enter score"}
                   </button>
                   {expandedId === match.id && matchFormat && onSaveKnockout && (
                     <div className="mt-2">
                       <MatchScoreForm
+                        key={`${match.id}-${match.status}`}
                         matchFormat={matchFormat}
                         superTiebreakPoints={superTiebreakPoints}
                         teamAName={teamName(match.teamAId, teamLabels)}
                         teamBName={teamName(match.teamBId, teamLabels)}
-                        teamAId={match.teamAId!}
-                        teamBId={match.teamBId!}
+                        teamAId={match.teamAId}
+                        teamBId={match.teamBId}
                         disabled={disabled}
+                        isEditing={match.status === "completed"}
+                        initialSets={
+                          match.status === "completed" ? match.sets : undefined
+                        }
+                        initialWalkover={
+                          match.status === "completed"
+                            ? match.outcome === "walkover"
+                            : undefined
+                        }
+                        initialWalkoverWinnerId={
+                          match.status === "completed"
+                            ? (match.winnerId ?? undefined)
+                            : undefined
+                        }
                         onSubmit={(data) => onSaveKnockout(match.id, data)}
                       />
                     </div>

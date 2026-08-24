@@ -11,6 +11,10 @@ type MatchScoreFormProps = {
   teamAId: string;
   teamBId: string;
   disabled?: boolean;
+  isEditing?: boolean;
+  initialSets?: MatchSet[];
+  initialWalkover?: boolean;
+  initialWalkoverWinnerId?: string;
   onSubmit: (data: {
     sets: MatchSet[];
     walkover?: boolean;
@@ -22,6 +26,13 @@ function emptySet(): MatchSet {
   return { a: 0, b: 0 };
 }
 
+function buildInitialSets(matchFormat: MatchFormat, initialSets?: MatchSet[]): MatchSet[] {
+  if (initialSets && initialSets.length > 0) {
+    return initialSets.map((set) => ({ ...set }));
+  }
+  return matchFormat === "best_of_1" ? [emptySet()] : [emptySet(), emptySet()];
+}
+
 export function MatchScoreForm({
   matchFormat,
   superTiebreakPoints,
@@ -30,13 +41,21 @@ export function MatchScoreForm({
   teamAId,
   teamBId,
   disabled,
+  isEditing,
+  initialSets,
+  initialWalkover,
+  initialWalkoverWinnerId,
   onSubmit,
 }: MatchScoreFormProps) {
-  const [sets, setSets] = useState<MatchSet[]>([emptySet()]);
-  const [walkover, setWalkover] = useState(false);
-  const [walkoverWinnerId, setWalkoverWinnerId] = useState(teamAId);
-  const [showTiebreak, setShowTiebreak] = useState(false);
-  const [superMode, setSuperMode] = useState(false);
+  const [sets, setSets] = useState<MatchSet[]>(() => buildInitialSets(matchFormat, initialSets));
+  const [walkover, setWalkover] = useState(Boolean(initialWalkover));
+  const [walkoverWinnerId, setWalkoverWinnerId] = useState(initialWalkoverWinnerId ?? teamAId);
+  const [showTiebreak, setShowTiebreak] = useState(
+    initialSets?.[0]?.tiebreakA != null && initialSets?.[0]?.tiebreakB != null,
+  );
+  const [superMode, setSuperMode] = useState(
+    Boolean(initialSets?.some((set) => set.isSuperTiebreak)),
+  );
 
   const maxSets = matchFormat === "best_of_1" ? 1 : 3;
 
@@ -83,6 +102,7 @@ export function MatchScoreForm({
   }, [sets]);
 
   useEffect(() => {
+    if (walkover) return;
     if (matchFormat !== "best_of_1" && sets.length < 2) {
       setSets((prev) => (prev.length >= 2 ? prev : [...prev, emptySet()]));
     }
@@ -90,7 +110,7 @@ export function MatchScoreForm({
       setSuperMode(true);
       setSets((prev) => (prev.length >= 3 ? prev : [...prev, emptySet()]));
     }
-  }, [matchFormat, setOneWinner, sets.length]);
+  }, [matchFormat, setOneWinner, sets.length, walkover]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded-xl border border-gray-200 bg-white p-3">
@@ -187,7 +207,7 @@ export function MatchScoreForm({
       )}
 
       <button type="submit" disabled={disabled} className="btn-primary w-full text-sm">
-        Save score
+        {isEditing ? "Update score" : "Save score"}
       </button>
     </form>
   );
