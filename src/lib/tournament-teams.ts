@@ -75,6 +75,11 @@ export function countConfirmedTeams(tournamentEntries: Entry[]) {
   return teams;
 }
 
+/** Approved solo players count toward squad tournament capacity. */
+export function countSquadApprovedPlayers(tournamentEntries: Entry[]) {
+  return tournamentEntries.filter((entry) => entry.status === "approved").length;
+}
+
 export function getPairedTeamDisplayEntries(tournamentEntries: Entry[]) {
   const partnershipTeams = tournamentEntries.filter((entry) => isPartnershipTeamEntry(entry));
 

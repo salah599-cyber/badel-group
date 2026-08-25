@@ -12,7 +12,8 @@ import {
   tournaments,
 } from "./schema";
 import { querySponsors } from "./sponsor-db";
-import { countConfirmedTeams } from "@/lib/tournament-teams";
+import { countConfirmedTeams, countSquadApprovedPlayers } from "@/lib/tournament-teams";
+import { isSquadFormat } from "@/lib/competition-format";
 import type { SponsorTier } from "@/lib/types";
 
 function tournamentSelect() {
@@ -25,6 +26,7 @@ function tournamentSelect() {
     status: tournaments.status,
     description: tournaments.description,
     maxPlayers: tournaments.maxPlayers,
+    rosterSize: tournaments.rosterSize,
     countsTowardRankings: tournaments.countsTowardRankings,
     tournamentTypeId: tournaments.tournamentTypeId,
     matchFormat: tournaments.matchFormat,
@@ -41,6 +43,7 @@ function tournamentSelect() {
     typeSlug: tournamentTypes.slug,
     requiresPartner: tournamentTypes.requiresPartner,
     pairingMode: tournamentTypes.pairingMode,
+    competitionFormat: tournamentTypes.competitionFormat,
   })
     .from(tournaments)
     .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id));
@@ -122,6 +125,17 @@ export async function countConfirmedEntries(tournamentId: string) {
   if (!db) return 0;
 
   const rows = await getEntriesForTournament(tournamentId);
+  const [tournament] = await db
+    .select({ competitionFormat: tournamentTypes.competitionFormat })
+    .from(tournaments)
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+
+  if (isSquadFormat(tournament?.competitionFormat)) {
+    return countSquadApprovedPlayers(rows);
+  }
+
   return countConfirmedTeams(rows);
 }
 
@@ -200,11 +214,22 @@ async function attachTournamentCounts<T extends { id: string }>(
     waitlistRows.map((row) => [row.tournamentId, Number(row.value)]),
   );
 
-  return tournamentList.map((tournament) => ({
-    ...tournament,
-    registeredCount: countConfirmedTeams(entriesByTournament.get(tournament.id) ?? []),
-    waitlistCount: waitlistByTournament.get(tournament.id) ?? 0,
-  }));
+  return tournamentList.map((tournament) => {
+    const tournamentEntries = entriesByTournament.get(tournament.id) ?? [];
+    const competitionFormat =
+      "competitionFormat" in tournament
+        ? (tournament.competitionFormat as string | undefined)
+        : "pairs";
+    const registeredCount = isSquadFormat(competitionFormat)
+      ? countSquadApprovedPlayers(tournamentEntries)
+      : countConfirmedTeams(tournamentEntries);
+
+    return {
+      ...tournament,
+      registeredCount,
+      waitlistCount: waitlistByTournament.get(tournament.id) ?? 0,
+    };
+  });
 }
 
 export async function getTournamentWithCounts() {
@@ -385,6 +410,8 @@ function entrySelect() {
     partnershipStatus: entries.partnershipStatus,
     playingSide: entries.playingSide,
     skillLevel: entries.skillLevel,
+    isWoman: entries.isWoman,
+    adminSkillRank: entries.adminSkillRank,
     status: entries.status,
     isGuest: entries.isGuest,
     addedByAdminId: entries.addedByAdminId,
@@ -393,6 +420,7 @@ function entrySelect() {
     tournamentId: entries.tournamentId,
     tournamentName: tournaments.name,
     pairingMode: tournamentTypes.pairingMode,
+    competitionFormat: tournamentTypes.competitionFormat,
   };
 }
 
@@ -594,4 +622,15 @@ export async function countTournamentsByType(typeId: string) {
     .from(tournaments)
     .where(eq(tournaments.tournamentTypeId, typeId));
   return Number(value);
+}
+
+export async function getTournamentCompetitionFormat(tournamentId: string) {
+  if (!db) return "pairs" as const;
+  const [row] = await db
+    .select({ competitionFormat: tournamentTypes.competitionFormat })
+    .from(tournaments)
+    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+    .where(eq(tournaments.id, tournamentId))
+    .limit(1);
+  return row?.competitionFormat ?? "pairs";
 }

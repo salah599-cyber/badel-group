@@ -2,9 +2,11 @@ import { LiveKnockoutSection, LiveMatchesSection, type LivePublicMatch } from "@
 import { StandingsTable } from "@/components/bracket/StandingsTable";
 import { computeStandings } from "@/lib/bracket/standings";
 import { formatMatchScore } from "@/lib/bracket/score-format";
+import { formatLineupPair } from "@/lib/squad/lineups";
 import type {
   GroupMatch,
   KnockoutMatch,
+  MatchLineup,
   Tournament,
   TournamentGroup,
   TournamentStatus,
@@ -37,6 +39,8 @@ type PublicTournamentViewProps = {
   pointsLoss: number;
   championTeamId?: string | null;
   canEditScores?: boolean;
+  lineups?: MatchLineup[];
+  entryNames?: Map<string, string>;
 };
 
 function formatMatchResult(
@@ -65,7 +69,10 @@ export function PublicTournamentView({
   pointsLoss,
   championTeamId,
   canEditScores = false,
+  lineups = [],
+  entryNames = new Map<string, string>(),
 }: PublicTournamentViewProps) {
+  const isSquad = tournament.competitionFormat === "squads";
   const teamLabels: Record<string, string> = Object.fromEntries(
     teams.map((t) => [t.id, t.label]),
   );
@@ -159,6 +166,19 @@ export function PublicTournamentView({
             superTiebreakPoints={tournament.superTiebreakPoints}
             scheduled={scheduled}
             completed={completed}
+            renderMatchExtra={
+              isSquad
+                ? (match) => (
+                    <SquadLineupSummary
+                      matchId={match.id}
+                      teamAId={match.teamAId}
+                      teamBId={match.teamBId}
+                      lineups={lineups}
+                      entryNames={entryNames}
+                    />
+                  )
+                : undefined
+            }
           />
 
           <section className="space-y-6">
@@ -197,6 +217,47 @@ export function PublicTournamentView({
           />
         </>
       )}
+    </div>
+  );
+}
+
+function SquadLineupSummary({
+  matchId,
+  teamAId,
+  teamBId,
+  lineups,
+  entryNames,
+}: {
+  matchId: string;
+  teamAId: string;
+  teamBId: string;
+  lineups: MatchLineup[];
+  entryNames: Map<string, string>;
+}) {
+  const lineupA = lineups.find(
+    (lineup) =>
+      lineup.teamId === teamAId &&
+      (lineup.groupMatchId === matchId || lineup.knockoutMatchId === matchId),
+  );
+  const lineupB = lineups.find(
+    (lineup) =>
+      lineup.teamId === teamBId &&
+      (lineup.groupMatchId === matchId || lineup.knockoutMatchId === matchId),
+  );
+
+  if (!lineupA || !lineupB) {
+    return <p className="mt-2 text-xs text-gray-500">Lineups pending</p>;
+  }
+
+  return (
+    <div className="mt-2 grid gap-2 text-xs text-gray-600 sm:grid-cols-2">
+      {[lineupA, lineupB].map((lineup, index) => (
+        <div key={index}>
+          <p>Set 1: {formatLineupPair(lineup.set1EntryIds, entryNames)}</p>
+          <p>Set 2: {formatLineupPair(lineup.set2EntryIds, entryNames)}</p>
+          <p>Set 3: {formatLineupPair(lineup.set3EntryIds, entryNames)}</p>
+        </div>
+      ))}
     </div>
   );
 }

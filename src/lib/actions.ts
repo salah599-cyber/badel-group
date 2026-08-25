@@ -35,6 +35,7 @@ import {
   userCanWithdrawTeam,
 } from "@/lib/tournament-teams";
 import { canAdminApproveEntry, isPartnershipTeamEntry } from "@/lib/partnerships";
+import { isSquadFormat } from "@/lib/competition-format";
 import { parsePlayingSide } from "@/lib/player-profile";
 import { parseNameFields, syncClerkUserProfileNames } from "@/lib/user-profile";
 import { calculatePlayerRankings, normalizePlayerKey } from "@/lib/rankings";
@@ -149,6 +150,14 @@ export async function createTournamentAction(formData: FormData) {
   const tournamentTypeId = formData.get("tournamentTypeId") as string;
   if (!tournamentTypeId) throw new Error("Tournament type is required");
 
+  const [typeRow] = await db
+    .select({ competitionFormat: tournamentTypes.competitionFormat })
+    .from(tournamentTypes)
+    .where(eq(tournamentTypes.id, tournamentTypeId))
+    .limit(1);
+
+  const isSquad = isSquadFormat(typeRow?.competitionFormat);
+
   const location = (formData.get("location") as string)?.trim();
   if (!location) throw new Error("Location is required");
 
@@ -157,6 +166,7 @@ export async function createTournamentAction(formData: FormData) {
 
   const matchFormat = parseMatchFormat(formData.get("matchFormat"));
   const superTiebreakPoints = Number(formData.get("superTiebreakPoints")) || 10;
+  const maxPlayers = Number(formData.get("maxPlayers")) || (isSquad ? 48 : 32);
 
   await db.insert(tournaments).values({
     name: formData.get("name") as string,
@@ -165,10 +175,17 @@ export async function createTournamentAction(formData: FormData) {
     location,
     tournamentTypeId,
     description: formData.get("description") as string,
-    maxPlayers: Number(formData.get("maxPlayers")),
-    countsTowardRankings: formData.get("countsTowardRankings") === "true",
-    matchFormat,
+    maxPlayers,
+    rosterSize: isSquad ? 6 : 6,
+    countsTowardRankings: isSquad
+      ? false
+      : formData.get("countsTowardRankings") === "true",
+    matchFormat: isSquad ? "best_of_3_full" : matchFormat,
     superTiebreakPoints,
+    teamsPerGroup: isSquad ? 4 : 4,
+    advancePerGroup: isSquad ? 2 : null,
+    knockoutStartRound: isSquad ? "semifinal" : null,
+    thirdPlacePlayoff: false,
     status: "upcoming",
   });
 
@@ -334,6 +351,7 @@ export async function createEntryAction(formData: FormData): Promise<CreateEntry
         name: tournaments.name,
         status: tournaments.status,
         pairingMode: tournamentTypes.pairingMode,
+        competitionFormat: tournamentTypes.competitionFormat,
         maxPlayers: tournaments.maxPlayers,
       })
       .from(tournaments)
@@ -349,8 +367,11 @@ export async function createEntryAction(formData: FormData): Promise<CreateEntry
     const capacity = await getTournamentCapacity(tournamentId);
     if (!capacity) return entryError("Tournament not found.");
 
-    const signupMode =
-      tournament.pairingMode === "random"
+    const isSquadTournament = isSquadFormat(tournament.competitionFormat);
+
+    const signupMode = isSquadTournament
+      ? "solo"
+      : tournament.pairingMode === "random"
         ? "solo"
         : ((formData.get("signupMode") as "solo" | "with_partner") || "solo");
     const partnerType = formData.get("partnerType") as "registered" | "unregistered" | null;
@@ -452,9 +473,14 @@ export async function createEntryAction(formData: FormData): Promise<CreateEntry
       }
     }
 
-    // Solo players are not a confirmed team until paired; only partner sign-ups take a slot now.
-    const entryStatus =
-      entryWouldOccupyTeamSlot({ signupMode }) && capacity.isFull ? "waitlisted" : "pending";
+    // Solo players are not a confirmed team until paired; squad tournaments count approved players.
+    const entryStatus = isSquadTournament
+      ? capacity.isFull
+        ? "waitlisted"
+        : "pending"
+      : entryWouldOccupyTeamSlot({ signupMode }) && capacity.isFull
+        ? "waitlisted"
+        : "pending";
 
     let firstName: string;
     let lastName: string;
@@ -487,6 +513,7 @@ export async function createEntryAction(formData: FormData): Promise<CreateEntry
         partnershipStatus,
         playingSide,
         skillLevel: formData.get("skillLevel") as string,
+        isWoman: isSquadTournament ? formData.get("isWoman") === "true" : false,
         notes: (formData.get("notes") as string) || null,
         status: entryStatus,
       });

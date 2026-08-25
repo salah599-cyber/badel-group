@@ -18,6 +18,9 @@ type SignupFormProps = {
 
 function signupHint(tournament: Tournament | undefined, signupMode: SignupMode) {
   if (!tournament) return null;
+  if (tournament.competitionFormat === "squads") {
+    return "Sign up solo — admin will rank players and form balanced 6-player teams.";
+  }
   if (tournament.pairingMode === "random") {
     return "Sign up solo — teams will be assigned randomly.";
   }
@@ -54,7 +57,9 @@ export function SignupForm({
 
   const selectedTournament = tournaments.find((t) => t.id === selectedId);
   const isAlreadyRegistered = registeredSet.has(selectedId);
-  const isSoloOnlyTournament = selectedTournament?.pairingMode === "random";
+  const isSquadTournament = selectedTournament?.competitionFormat === "squads";
+  const isSoloOnlyTournament =
+    isSquadTournament || selectedTournament?.pairingMode === "random";
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -112,7 +117,10 @@ export function SignupForm({
           onChange={(e) => {
             setSelectedId(e.target.value);
             const tournament = tournaments.find((t) => t.id === e.target.value);
-            if (tournament?.pairingMode === "random") {
+            if (
+              tournament?.competitionFormat === "squads" ||
+              tournament?.pairingMode === "random"
+            ) {
               setSignupMode("solo");
             }
           }}
@@ -121,9 +129,14 @@ export function SignupForm({
           {tournaments.map((t) => {
             const spotsLeft = t.maxPlayers - t.registeredCount;
             const isFull = spotsLeft <= 0;
+            const isSquad = t.competitionFormat === "squads";
             const capacityLabel = isFull
-              ? `Full — waitlist for teams (${t.waitlistCount} waiting)`
-              : `${spotsLeft} team spot${spotsLeft === 1 ? "" : "s"} left`;
+              ? isSquad
+                ? `Full — waitlist (${t.waitlistCount} waiting)`
+                : `Full — waitlist for teams (${t.waitlistCount} waiting)`
+              : isSquad
+                ? `${spotsLeft} player spot${spotsLeft === 1 ? "" : "s"} left`
+                : `${spotsLeft} team spot${spotsLeft === 1 ? "" : "s"} left`;
             const alreadyRegistered = registeredSet.has(t.id);
 
             return (
@@ -408,6 +421,13 @@ export function SignupForm({
           <option value="advanced">Advanced</option>
         </select>
       </div>
+
+      {isSquadTournament && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="isWoman" value="true" />
+          <span>I am registering as a woman player (used for balanced team formation)</span>
+        </label>
+      )}
 
       <div>
         <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-700">

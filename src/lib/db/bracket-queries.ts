@@ -1,9 +1,13 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "./index";
 import {
+  entries,
   groupMatches,
   groups,
   knockoutMatches,
+  matchLineups,
+  tournamentPartners,
+  tournamentSponsors,
   tournamentTeams,
   tournaments,
   type MatchSet,
@@ -49,6 +53,73 @@ export async function getTournamentBracketState(tournamentId: string) {
     groupMatches: groupMatchesList,
     knockoutMatches: koMatches,
   };
+}
+
+export async function getMatchLineupsByMatchIds(input: {
+  groupMatchIds?: string[];
+  knockoutMatchIds?: string[];
+}) {
+  if (!db) return [];
+  const rows: (typeof matchLineups.$inferSelect)[] = [];
+
+  if (input.groupMatchIds?.length) {
+    const groupRows = await db
+      .select()
+      .from(matchLineups)
+      .where(inArray(matchLineups.groupMatchId, input.groupMatchIds));
+    rows.push(...groupRows);
+  }
+
+  if (input.knockoutMatchIds?.length) {
+    const koRows = await db
+      .select()
+      .from(matchLineups)
+      .where(inArray(matchLineups.knockoutMatchId, input.knockoutMatchIds));
+    rows.push(...koRows);
+  }
+
+  return rows;
+}
+
+export async function getTournamentPartners(tournamentId: string) {
+  if (!db) return [];
+  return db
+    .select()
+    .from(tournamentPartners)
+    .where(eq(tournamentPartners.tournamentId, tournamentId))
+    .orderBy(tournamentPartners.sortOrder, tournamentPartners.name);
+}
+
+export async function getTournamentSponsors(tournamentId: string) {
+  if (!db) return [];
+  return db
+    .select()
+    .from(tournamentSponsors)
+    .where(eq(tournamentSponsors.tournamentId, tournamentId))
+    .orderBy(tournamentSponsors.sortOrder, tournamentSponsors.name);
+}
+
+export async function getCaptainTeamForUser(tournamentId: string, userId: string) {
+  if (!db) return null;
+
+  const teams = await db
+    .select()
+    .from(tournamentTeams)
+    .where(eq(tournamentTeams.tournamentId, tournamentId));
+
+  for (const team of teams) {
+    if (!team.captainEntryId) continue;
+    const [entry] = await db
+      .select({ userId: entries.userId })
+      .from(entries)
+      .where(eq(entries.id, team.captainEntryId))
+      .limit(1);
+    if (entry?.userId === userId) {
+      return team;
+    }
+  }
+
+  return null;
 }
 
 export async function getTournamentIdsWithBracket() {

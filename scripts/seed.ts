@@ -41,6 +41,7 @@ async function seed() {
         description: type.description,
         requiresPartner: type.requiresPartner,
         pairingMode: type.pairingMode,
+        competitionFormat: type.competitionFormat,
         sortOrder: type.sortOrder,
       })
       .returning();

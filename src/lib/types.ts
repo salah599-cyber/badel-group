@@ -1,6 +1,8 @@
 export type SponsorTier = "platinum" | "gold" | "silver" | "bronze";
 export type SponsorLinkType = "website" | "instagram";
 export type PairingMode = "manual" | "random";
+export type CompetitionFormat = "pairs" | "squads";
+export type AdminSkillRank = "B+" | "B" | "B-" | "C+" | "C" | "C-" | "D";
 export type SignupMode = "solo" | "with_partner";
 export type PartnershipStatus =
   | "not_applicable"
@@ -17,6 +19,7 @@ export interface TournamentType {
   description?: string | null;
   requiresPartner: boolean;
   pairingMode: PairingMode;
+  competitionFormat: CompetitionFormat;
   sortOrder: number;
 }
 
@@ -58,9 +61,11 @@ export interface Tournament {
   typeSlug: string;
   requiresPartner: boolean;
   pairingMode: PairingMode;
+  competitionFormat: CompetitionFormat;
   status: TournamentStatus;
   description: string;
   maxPlayers: number;
+  rosterSize: number;
   countsTowardRankings: boolean;
   matchFormat: MatchFormat;
   superTiebreakPoints: number;
@@ -81,6 +86,40 @@ export interface TournamentTeam {
   tournamentId: string;
   label: string;
   entryIds: string[];
+  captainEntryId?: string | null;
+}
+
+export interface MatchLineup {
+  id: string;
+  groupMatchId?: string | null;
+  knockoutMatchId?: string | null;
+  teamId: string;
+  set1EntryIds?: string[] | null;
+  set2EntryIds?: string[] | null;
+  set3EntryIds?: string[] | null;
+  submittedByUserId?: string | null;
+  submittedAt?: Date | null;
+  isAdminOverride: boolean;
+}
+
+export interface TournamentPartner {
+  id: string;
+  tournamentId: string;
+  name: string;
+  logoUrl: string;
+  website?: string | null;
+  sortOrder: number;
+}
+
+export interface TournamentSponsor {
+  id: string;
+  tournamentId: string;
+  name: string;
+  tier: SponsorTier;
+  logoUrl: string;
+  website?: string | null;
+  linkType?: SponsorLinkType;
+  sortOrder: number;
 }
 
 export interface TournamentGroup {
@@ -193,6 +232,8 @@ export interface Entry {
   partnershipStatus?: PartnershipStatus;
   playingSide?: PlayingSide;
   skillLevel?: string;
+  isWoman?: boolean;
+  adminSkillRank?: string | null;
   status: string;
   isGuest?: boolean;
   addedByAdminId?: string | null;
@@ -200,6 +241,7 @@ export interface Entry {
   tournamentId?: string;
   tournamentName: string;
   pairingMode?: PairingMode;
+  competitionFormat?: CompetitionFormat;
   createdAt?: Date;
 }
 

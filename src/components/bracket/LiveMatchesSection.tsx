@@ -47,6 +47,7 @@ type LiveMatchesSectionProps = {
   superTiebreakPoints: number;
   scheduled: LivePublicMatch[];
   completed: LivePublicMatch[];
+  renderMatchExtra?: (match: LivePublicMatch) => React.ReactNode;
 };
 
 export function LiveMatchesSection({
@@ -55,6 +56,7 @@ export function LiveMatchesSection({
   superTiebreakPoints,
   scheduled,
   completed,
+  renderMatchExtra,
 }: LiveMatchesSectionProps) {
   const { isPending, run } = useScoreSave();
 
@@ -116,6 +118,7 @@ export function LiveMatchesSection({
                   <p className="mt-1 text-sm font-semibold text-primary-dark">
                     {m.teamAName} vs {m.teamBName}
                   </p>
+                  {renderMatchExtra?.(m)}
                 </li>
               ),
             )}
@@ -160,7 +163,10 @@ export function LiveMatchesSection({
                       {m.teamAName} vs {m.teamBName}
                     </p>
                   </div>
-                  <span className="font-semibold text-gray-700">{m.scoreText}</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-gray-700">{m.scoreText}</span>
+                    {renderMatchExtra?.(m)}
+                  </div>
                 </li>
               ),
             )}

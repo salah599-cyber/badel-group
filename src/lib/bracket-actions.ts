@@ -16,11 +16,11 @@ import {
   placementsToWinners,
 } from "@/lib/bracket/placements";
 import { generateRoundRobinPairs } from "@/lib/bracket/score";
-import { deriveMatchWinner, validateSets } from "@/lib/bracket/score";
+import { deriveMatchWinner, validateSets, validateSquadMatchSets, deriveSquadMatchWinner } from "@/lib/bracket/score";
 import { computeStandings } from "@/lib/bracket/standings";
 import { getTournamentBracketState } from "@/lib/db/bracket-queries";
 import { db } from "@/lib/db";
-import { getEntriesForTournament, getCurrentRankingSeasonId } from "@/lib/db/queries";
+import { getEntriesForTournament, getCurrentRankingSeasonId, getTournamentCompetitionFormat } from "@/lib/db/queries";
 import {
   entries,
   groupMatches,
@@ -38,8 +38,11 @@ import {
 import {
   findManualPairPartner,
   getConfirmedTeamOptions,
+  countSquadApprovedPlayers,
 } from "@/lib/tournament-teams";
 import { isPartnershipTeamEntry } from "@/lib/partnerships";
+import { isSquadFormat } from "@/lib/competition-format";
+import { isAdminSkillRank } from "@/lib/squad/constants";
 
 function revalidateTournament(tournamentId: string) {
   revalidatePath("/admin");
@@ -116,6 +119,8 @@ export async function closeRegistrationAction(tournamentId: string) {
       id: tournaments.id,
       status: tournaments.status,
       pairingMode: tournamentTypes.pairingMode,
+      competitionFormat: tournamentTypes.competitionFormat,
+      maxPlayers: tournaments.maxPlayers,
     })
     .from(tournaments)
     .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
@@ -127,27 +132,44 @@ export async function closeRegistrationAction(tournamentId: string) {
     throw new Error("Registration is only open for upcoming tournaments");
   }
 
-  if (row.pairingMode === "random") {
-    await autoPairRandomSolos(tournamentId, ctx.userId, ctx.email);
-  }
+  if (isSquadFormat(row.competitionFormat)) {
+    const entriesAfter = await getEntriesForTournament(tournamentId);
+    const approvedCount = countSquadApprovedPlayers(entriesAfter);
+    if (approvedCount !== row.maxPlayers) {
+      throw new Error(
+        `Need exactly ${row.maxPlayers} approved players before closing registration (${approvedCount} now)`,
+      );
+    }
 
-  const entriesAfter = await getEntriesForTournament(tournamentId);
-  const teamOptions = getConfirmedTeamOptions(entriesAfter);
-  const unpairedSolos = entriesAfter.filter(
-    (e) =>
-      e.status === "approved" &&
-      !isPartnershipTeamEntry(e) &&
-      !findManualPairPartner(e, entriesAfter),
-  );
-
-  if (unpairedSolos.length > 0) {
-    throw new Error(
-      `${unpairedSolos.length} approved player(s) still need pairing before registration can close`,
+    const missingRank = entriesAfter.filter(
+      (e) => e.status === "approved" && !isAdminSkillRank(e.adminSkillRank),
     );
-  }
+    if (missingRank.length > 0) {
+      throw new Error(`${missingRank.length} approved player(s) still need an admin skill rank`);
+    }
+  } else {
+    if (row.pairingMode === "random") {
+      await autoPairRandomSolos(tournamentId, ctx.userId, ctx.email);
+    }
 
-  if (teamOptions.length < 2) {
-    throw new Error("At least 2 confirmed teams are required to close registration");
+    const entriesAfter = await getEntriesForTournament(tournamentId);
+    const teamOptions = getConfirmedTeamOptions(entriesAfter);
+    const unpairedSolos = entriesAfter.filter(
+      (e) =>
+        e.status === "approved" &&
+        !isPartnershipTeamEntry(e) &&
+        !findManualPairPartner(e, entriesAfter),
+    );
+
+    if (unpairedSolos.length > 0) {
+      throw new Error(
+        `${unpairedSolos.length} approved player(s) still need pairing before registration can close`,
+      );
+    }
+
+    if (teamOptions.length < 2) {
+      throw new Error("At least 2 confirmed teams are required to close registration");
+    }
   }
 
   await db!
@@ -332,6 +354,9 @@ export async function saveGroupMatchScoreAction(input: {
 
   if (!tournament) throw new Error("Tournament not found");
 
+  const format = await getTournamentCompetitionFormat(match.tournamentId);
+  const isSquad = isSquadFormat(format);
+
   let winnerId: string | null = null;
   let outcome: "played" | "walkover" = "played";
   let sets = input.sets;
@@ -346,6 +371,11 @@ export async function saveGroupMatchScoreAction(input: {
     winnerId = input.walkoverWinnerId;
     outcome = "walkover";
     sets = [];
+  } else if (isSquad) {
+    const err = validateSquadMatchSets(sets);
+    if (err) throw new Error(err);
+    winnerId = deriveSquadMatchWinner(sets, match.teamAId, match.teamBId);
+    if (!winnerId) throw new Error("Could not determine match winner");
   } else {
     const err = validateSets(
       sets,
@@ -744,6 +774,9 @@ export async function saveKnockoutMatchScoreAction(input: {
 
   if (!tournament) throw new Error("Tournament not found");
 
+  const format = await getTournamentCompetitionFormat(match.tournamentId);
+  const isSquad = isSquadFormat(format);
+
   let winnerId: string | null = null;
   let outcome: "played" | "walkover" = "played";
   let sets = input.sets;
@@ -762,19 +795,26 @@ export async function saveKnockoutMatchScoreAction(input: {
     if (!match.teamAId || !match.teamBId) {
       throw new Error("Both teams must be set before entering a score");
     }
-    const err = validateSets(
-      sets,
-      tournament.matchFormat,
-      tournament.superTiebreakPoints,
-    );
-    if (err) throw new Error(err);
-    winnerId = deriveMatchWinner(
-      sets,
-      match.teamAId,
-      match.teamBId,
-      tournament.matchFormat,
-    );
-    if (!winnerId) throw new Error("Could not determine match winner");
+    if (isSquad) {
+      const err = validateSquadMatchSets(sets);
+      if (err) throw new Error(err);
+      winnerId = deriveSquadMatchWinner(sets, match.teamAId, match.teamBId);
+      if (!winnerId) throw new Error("Could not determine match winner");
+    } else {
+      const err = validateSets(
+        sets,
+        tournament.matchFormat,
+        tournament.superTiebreakPoints,
+      );
+      if (err) throw new Error(err);
+      winnerId = deriveMatchWinner(
+        sets,
+        match.teamAId,
+        match.teamBId,
+        tournament.matchFormat,
+      );
+      if (!winnerId) throw new Error("Could not determine match winner");
+    }
   }
 
   const loserId =

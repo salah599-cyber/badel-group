@@ -135,7 +135,7 @@ async function processImageForUpload(
 
 export async function uploadFiles(
   files: File[],
-  folder: "sponsors" | "gallery" | "players",
+  folder: "sponsors" | "gallery" | "players" | "tournament-partners" | "tournament-sponsors",
   onProgress?: (completed: number, total: number) => void,
 ): Promise<{ name: string; url: string }[]> {
   const uploaded: { name: string; url: string }[] = [];

@@ -12,8 +12,11 @@ type TournamentTypesSectionProps = {
   onComplete: () => void;
 };
 
-function pairingLabel(mode: TournamentType["pairingMode"]) {
-  return mode === "random"
+function pairingLabel(type: TournamentType) {
+  if (type.competitionFormat === "squads") {
+    return "6-player squads — solo signup, admin ranks & balances teams";
+  }
+  return type.pairingMode === "random"
     ? "Solo signup — random team assignment"
     : "Solo signup — admin pairs players";
 }
@@ -53,7 +56,7 @@ export function TournamentTypesSection({ types, onComplete }: TournamentTypesSec
                   {type.description && (
                     <p className="text-sm text-gray-500">{type.description}</p>
                   )}
-                  <p className="mt-1 text-xs text-gray-400">{pairingLabel(type.pairingMode)}</p>
+                  <p className="mt-1 text-xs text-gray-400">{pairingLabel(type)}</p>
                 </div>
                 <button
                   type="button"

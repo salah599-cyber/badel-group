@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "npx tsx scripts/migrate.ts",
-    "db:seed": "npx tsx scripts/seed.ts"
+    "db:seed": "npx tsx scripts/seed.ts",
+    "db:reset-competition": "npx tsx scripts/reset-competition.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.20",

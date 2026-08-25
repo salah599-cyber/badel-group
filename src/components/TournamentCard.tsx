@@ -6,6 +6,7 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
   const spotsLeft = tournament.maxPlayers - tournament.registeredCount;
   const isFull = spotsLeft <= 0;
   const isOpen = tournament.status === "upcoming";
+  const isSquad = tournament.competitionFormat === "squads";
   const fillPercent = Math.min(
     100,
     Math.round((tournament.registeredCount / tournament.maxPlayers) * 100),
@@ -44,7 +45,9 @@ export function TournamentCard({ tournament }: { tournament: Tournament }) {
         <div className="mb-4">
           <div className="mb-2 flex items-center justify-between text-xs font-medium">
             <span className="text-gray-500">
-              {tournament.registeredCount}/{tournament.maxPlayers} teams confirmed
+              {isSquad
+                ? `${tournament.registeredCount}/${tournament.maxPlayers} players registered`
+                : `${tournament.registeredCount}/${tournament.maxPlayers} teams confirmed`}
             </span>
             <span className={isFull ? "text-amber-700" : spotsLeft <= 4 ? "text-brand-red" : "text-brand-green"}>
               {isFull

@@ -16,6 +16,7 @@ export const defaultTournamentTypes: TournamentType[] = [
     description: "Standard doubles — sign up solo, admin assigns partners",
     requiresPartner: false,
     pairingMode: "manual",
+    competitionFormat: "pairs",
     sortOrder: 1,
   },
   {
@@ -25,6 +26,7 @@ export const defaultTournamentTypes: TournamentType[] = [
     description: "Mixed-gender doubles — sign up solo, admin assigns partners",
     requiresPartner: false,
     pairingMode: "manual",
+    competitionFormat: "pairs",
     sortOrder: 2,
   },
   {
@@ -34,7 +36,18 @@ export const defaultTournamentTypes: TournamentType[] = [
     description: "Sign up solo — teams are assigned randomly on the day",
     requiresPartner: false,
     pairingMode: "random",
+    competitionFormat: "pairs",
     sortOrder: 3,
+  },
+  {
+    id: "type-teams",
+    name: "Teams",
+    slug: "teams",
+    description: "6-player squads — individual signup, admin ranks and balances teams",
+    requiresPartner: false,
+    pairingMode: "manual",
+    competitionFormat: "squads",
+    sortOrder: 4,
   },
 ];
 
@@ -50,10 +63,12 @@ export const seedTournaments: Tournament[] = [
     typeSlug: "doubles",
     requiresPartner: false,
     pairingMode: "manual",
+    competitionFormat: "pairs",
     status: "upcoming",
     description:
       "Our flagship doubles tournament. Open to all skill levels — sign up as a pair and compete for the Badel Group trophy.",
     maxPlayers: 32,
+    rosterSize: 6,
     countsTowardRankings: true,
     matchFormat: "best_of_1",
     superTiebreakPoints: 10,
@@ -75,10 +90,12 @@ export const seedTournaments: Tournament[] = [
     typeSlug: "mixed-doubles",
     requiresPartner: false,
     pairingMode: "manual",
+    competitionFormat: "pairs",
     status: "upcoming",
     description:
       "A friendly mixed doubles tournament celebrating our growing padel community. Admin approval required after signup.",
     maxPlayers: 16,
+    rosterSize: 6,
     countsTowardRankings: true,
     matchFormat: "best_of_1",
     superTiebreakPoints: 10,

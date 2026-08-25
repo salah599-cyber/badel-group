@@ -10,10 +10,15 @@ const ALLOWED_TYPES = [
   "image/gif",
 ];
 
-const UPLOAD_PERMISSIONS: Record<"sponsors" | "gallery" | "players", Permission> = {
+const UPLOAD_PERMISSIONS: Record<
+  "sponsors" | "gallery" | "players" | "tournament-partners" | "tournament-sponsors",
+  Permission
+> = {
   sponsors: "sponsors:manage",
   gallery: "gallery:manage",
   players: "results:manage",
+  "tournament-partners": "tournaments:manage",
+  "tournament-sponsors": "tournaments:manage",
 };
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -35,7 +40,13 @@ export async function POST(request: Request) {
       request,
       token,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        if (clientPayload !== "sponsors" && clientPayload !== "gallery" && clientPayload !== "players") {
+        if (
+          clientPayload !== "sponsors" &&
+          clientPayload !== "gallery" &&
+          clientPayload !== "players" &&
+          clientPayload !== "tournament-partners" &&
+          clientPayload !== "tournament-sponsors"
+        ) {
           throw new Error("Invalid upload type");
         }
 

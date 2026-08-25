@@ -143,3 +143,38 @@ function validateSuperTiebreak(set: MatchSet, target: number): string | null {
   if (min >= target && max - min < 2) return "Super tiebreak must be won by 2";
   return null;
 }
+
+export function validateSquadMatchSets(sets: MatchSet[]): string | null {
+  if (sets.length !== 3) return "Squad matches require exactly 3 sets";
+
+  for (let i = 0; i < sets.length; i++) {
+    const set = sets[i];
+    if (set.isSuperTiebreak) return `Set ${i + 1} cannot be a super tiebreak`;
+    const err = validateRegularSet(set, 10, false);
+    if (err) return `Set ${i + 1}: ${err}`;
+  }
+
+  const aSets = sets.filter((set) => getSetWinner(set) === "a").length;
+  const bSets = sets.filter((set) => getSetWinner(set) === "b").length;
+  if (aSets + bSets !== 3) return "Each set must have a winner";
+  if (aSets < 1 || bSets < 1) return "Both teams must win at least one set";
+
+  return null;
+}
+
+export function deriveSquadMatchWinner(
+  sets: MatchSet[],
+  teamAId: string,
+  teamBId: string,
+): string | null {
+  let aSets = 0;
+  let bSets = 0;
+  for (const set of sets) {
+    const w = getSetWinner(set);
+    if (w === "a") aSets++;
+    if (w === "b") bSets++;
+  }
+  if (aSets > bSets) return teamAId;
+  if (bSets > aSets) return teamBId;
+  return null;
+}

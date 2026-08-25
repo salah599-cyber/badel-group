@@ -47,6 +47,7 @@ export const partnershipStatusEnum = pgEnum("partnership_status", [
 ]);
 export const playingSideEnum = pgEnum("playing_side", ["right", "left", "any"]);
 export const pairingModeEnum = pgEnum("pairing_mode", ["manual", "random"]);
+export const competitionFormatEnum = pgEnum("competition_format", ["pairs", "squads"]);
 export const sponsorTierEnum = pgEnum("sponsor_tier", [
   "platinum",
   "gold",
@@ -65,6 +66,7 @@ export const tournamentTypes = pgTable("tournament_types", {
   description: text("description"),
   requiresPartner: boolean("requires_partner").notNull().default(false),
   pairingMode: pairingModeEnum("pairing_mode").notNull().default("manual"),
+  competitionFormat: competitionFormatEnum("competition_format").notNull().default("pairs"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -95,6 +97,7 @@ export const tournaments = pgTable("tournaments", {
   status: tournamentStatusEnum("status").notNull().default("upcoming"),
   description: text("description").notNull(),
   maxPlayers: integer("max_players").notNull().default(32),
+  rosterSize: integer("roster_size").notNull().default(6),
   countsTowardRankings: boolean("counts_toward_rankings").notNull().default(true),
   matchFormat: matchFormatEnum("match_format").notNull().default("best_of_1"),
   superTiebreakPoints: integer("super_tiebreak_points").notNull().default(10),
@@ -116,6 +119,9 @@ export const tournamentTeams = pgTable("tournament_teams", {
     .references(() => tournaments.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
   entryIds: jsonb("entry_ids").$type<string[]>().notNull(),
+  captainEntryId: uuid("captain_entry_id").references((): AnyPgColumn => entries.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -189,11 +195,59 @@ export const entries = pgTable("entries", {
     .default("not_applicable"),
   playingSide: playingSideEnum("playing_side").notNull().default("any"),
   skillLevel: text("skill_level").notNull().default("intermediate"),
+  isWoman: boolean("is_woman").notNull().default(false),
+  adminSkillRank: text("admin_skill_rank"),
   notes: text("notes"),
   status: entryStatusEnum("status").notNull().default("pending"),
   isGuest: boolean("is_guest").notNull().default(false),
   addedByAdminId: text("added_by_admin_id"),
   addedByAdminName: text("added_by_admin_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const matchLineups = pgTable("match_lineups", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  groupMatchId: uuid("group_match_id").references(() => groupMatches.id, {
+    onDelete: "cascade",
+  }),
+  knockoutMatchId: uuid("knockout_match_id").references(() => knockoutMatches.id, {
+    onDelete: "cascade",
+  }),
+  teamId: uuid("team_id")
+    .notNull()
+    .references(() => tournamentTeams.id, { onDelete: "cascade" }),
+  set1EntryIds: jsonb("set1_entry_ids").$type<string[]>(),
+  set2EntryIds: jsonb("set2_entry_ids").$type<string[]>(),
+  set3EntryIds: jsonb("set3_entry_ids").$type<string[]>(),
+  submittedByUserId: text("submitted_by_user_id"),
+  submittedAt: timestamp("submitted_at"),
+  isAdminOverride: boolean("is_admin_override").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const tournamentPartners = pgTable("tournament_partners", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tournamentId: uuid("tournament_id")
+    .notNull()
+    .references(() => tournaments.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  logoUrl: text("logo_url").notNull(),
+  website: text("website"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const tournamentSponsors = pgTable("tournament_sponsors", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tournamentId: uuid("tournament_id")
+    .notNull()
+    .references(() => tournaments.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  tier: sponsorTierEnum("tier").notNull(),
+  logoUrl: text("logo_url").notNull(),
+  website: text("website"),
+  linkType: sponsorLinkTypeEnum("link_type").notNull().default("website"),
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
