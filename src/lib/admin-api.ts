@@ -1,10 +1,10 @@
-export type AdminApiResult = { ok: true } | { ok: false; error: string };
+export type AdminApiResult = { ok: true; [key: string]: unknown } | { ok: false; error: string };
 
 export async function postAdminJson(
   path: string,
   body: unknown,
   actionName: string,
-): Promise<AdminApiResult & Record<string, unknown>> {
+): Promise<AdminApiResult> {
   // #region agent log
   fetch("http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad", {
     method: "POST",

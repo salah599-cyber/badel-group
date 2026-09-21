@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { postAdminJson } from "@/lib/admin-api";
+import { postAdminJson, type AdminApiResult } from "@/lib/admin-api";
 import { computeStandings } from "@/lib/bracket/standings";
 import { formatMatchScore } from "@/lib/bracket/score-format";
 import type {
@@ -56,7 +56,7 @@ export function TournamentRunPanel({
 
   const teamLabels = new Map(teams.map((t) => [t.id, t.label]));
 
-  function run(action: () => Promise<{ ok: true } | { ok: false; error: string } | void>) {
+  function run(action: () => Promise<AdminApiResult | void>) {
     startTransition(async () => {
       setError(null);
       try {

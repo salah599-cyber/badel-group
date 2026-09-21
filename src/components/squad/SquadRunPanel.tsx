@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { postAdminJson } from "@/lib/admin-api";
+import { postAdminJson, type AdminApiResult } from "@/lib/admin-api";
 import { computeStandings } from "@/lib/bracket/standings";
 import { GroupDrawEditor } from "@/components/bracket/GroupDrawEditor";
 import { KnockoutBracketView } from "@/components/bracket/KnockoutBracketView";
@@ -56,7 +56,7 @@ export function SquadRunPanel({
   const entryNames = new Map(entries.map((entry) => [entry.id, entry.name]));
   const approvedCount = entries.filter((entry) => entry.status === "approved").length;
 
-  function run(action: () => Promise<{ ok: true } | { ok: false; error: string } | void>) {
+  function run(action: () => Promise<AdminApiResult | void>) {
     startTransition(async () => {
       setError(null);
       try {
@@ -372,7 +372,7 @@ function KnockoutConfig({
   tournament: Tournament;
   groups: TournamentGroup[];
   isPending: boolean;
-  run: (action: () => Promise<void>) => void;
+  run: (action: () => Promise<AdminApiResult | void>) => void;
 }) {
   const advancePerGroup = tournament.advancePerGroup ?? 2;
   const knockoutRound = (tournament.knockoutStartRound ?? "semifinal") as KnockoutRound;
