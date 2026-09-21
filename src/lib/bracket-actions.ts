@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { requirePermission } from "@/lib/auth";
@@ -75,28 +76,31 @@ function mutationError(error: string): BracketMutationResult {
 
 function mutationFailure(error: unknown, fallback: string): BracketMutationResult {
   console.error("[bracket-actions]", error);
-  const message = error instanceof Error ? error.message : "";
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
   if (message.includes("invalid input value for enum")) {
     return mutationError(
       "This database is missing a required tournament status. Run migrations and try again.",
     );
   }
-  if (
-    message &&
-    !message.toLowerCase().includes("digest") &&
-    (message.includes("Tournament") ||
-      message.includes("Registration") ||
-      message.includes("Need") ||
-      message.includes("pairing") ||
-      message.includes("permission") ||
-      message.includes("access") ||
-      message.includes("Database") ||
-      message.includes("Unauthorized") ||
-      message.includes("player"))
-  ) {
+  if (message && !message.toLowerCase().includes("digest")) {
     return mutationError(message);
   }
   return mutationError(fallback);
+}
+
+function scheduleTournamentRevalidation(tournamentId: string) {
+  after(() => {
+    try {
+      revalidateTournament(tournamentId);
+    } catch (error) {
+      console.error("[bracket-actions] revalidate failed", error);
+    }
+  });
 }
 
 function entryIdsFromTeamKey(key: string): string[] {
@@ -210,7 +214,7 @@ export async function closeRegistrationAction(
       .set({ status: "registration_closed" })
       .where(eq(tournaments.id, tournamentId));
 
-    revalidateTournament(tournamentId);
+    scheduleTournamentRevalidation(tournamentId);
     return { ok: true };
   } catch (error) {
     return mutationFailure(error, "Could not close registration. Please try again.");

@@ -78,7 +78,12 @@ export function SquadRunPanel({
         }
         router.refresh();
       } catch (error) {
-        setError(error instanceof Error ? error.message : "Action failed");
+        const message = error instanceof Error ? error.message : "Action failed";
+        setError(
+          message.includes("Server Components render")
+            ? "Could not close registration. Refresh the page — registration may already be closed."
+            : message,
+        );
       }
     });
   }

@@ -79,7 +79,12 @@ export function TournamentRunPanel({
         }
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Action failed");
+        const message = err instanceof Error ? err.message : "Action failed";
+        setError(
+          message.includes("Server Components render")
+            ? "Could not close registration. Refresh the page — registration may already be closed."
+            : message,
+        );
       }
     });
   }

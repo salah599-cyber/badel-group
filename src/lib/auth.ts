@@ -5,11 +5,16 @@ import { hasAdminAccess, isMemberApproved, parseAdminMetadata } from "@/lib/perm
 export type { AdminContext, Permission };
 
 export async function getAdminContext(): Promise<AdminContext | null> {
-  const user = await currentUser();
-  if (!user) return null;
+  try {
+    const user = await currentUser();
+    if (!user) return null;
 
-  const email = user.emailAddresses[0]?.emailAddress ?? "";
-  return parseAdminMetadata(user.id, email, user.publicMetadata as AdminMetadata);
+    const email = user.emailAddresses[0]?.emailAddress ?? "";
+    return parseAdminMetadata(user.id, email, user.publicMetadata as AdminMetadata);
+  } catch (error) {
+    console.error("[auth] getAdminContext failed", error);
+    return null;
+  }
 }
 
 export async function requireAdminContext(): Promise<AdminContext> {
