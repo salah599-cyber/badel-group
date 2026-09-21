@@ -1,9 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { closeRegistrationAction } from "@/lib/actions/close-registration";
 import {
-  closeRegistrationAction,
   configureKnockoutAction,
   generateKnockoutBracketAction,
   getKnockoutSuggestionAction,
@@ -60,7 +59,6 @@ export function SquadRunPanel({
   entries,
   fixturesLocked,
 }: SquadRunPanelProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const teamLabels = new Map(teams.map((team) => [team.id, team.label]));
@@ -76,14 +74,9 @@ export function SquadRunPanel({
           setError(result.error);
           return;
         }
-        router.refresh();
+        window.location.reload();
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Action failed";
-        setError(
-          message.includes("Server Components render")
-            ? "Could not close registration. Refresh the page — registration may already be closed."
-            : message,
-        );
+        setError(error instanceof Error ? error.message : "Action failed");
       }
     });
   }

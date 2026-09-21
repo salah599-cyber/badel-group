@@ -1,6 +1,5 @@
 "use server";
 
-import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { requirePermission } from "@/lib/auth";
@@ -23,7 +22,6 @@ import { getTournamentBracketState } from "@/lib/db/bracket-queries";
 import { db } from "@/lib/db";
 import { getEntriesForTournament, getCurrentRankingSeasonId, getTournamentCompetitionFormat } from "@/lib/db/queries";
 import {
-  entries,
   groupMatches,
   groups,
   knockoutMatches,
@@ -36,15 +34,8 @@ import {
   canManageTournament,
   type Permission,
 } from "@/lib/permissions";
-import {
-  findManualPairPartner,
-  getConfirmedTeamOptions,
-  countSquadApprovedPlayers,
-  getUnpairedApprovedEntries,
-} from "@/lib/tournament-teams";
-import { isPartnershipTeamEntry } from "@/lib/partnerships";
+import { getConfirmedTeamOptions } from "@/lib/tournament-teams";
 import { isSquadFormat } from "@/lib/competition-format";
-import { isAdminSkillRank } from "@/lib/squad/constants";
 
 function revalidateTournament(tournamentId: string) {
   revalidatePath("/admin");
@@ -68,41 +59,6 @@ async function requireBracketAccess(
   return ctx;
 }
 
-export type BracketMutationResult = { ok: true } | { ok: false; error: string };
-
-function mutationError(error: string): BracketMutationResult {
-  return { ok: false, error };
-}
-
-function mutationFailure(error: unknown, fallback: string): BracketMutationResult {
-  console.error("[bracket-actions]", error);
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "";
-  if (message.includes("invalid input value for enum")) {
-    return mutationError(
-      "This database is missing a required tournament status. Run migrations and try again.",
-    );
-  }
-  if (message && !message.toLowerCase().includes("digest")) {
-    return mutationError(message);
-  }
-  return mutationError(fallback);
-}
-
-function scheduleTournamentRevalidation(tournamentId: string) {
-  after(() => {
-    try {
-      revalidateTournament(tournamentId);
-    } catch (error) {
-      console.error("[bracket-actions] revalidate failed", error);
-    }
-  });
-}
-
 function entryIdsFromTeamKey(key: string): string[] {
   if (key.startsWith("partnership:")) {
     return [key.slice("partnership:".length)];
@@ -111,114 +67,6 @@ function entryIdsFromTeamKey(key: string): string[] {
     return key.slice("manual:".length).split(":");
   }
   return [];
-}
-
-async function autoPairRandomSolos(
-  tournamentId: string,
-  adminId: string,
-  adminName: string,
-) {
-  const entriesList = await getEntriesForTournament(tournamentId);
-  const approved = entriesList.filter((e) => e.status === "approved");
-  const unpaired = approved.filter(
-    (e) => !isPartnershipTeamEntry(e) && !findManualPairPartner(e, approved),
-  );
-
-  const shuffled = [...unpaired].sort(() => Math.random() - 0.5);
-  for (let i = 0; i + 1 < shuffled.length; i += 2) {
-    const a = shuffled[i];
-    const b = shuffled[i + 1];
-    await db!
-      .update(entries)
-      .set({
-        partnerEntryId: b.id,
-        pairedByAdminId: adminId,
-        pairedByAdminName: adminName,
-      })
-      .where(eq(entries.id, a.id));
-    await db!
-      .update(entries)
-      .set({
-        partnerEntryId: a.id,
-        pairedByAdminId: adminId,
-        pairedByAdminName: adminName,
-      })
-      .where(eq(entries.id, b.id));
-  }
-}
-
-export async function closeRegistrationAction(
-  tournamentId: string,
-): Promise<BracketMutationResult> {
-  try {
-    const ctx = await requireBracketAccess(tournamentId);
-
-    const { tournamentTypes } = await import("@/lib/db/schema");
-    const [row] = await db!
-      .select({
-        id: tournaments.id,
-        status: tournaments.status,
-        pairingMode: tournamentTypes.pairingMode,
-        competitionFormat: tournamentTypes.competitionFormat,
-        maxPlayers: tournaments.maxPlayers,
-      })
-      .from(tournaments)
-      .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
-      .where(eq(tournaments.id, tournamentId))
-      .limit(1);
-
-    if (!row) return mutationError("Tournament not found");
-    if (row.status !== "upcoming") {
-      return mutationError("Registration is only open for upcoming tournaments");
-    }
-
-    if (isSquadFormat(row.competitionFormat)) {
-      const entriesAfter = await getEntriesForTournament(tournamentId);
-      const approvedCount = countSquadApprovedPlayers(entriesAfter);
-      if (approvedCount !== row.maxPlayers) {
-        return mutationError(
-          `Need exactly ${row.maxPlayers} approved players before closing registration (${approvedCount} now)`,
-        );
-      }
-
-      const missingRank = entriesAfter.filter(
-        (e) => e.status === "approved" && !isAdminSkillRank(e.adminSkillRank),
-      );
-      if (missingRank.length > 0) {
-        return mutationError(
-          `${missingRank.length} approved player(s) still need an admin skill rank`,
-        );
-      }
-    } else {
-      if (row.pairingMode === "random") {
-        await autoPairRandomSolos(tournamentId, ctx.userId, ctx.email);
-      }
-
-      const entriesAfter = await getEntriesForTournament(tournamentId);
-      const teamOptions = getConfirmedTeamOptions(entriesAfter);
-      const unpairedSolos = getUnpairedApprovedEntries(entriesAfter);
-
-      if (unpairedSolos.length > 0) {
-        return mutationError(
-          `${unpairedSolos.length} approved player(s) still need pairing before registration can close. Use Player Pairing on the admin panel.`,
-        );
-      }
-
-      if (teamOptions.length < 2) {
-        return mutationError("At least 2 confirmed teams are required to close registration");
-      }
-    }
-
-    await db!
-      .update(tournaments)
-      .set({ status: "registration_closed" })
-      .where(eq(tournaments.id, tournamentId));
-
-    scheduleTournamentRevalidation(tournamentId);
-    return { ok: true };
-  } catch (error) {
-    return mutationFailure(error, "Could not close registration. Please try again.");
-  }
 }
 
 export async function drawGroupsAction(tournamentId: string) {
