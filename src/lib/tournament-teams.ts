@@ -43,6 +43,16 @@ export function isManualPairCoveredByPartnership(
   );
 }
 
+/** Approved solo players who are not yet a confirmed pair. */
+export function getUnpairedApprovedEntries(tournamentEntries: Entry[]) {
+  return tournamentEntries.filter(
+    (entry) =>
+      entry.status === "approved" &&
+      !isPartnershipTeamEntry(entry) &&
+      !findManualPairPartner(entry, tournamentEntries),
+  );
+}
+
 /** A team is only confirmed once it is a pair (partnership or manual link). */
 export function isConfirmedTeamEntry(entry: Entry, tournamentEntries: Entry[]) {
   if (entry.status !== "approved") return false;

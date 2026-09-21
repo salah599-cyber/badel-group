@@ -39,6 +39,7 @@ import {
   findManualPairPartner,
   getConfirmedTeamOptions,
   countSquadApprovedPlayers,
+  getUnpairedApprovedEntries,
 } from "@/lib/tournament-teams";
 import { isPartnershipTeamEntry } from "@/lib/partnerships";
 import { isSquadFormat } from "@/lib/competition-format";
@@ -64,6 +65,38 @@ async function requireBracketAccess(
     throw new Error("You do not have access to this tournament");
   }
   return ctx;
+}
+
+export type BracketMutationResult = { ok: true } | { ok: false; error: string };
+
+function mutationError(error: string): BracketMutationResult {
+  return { ok: false, error };
+}
+
+function mutationFailure(error: unknown, fallback: string): BracketMutationResult {
+  console.error("[bracket-actions]", error);
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("invalid input value for enum")) {
+    return mutationError(
+      "This database is missing a required tournament status. Run migrations and try again.",
+    );
+  }
+  if (
+    message &&
+    !message.toLowerCase().includes("digest") &&
+    (message.includes("Tournament") ||
+      message.includes("Registration") ||
+      message.includes("Need") ||
+      message.includes("pairing") ||
+      message.includes("permission") ||
+      message.includes("access") ||
+      message.includes("Database") ||
+      message.includes("Unauthorized") ||
+      message.includes("player"))
+  ) {
+    return mutationError(message);
+  }
+  return mutationError(fallback);
 }
 
 function entryIdsFromTeamKey(key: string): string[] {
@@ -110,74 +143,78 @@ async function autoPairRandomSolos(
   }
 }
 
-export async function closeRegistrationAction(tournamentId: string) {
-  const ctx = await requireBracketAccess(tournamentId, "entries:manage");
+export async function closeRegistrationAction(
+  tournamentId: string,
+): Promise<BracketMutationResult> {
+  try {
+    const ctx = await requireBracketAccess(tournamentId, "entries:manage");
 
-  const { tournamentTypes } = await import("@/lib/db/schema");
-  const [row] = await db!
-    .select({
-      id: tournaments.id,
-      status: tournaments.status,
-      pairingMode: tournamentTypes.pairingMode,
-      competitionFormat: tournamentTypes.competitionFormat,
-      maxPlayers: tournaments.maxPlayers,
-    })
-    .from(tournaments)
-    .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
-    .where(eq(tournaments.id, tournamentId))
-    .limit(1);
+    const { tournamentTypes } = await import("@/lib/db/schema");
+    const [row] = await db!
+      .select({
+        id: tournaments.id,
+        status: tournaments.status,
+        pairingMode: tournamentTypes.pairingMode,
+        competitionFormat: tournamentTypes.competitionFormat,
+        maxPlayers: tournaments.maxPlayers,
+      })
+      .from(tournaments)
+      .innerJoin(tournamentTypes, eq(tournaments.tournamentTypeId, tournamentTypes.id))
+      .where(eq(tournaments.id, tournamentId))
+      .limit(1);
 
-  if (!row) throw new Error("Tournament not found");
-  if (row.status !== "upcoming") {
-    throw new Error("Registration is only open for upcoming tournaments");
-  }
+    if (!row) return mutationError("Tournament not found");
+    if (row.status !== "upcoming") {
+      return mutationError("Registration is only open for upcoming tournaments");
+    }
 
-  if (isSquadFormat(row.competitionFormat)) {
-    const entriesAfter = await getEntriesForTournament(tournamentId);
-    const approvedCount = countSquadApprovedPlayers(entriesAfter);
-    if (approvedCount !== row.maxPlayers) {
-      throw new Error(
-        `Need exactly ${row.maxPlayers} approved players before closing registration (${approvedCount} now)`,
+    if (isSquadFormat(row.competitionFormat)) {
+      const entriesAfter = await getEntriesForTournament(tournamentId);
+      const approvedCount = countSquadApprovedPlayers(entriesAfter);
+      if (approvedCount !== row.maxPlayers) {
+        return mutationError(
+          `Need exactly ${row.maxPlayers} approved players before closing registration (${approvedCount} now)`,
+        );
+      }
+
+      const missingRank = entriesAfter.filter(
+        (e) => e.status === "approved" && !isAdminSkillRank(e.adminSkillRank),
       );
+      if (missingRank.length > 0) {
+        return mutationError(
+          `${missingRank.length} approved player(s) still need an admin skill rank`,
+        );
+      }
+    } else {
+      if (row.pairingMode === "random") {
+        await autoPairRandomSolos(tournamentId, ctx.userId, ctx.email);
+      }
+
+      const entriesAfter = await getEntriesForTournament(tournamentId);
+      const teamOptions = getConfirmedTeamOptions(entriesAfter);
+      const unpairedSolos = getUnpairedApprovedEntries(entriesAfter);
+
+      if (unpairedSolos.length > 0) {
+        return mutationError(
+          `${unpairedSolos.length} approved player(s) still need pairing before registration can close. Use Player Pairing on the admin panel.`,
+        );
+      }
+
+      if (teamOptions.length < 2) {
+        return mutationError("At least 2 confirmed teams are required to close registration");
+      }
     }
 
-    const missingRank = entriesAfter.filter(
-      (e) => e.status === "approved" && !isAdminSkillRank(e.adminSkillRank),
-    );
-    if (missingRank.length > 0) {
-      throw new Error(`${missingRank.length} approved player(s) still need an admin skill rank`);
-    }
-  } else {
-    if (row.pairingMode === "random") {
-      await autoPairRandomSolos(tournamentId, ctx.userId, ctx.email);
-    }
+    await db!
+      .update(tournaments)
+      .set({ status: "registration_closed" })
+      .where(eq(tournaments.id, tournamentId));
 
-    const entriesAfter = await getEntriesForTournament(tournamentId);
-    const teamOptions = getConfirmedTeamOptions(entriesAfter);
-    const unpairedSolos = entriesAfter.filter(
-      (e) =>
-        e.status === "approved" &&
-        !isPartnershipTeamEntry(e) &&
-        !findManualPairPartner(e, entriesAfter),
-    );
-
-    if (unpairedSolos.length > 0) {
-      throw new Error(
-        `${unpairedSolos.length} approved player(s) still need pairing before registration can close`,
-      );
-    }
-
-    if (teamOptions.length < 2) {
-      throw new Error("At least 2 confirmed teams are required to close registration");
-    }
+    revalidateTournament(tournamentId);
+    return { ok: true };
+  } catch (error) {
+    return mutationFailure(error, "Could not close registration. Please try again.");
   }
-
-  await db!
-    .update(tournaments)
-    .set({ status: "registration_closed" })
-    .where(eq(tournaments.id, tournamentId));
-
-  revalidateTournament(tournamentId);
 }
 
 export async function drawGroupsAction(tournamentId: string) {
