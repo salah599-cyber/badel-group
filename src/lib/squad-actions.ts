@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
-import { requireApprovedUser, requirePermission } from "@/lib/auth";
+import { requireAdminContext, requireApprovedUser, requirePermission } from "@/lib/auth";
 import {
   deriveSquadMatchWinner,
   validateSquadMatchSets,
@@ -44,6 +44,36 @@ import {
   type SquadPlayerInput,
 } from "@/lib/squad/squad-balance";
 
+type BrandingMutationResult = { ok: true } | { ok: false; error: string };
+
+function brandingError(error: string): BrandingMutationResult {
+  return { ok: false, error };
+}
+
+function isMissingLinkTypeColumn(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("link_type");
+}
+
+function brandingFailure(error: unknown, fallback: string): BrandingMutationResult {
+  console.error("[tournament-branding]", error);
+  const message = error instanceof Error ? error.message : "";
+  if (
+    message === "Unauthorized" ||
+    message.includes("access") ||
+    message.includes("permission") ||
+    message.includes("Database")
+  ) {
+    return brandingError(message);
+  }
+  if (message.includes("does not exist")) {
+    return brandingError(
+      "Event branding tables are missing. Run database migrations and try again.",
+    );
+  }
+  return brandingError(fallback);
+}
+
 function revalidateSquadTournament(tournamentId: string) {
   revalidatePath("/admin");
   revalidatePath(`/admin/tournaments/${tournamentId}`);
@@ -51,6 +81,15 @@ function revalidateSquadTournament(tournamentId: string) {
   revalidatePath(`/tournaments/${tournamentId}/team`);
   revalidatePath("/");
   revalidatePath("/signup");
+}
+
+async function assertBrandingAccess(tournamentId: string) {
+  if (!db) throw new Error("Database not configured");
+  const ctx = await requireAdminContext();
+  if (!canManageTournament(ctx, tournamentId)) {
+    throw new Error("You do not have access to this tournament");
+  }
+  return ctx;
 }
 
 async function requireSquadAccess(tournamentId: string) {
@@ -524,39 +563,46 @@ export async function addTournamentPartnerAction(input: {
   name: string;
   logoUrl: string;
   website?: string | null;
-}) {
-  const ctx = await requirePermission("tournaments:manage");
-  if (!db) throw new Error("Database not configured");
-  if (!canManageTournament(ctx, input.tournamentId)) {
-    throw new Error("You do not have access to this tournament");
+}): Promise<BrandingMutationResult> {
+  try {
+    await assertBrandingAccess(input.tournamentId);
+    const name = input.name.trim();
+    if (!name) return brandingError("Partner name is required");
+    if (!input.logoUrl?.trim()) return brandingError("Partner logo is required");
+
+    await db!.insert(tournamentPartners).values({
+      tournamentId: input.tournamentId,
+      name,
+      logoUrl: input.logoUrl,
+      website: input.website?.trim() || null,
+    });
+
+    revalidateSquadTournament(input.tournamentId);
+    return { ok: true };
+  } catch (error) {
+    return brandingFailure(error, "Could not save this partner logo. Please try again.");
   }
-
-  await db.insert(tournamentPartners).values({
-    tournamentId: input.tournamentId,
-    name: input.name.trim(),
-    logoUrl: input.logoUrl,
-    website: input.website?.trim() || null,
-  });
-
-  revalidateSquadTournament(input.tournamentId);
 }
 
-export async function deleteTournamentPartnerAction(partnerId: string) {
-  if (!db) throw new Error("Database not configured");
-  const [partner] = await db
-    .select({ tournamentId: tournamentPartners.tournamentId })
-    .from(tournamentPartners)
-    .where(eq(tournamentPartners.id, partnerId))
-    .limit(1);
-  if (!partner) throw new Error("Partner not found");
+export async function deleteTournamentPartnerAction(
+  partnerId: string,
+): Promise<BrandingMutationResult> {
+  try {
+    if (!db) throw new Error("Database not configured");
+    const [partner] = await db
+      .select({ tournamentId: tournamentPartners.tournamentId })
+      .from(tournamentPartners)
+      .where(eq(tournamentPartners.id, partnerId))
+      .limit(1);
+    if (!partner) return brandingError("Partner not found");
 
-  const ctx = await requirePermission("tournaments:manage");
-  if (!canManageTournament(ctx, partner.tournamentId)) {
-    throw new Error("You do not have access to this tournament");
+    await assertBrandingAccess(partner.tournamentId);
+    await db.delete(tournamentPartners).where(eq(tournamentPartners.id, partnerId));
+    revalidateSquadTournament(partner.tournamentId);
+    return { ok: true };
+  } catch (error) {
+    return brandingFailure(error, "Could not remove this partner. Please try again.");
   }
-
-  await db.delete(tournamentPartners).where(eq(tournamentPartners.id, partnerId));
-  revalidateSquadTournament(partner.tournamentId);
 }
 
 export async function addTournamentSponsorAction(input: {
@@ -566,41 +612,61 @@ export async function addTournamentSponsorAction(input: {
   logoUrl: string;
   website?: string | null;
   linkType?: "website" | "instagram";
-}) {
-  const ctx = await requirePermission("tournaments:manage");
-  if (!db) throw new Error("Database not configured");
-  if (!canManageTournament(ctx, input.tournamentId)) {
-    throw new Error("You do not have access to this tournament");
+}): Promise<BrandingMutationResult> {
+  try {
+    await assertBrandingAccess(input.tournamentId);
+    const name = input.name.trim();
+    if (!name) return brandingError("Sponsor name is required");
+    if (!input.logoUrl?.trim()) return brandingError("Sponsor logo is required");
+
+    const values = {
+      tournamentId: input.tournamentId,
+      name,
+      tier: input.tier,
+      logoUrl: input.logoUrl,
+      website: input.website?.trim() || null,
+      linkType: input.linkType ?? ("website" as const),
+    };
+
+    try {
+      await db!.insert(tournamentSponsors).values(values);
+    } catch (error) {
+      if (!isMissingLinkTypeColumn(error)) throw error;
+      await db!.insert(tournamentSponsors).values({
+        tournamentId: values.tournamentId,
+        name: values.name,
+        tier: values.tier,
+        logoUrl: values.logoUrl,
+        website: values.website,
+      });
+    }
+
+    revalidateSquadTournament(input.tournamentId);
+    return { ok: true };
+  } catch (error) {
+    return brandingFailure(error, "Could not save this event sponsor. Please try again.");
   }
-
-  await db.insert(tournamentSponsors).values({
-    tournamentId: input.tournamentId,
-    name: input.name.trim(),
-    tier: input.tier,
-    logoUrl: input.logoUrl,
-    website: input.website?.trim() || null,
-    linkType: input.linkType ?? "website",
-  });
-
-  revalidateSquadTournament(input.tournamentId);
 }
 
-export async function deleteTournamentSponsorAction(sponsorId: string) {
-  if (!db) throw new Error("Database not configured");
-  const [sponsor] = await db
-    .select({ tournamentId: tournamentSponsors.tournamentId })
-    .from(tournamentSponsors)
-    .where(eq(tournamentSponsors.id, sponsorId))
-    .limit(1);
-  if (!sponsor) throw new Error("Sponsor not found");
+export async function deleteTournamentSponsorAction(
+  sponsorId: string,
+): Promise<BrandingMutationResult> {
+  try {
+    if (!db) throw new Error("Database not configured");
+    const [sponsor] = await db
+      .select({ tournamentId: tournamentSponsors.tournamentId })
+      .from(tournamentSponsors)
+      .where(eq(tournamentSponsors.id, sponsorId))
+      .limit(1);
+    if (!sponsor) return brandingError("Sponsor not found");
 
-  const ctx = await requirePermission("tournaments:manage");
-  if (!canManageTournament(ctx, sponsor.tournamentId)) {
-    throw new Error("You do not have access to this tournament");
+    await assertBrandingAccess(sponsor.tournamentId);
+    await db.delete(tournamentSponsors).where(eq(tournamentSponsors.id, sponsorId));
+    revalidateSquadTournament(sponsor.tournamentId);
+    return { ok: true };
+  } catch (error) {
+    return brandingFailure(error, "Could not remove this event sponsor. Please try again.");
   }
-
-  await db.delete(tournamentSponsors).where(eq(tournamentSponsors.id, sponsorId));
-  revalidateSquadTournament(sponsor.tournamentId);
 }
 
 export { ADMIN_SKILL_RANKS };

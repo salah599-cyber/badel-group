@@ -83,20 +83,64 @@ export async function getMatchLineupsByMatchIds(input: {
 
 export async function getTournamentPartners(tournamentId: string) {
   if (!db) return [];
-  return db
-    .select()
-    .from(tournamentPartners)
-    .where(eq(tournamentPartners.tournamentId, tournamentId))
-    .orderBy(tournamentPartners.sortOrder, tournamentPartners.name);
+  try {
+    return await db
+      .select()
+      .from(tournamentPartners)
+      .where(eq(tournamentPartners.tournamentId, tournamentId))
+      .orderBy(tournamentPartners.sortOrder, tournamentPartners.name);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("does not exist")) {
+      console.warn("[getTournamentPartners] Table missing:", error);
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function getTournamentSponsors(tournamentId: string) {
   if (!db) return [];
-  return db
-    .select()
-    .from(tournamentSponsors)
-    .where(eq(tournamentSponsors.tournamentId, tournamentId))
-    .orderBy(tournamentSponsors.sortOrder, tournamentSponsors.name);
+
+  try {
+    return await db
+      .select()
+      .from(tournamentSponsors)
+      .where(eq(tournamentSponsors.tournamentId, tournamentId))
+      .orderBy(tournamentSponsors.sortOrder, tournamentSponsors.name);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("[getTournamentSponsors] Query failed:", error);
+
+    if (message.includes("tournament_sponsors") && message.includes("does not exist")) {
+      return [];
+    }
+
+    if (!message.includes("link_type")) {
+      throw error;
+    }
+
+    try {
+      const rows = await db
+        .select({
+          id: tournamentSponsors.id,
+          tournamentId: tournamentSponsors.tournamentId,
+          name: tournamentSponsors.name,
+          tier: tournamentSponsors.tier,
+          logoUrl: tournamentSponsors.logoUrl,
+          website: tournamentSponsors.website,
+          sortOrder: tournamentSponsors.sortOrder,
+          createdAt: tournamentSponsors.createdAt,
+        })
+        .from(tournamentSponsors)
+        .where(eq(tournamentSponsors.tournamentId, tournamentId))
+        .orderBy(tournamentSponsors.sortOrder, tournamentSponsors.name);
+      return rows.map((row) => ({ ...row, linkType: "website" as const }));
+    } catch (fallbackError) {
+      console.warn("[getTournamentSponsors] Fallback query failed:", fallbackError);
+      return [];
+    }
+  }
 }
 
 export async function getCaptainTeamForUser(tournamentId: string, userId: string) {
