@@ -62,32 +62,24 @@ export function SquadRunPanel({
 }: SquadRunPanelProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const teamLabels = new Map(teams.map((team) => [team.id, team.label]));
   const entryNames = new Map(entries.map((entry) => [entry.id, entry.name]));
   const approvedCount = entries.filter((entry) => entry.status === "approved").length;
 
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<{ ok: true } | { ok: false; error: string } | void>) {
     startTransition(async () => {
+      setError(null);
       try {
-        setActionError(null);
-        await action();
+        const result = await action();
+        if (result && "ok" in result && result.ok === false) {
+          setError(result.error);
+          return;
+        }
         router.refresh();
       } catch (error) {
-        setActionError(error instanceof Error ? error.message : "Action failed");
+        setError(error instanceof Error ? error.message : "Action failed");
       }
-    });
-  }
-
-  function runCloseRegistration() {
-    startTransition(async () => {
-      setActionError(null);
-      const result = await closeRegistrationAction(tournament.id);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      router.refresh();
     });
   }
 
@@ -101,10 +93,10 @@ export function SquadRunPanel({
         </p>
       </div>
 
-      {actionError && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {actionError}
-        </div>
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-brand-red" role="alert">
+          {error}
+        </p>
       )}
 
       {tournament.status === "upcoming" && (
@@ -119,9 +111,9 @@ export function SquadRunPanel({
               type="button"
               disabled={isPending}
               className="btn-primary"
-              onClick={runCloseRegistration}
+              onClick={() => run(() => closeRegistrationAction(tournament.id))}
             >
-              Close registration
+              {isPending ? "Closing…" : "Close registration"}
             </button>
           </section>
         </>

@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
-import { requirePermission } from "@/lib/auth";
+import { getAdminContext, requirePermission } from "@/lib/auth";
 import type { Permission } from "@/lib/permissions";
 
 const ALLOWED_TYPES = [
@@ -50,7 +50,15 @@ export async function POST(request: Request) {
           throw new Error("Invalid upload type");
         }
 
-        await requirePermission(UPLOAD_PERMISSIONS[clientPayload]);
+        if (
+          clientPayload === "tournament-partners" ||
+          clientPayload === "tournament-sponsors"
+        ) {
+          const ctx = await getAdminContext();
+          if (!ctx) throw new Error("Unauthorized");
+        } else {
+          await requirePermission(UPLOAD_PERMISSIONS[clientPayload]);
+        }
 
         const folder = clientPayload;
 

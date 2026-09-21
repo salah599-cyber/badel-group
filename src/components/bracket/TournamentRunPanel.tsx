@@ -35,6 +35,7 @@ type TournamentRunPanelProps = {
   groupMatches: GroupMatch[];
   knockoutMatches: KnockoutMatch[];
   confirmedTeamCount: number;
+  unpairedApprovedCount: number;
   fixturesLocked: boolean;
 };
 
@@ -53,11 +54,12 @@ export function TournamentRunPanel({
   groupMatches,
   knockoutMatches,
   confirmedTeamCount,
+  unpairedApprovedCount,
   fixturesLocked,
 }: TournamentRunPanelProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [advancePerGroup, setAdvancePerGroup] = useState(tournament.advancePerGroup ?? 2);
   const [knockoutRound, setKnockoutRound] = useState<KnockoutRound>(
     tournament.knockoutStartRound ?? "quarterfinal",
@@ -66,27 +68,19 @@ export function TournamentRunPanel({
 
   const teamLabels = new Map(teams.map((t) => [t.id, t.label]));
 
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<{ ok: true } | { ok: false; error: string } | void>) {
     startTransition(async () => {
+      setError(null);
       try {
-        setActionError(null);
-        await action();
+        const result = await action();
+        if (result && "ok" in result && result.ok === false) {
+          setError(result.error);
+          return;
+        }
         router.refresh();
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : "Action failed");
+        setError(err instanceof Error ? err.message : "Action failed");
       }
-    });
-  }
-
-  function runCloseRegistration() {
-    startTransition(async () => {
-      setActionError(null);
-      const result = await closeRegistrationAction(tournament.id);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      router.refresh();
     });
   }
 
@@ -99,10 +93,10 @@ export function TournamentRunPanel({
         </p>
       </div>
 
-      {actionError && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {actionError}
-        </div>
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-brand-red" role="alert">
+          {error}
+        </p>
       )}
 
       {tournament.status === "upcoming" && (
@@ -111,13 +105,23 @@ export function TournamentRunPanel({
           <p className="mb-4 text-sm text-gray-600">
             Stops new signups. Random-pairing tournaments will auto-pair remaining solos.
           </p>
+          {unpairedApprovedCount > 0 && (
+            <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-brand-red">
+              {unpairedApprovedCount} approved player{unpairedApprovedCount === 1 ? "" : "s"} still
+              need pairing. Use Player Pairing on the{" "}
+              <a href="/admin#pairing" className="font-semibold underline">
+                admin panel
+              </a>{" "}
+              first.
+            </p>
+          )}
           <button
             type="button"
             disabled={isPending}
             className="btn-primary"
-            onClick={runCloseRegistration}
+            onClick={() => run(() => closeRegistrationAction(tournament.id))}
           >
-            Close registration
+            {isPending ? "Closing…" : "Close registration"}
           </button>
         </section>
       )}
