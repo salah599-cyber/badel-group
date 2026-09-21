@@ -8,7 +8,6 @@ import {
   deleteTournamentSponsorAction,
 } from "@/lib/squad-actions";
 import { getMediaSrc } from "@/lib/media";
-import { debugLog } from "@/lib/debug-session";
 import type { TournamentPartner, TournamentSponsor } from "@/lib/types";
 import { tierLabels } from "@/lib/types";
 
@@ -33,34 +32,12 @@ export function TournamentBrandingSection({
       setError(null);
       try {
         const result = await action();
-        debugLog(
-          "TournamentBrandingSection.tsx:run",
-          "branding action returned",
-          {
-            ok: result && "ok" in result ? result.ok : "void",
-            error: result && result.ok === false ? result.error : null,
-          },
-          "E",
-        );
         if (result && result.ok === false) {
           setError(result.error);
           return;
         }
         window.location.reload();
       } catch (err) {
-        debugLog(
-          "TournamentBrandingSection.tsx:run:catch",
-          "branding action threw",
-          {
-            errName: err instanceof Error ? err.name : typeof err,
-            errMessage: err instanceof Error ? err.message : String(err),
-            digest:
-              err && typeof err === "object" && "digest" in err
-                ? String((err as { digest?: unknown }).digest)
-                : null,
-          },
-          "D",
-        );
         setError(err instanceof Error ? err.message : "Action failed");
       }
     });

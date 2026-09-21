@@ -25,7 +25,6 @@ import { MatchScoreCard } from "@/components/bracket/MatchScoreCard";
 import { StandingsTable } from "@/components/bracket/StandingsTable";
 import { KnockoutBracketView } from "@/components/bracket/KnockoutBracketView";
 import { GroupDrawEditor } from "@/components/bracket/GroupDrawEditor";
-import { debugLog } from "@/lib/debug-session";
 
 type TournamentRunPanelProps = {
   tournament: Tournament;
@@ -71,36 +70,12 @@ export function TournamentRunPanel({
       setError(null);
       try {
         const result = await action();
-        debugLog(
-          "TournamentRunPanel.tsx:run",
-          "close/run action returned",
-          {
-            ok: result && "ok" in result ? result.ok : "void",
-            error: result && "ok" in result && result.ok === false ? result.error : null,
-            status: tournament.status,
-          },
-          "A",
-        );
         if (result && "ok" in result && result.ok === false) {
           setError(result.error);
           return;
         }
         window.location.reload();
       } catch (err) {
-        debugLog(
-          "TournamentRunPanel.tsx:run:catch",
-          "close/run action threw",
-          {
-            errName: err instanceof Error ? err.name : typeof err,
-            errMessage: err instanceof Error ? err.message : String(err),
-            digest:
-              err && typeof err === "object" && "digest" in err
-                ? String((err as { digest?: unknown }).digest)
-                : null,
-            status: tournament.status,
-          },
-          "A",
-        );
         setError(err instanceof Error ? err.message : "Action failed");
       }
     });

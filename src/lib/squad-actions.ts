@@ -644,9 +644,6 @@ export async function addTournamentSponsorAction(input: {
     revalidateSquadTournament(input.tournamentId);
     return { ok: true };
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9848f0'},body:JSON.stringify({sessionId:'9848f0',location:'squad-actions.ts:addTournamentSponsorAction',message:'sponsor save failed',data:{errorMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     return brandingFailure(error, "Could not save this event sponsor. Please try again.");
   }
 }

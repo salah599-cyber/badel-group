@@ -59,40 +59,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // #region agent log
-    fetch("http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9848f0" },
-      body: JSON.stringify({
-        sessionId: "9848f0",
-        location: "api/admin/tournament-sponsors/route.ts",
-        message: "sponsor save API ok",
-        data: { tournamentId, tier },
-        timestamp: Date.now(),
-        hypothesisId: "E",
-        runId: "post-fix",
-      }),
-    }).catch(() => {});
-    // #endregion
-
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not save this event sponsor. Please try again.";
-    // #region agent log
-    fetch("http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9848f0" },
-      body: JSON.stringify({
-        sessionId: "9848f0",
-        location: "api/admin/tournament-sponsors/route.ts:catch",
-        message: "sponsor save API threw",
-        data: { message },
-        timestamp: Date.now(),
-        hypothesisId: "E",
-        runId: "post-fix",
-      }),
-    }).catch(() => {});
-    // #endregion
     console.error("[tournament-sponsors-api]", error);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
