@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { requirePermission } from "@/lib/auth";
-import { buildGroupDraw } from "@/lib/bracket/knockout";
+import { drawGroupsCore } from "@/lib/bracket/draw-groups-core";
 import {
   buildFullKnockoutTree,
   crossPairFirstRound,
@@ -20,13 +20,12 @@ import { deriveMatchWinner, validateSets, validateSquadMatchSets, deriveSquadMat
 import { computeStandings } from "@/lib/bracket/standings";
 import { getTournamentBracketState } from "@/lib/db/bracket-queries";
 import { db } from "@/lib/db";
-import { getEntriesForTournament, getCurrentRankingSeasonId, getTournamentCompetitionFormat } from "@/lib/db/queries";
+import { getCurrentRankingSeasonId, getTournamentCompetitionFormat } from "@/lib/db/queries";
 import {
   groupMatches,
   groups,
   knockoutMatches,
   results,
-  tournamentTeams,
   tournaments,
   type MatchSet,
 } from "@/lib/db/schema";
@@ -34,7 +33,6 @@ import {
   canManageTournament,
   type Permission,
 } from "@/lib/permissions";
-import { getConfirmedTeamOptions } from "@/lib/tournament-teams";
 import { isSquadFormat } from "@/lib/competition-format";
 
 function revalidateTournament(tournamentId: string) {
@@ -59,82 +57,10 @@ async function requireBracketAccess(
   return ctx;
 }
 
-function entryIdsFromTeamKey(key: string): string[] {
-  if (key.startsWith("partnership:")) {
-    return [key.slice("partnership:".length)];
-  }
-  if (key.startsWith("manual:")) {
-    return key.slice("manual:".length).split(":");
-  }
-  return [];
-}
-
 export async function drawGroupsAction(tournamentId: string) {
   await requireBracketAccess(tournamentId);
-
-  const [tournament] = await db!
-    .select()
-    .from(tournaments)
-    .where(eq(tournaments.id, tournamentId))
-    .limit(1);
-
-  if (!tournament) throw new Error("Tournament not found");
-  if (
-    tournament.status !== "registration_closed" &&
-    tournament.status !== "group_stage"
-  ) {
-    throw new Error("Draw groups is only available after registration closes");
-  }
-
-  const existingMatches = await db!
-    .select({ id: groupMatches.id })
-    .from(groupMatches)
-    .innerJoin(groups, eq(groupMatches.groupId, groups.id))
-    .where(eq(groups.tournamentId, tournamentId))
-    .limit(1);
-
-  if (existingMatches.length > 0) {
-    throw new Error("Groups are already locked — cannot redraw");
-  }
-
-  const entries = await getEntriesForTournament(tournamentId);
-  const options = getConfirmedTeamOptions(entries);
-  if (options.length < 2) throw new Error("Need at least 2 confirmed teams");
-
-  await db!.delete(groups).where(eq(groups.tournamentId, tournamentId));
-  await db!.delete(tournamentTeams).where(eq(tournamentTeams.tournamentId, tournamentId));
-
-  const teamIdByKey = new Map<string, string>();
-  for (const option of options) {
-    const [row] = await db!
-      .insert(tournamentTeams)
-      .values({
-        tournamentId,
-        label: option.label,
-        entryIds: entryIdsFromTeamKey(option.key),
-      })
-      .returning({ id: tournamentTeams.id });
-    teamIdByKey.set(option.key, row.id);
-  }
-
-  const teamIds = options.map((o) => teamIdByKey.get(o.key)!);
-  const seed = Math.floor(Math.random() * 0x7fffffff);
-  const draw = buildGroupDraw(teamIds, seed, tournament.teamsPerGroup);
-
-  for (const g of draw) {
-    await db!.insert(groups).values({
-      tournamentId,
-      label: g.label,
-      teamIds: g.teamIds,
-    });
-  }
-
-  await db!
-    .update(tournaments)
-    .set({ groupDrawSeed: seed })
-    .where(eq(tournaments.id, tournamentId));
-
-  revalidateTournament(tournamentId);
+  const result = await drawGroupsCore(tournamentId);
+  if (!result.ok) throw new Error(result.error);
 }
 
 export async function updateGroupMembershipAction(

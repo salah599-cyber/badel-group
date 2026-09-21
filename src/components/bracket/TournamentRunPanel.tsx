@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import {
   configureKnockoutAction,
-  drawGroupsAction,
   generateKnockoutBracketAction,
   getKnockoutSuggestionAction,
   lockGroupsAction,
@@ -153,7 +152,46 @@ export function TournamentRunPanel({
               type="button"
               disabled={isPending}
               className="btn-primary"
-              onClick={() => run(() => drawGroupsAction(tournament.id))}
+              onClick={() =>
+                run(async () => {
+                  const response = await fetch("/api/admin/draw-groups", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ tournamentId: tournament.id }),
+                  });
+                  const result = (await response.json().catch(() => ({}))) as
+                    | { ok: true }
+                    | { ok: false; error: string };
+                  // #region agent log
+                  fetch("http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9848f0" },
+                    body: JSON.stringify({
+                      sessionId: "9848f0",
+                      location: "TournamentRunPanel.tsx:drawGroups",
+                      message: "draw groups client response",
+                      data: {
+                        status: response.status,
+                        ok: "ok" in result ? result.ok : null,
+                        error: "error" in result ? result.error : null,
+                      },
+                      timestamp: Date.now(),
+                      hypothesisId: "A",
+                    }),
+                  }).catch(() => {});
+                  // #endregion
+                  if (!response.ok || result.ok === false) {
+                    return {
+                      ok: false as const,
+                      error:
+                        ("error" in result && result.error) ||
+                        `Could not draw groups (${response.status})`,
+                    };
+                  }
+                  return { ok: true as const };
+                })
+              }
             >
               Draw groups
             </button>
