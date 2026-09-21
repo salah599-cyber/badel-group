@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   closeRegistrationAction,
@@ -54,7 +55,9 @@ export function TournamentRunPanel({
   confirmedTeamCount,
   fixturesLocked,
 }: TournamentRunPanelProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const [advancePerGroup, setAdvancePerGroup] = useState(tournament.advancePerGroup ?? 2);
   const [knockoutRound, setKnockoutRound] = useState<KnockoutRound>(
     tournament.knockoutStartRound ?? "quarterfinal",
@@ -66,11 +69,24 @@ export function TournamentRunPanel({
   function run(action: () => Promise<void>) {
     startTransition(async () => {
       try {
+        setActionError(null);
         await action();
-        window.location.reload();
+        router.refresh();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Action failed");
+        setActionError(err instanceof Error ? err.message : "Action failed");
       }
+    });
+  }
+
+  function runCloseRegistration() {
+    startTransition(async () => {
+      setActionError(null);
+      const result = await closeRegistrationAction(tournament.id);
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -83,6 +99,12 @@ export function TournamentRunPanel({
         </p>
       </div>
 
+      {actionError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {actionError}
+        </div>
+      )}
+
       {tournament.status === "upcoming" && (
         <section className="rounded-2xl border border-gray-200 bg-white p-4">
           <h2 className="mb-2 text-lg font-bold">Close registration</h2>
@@ -93,7 +115,7 @@ export function TournamentRunPanel({
             type="button"
             disabled={isPending}
             className="btn-primary"
-            onClick={() => run(() => closeRegistrationAction(tournament.id))}
+            onClick={runCloseRegistration}
           >
             Close registration
           </button>

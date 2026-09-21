@@ -1,6 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import {
   closeRegistrationAction,
   configureKnockoutAction,
@@ -59,7 +60,9 @@ export function SquadRunPanel({
   entries,
   fixturesLocked,
 }: SquadRunPanelProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
   const teamLabels = new Map(teams.map((team) => [team.id, team.label]));
   const entryNames = new Map(entries.map((entry) => [entry.id, entry.name]));
   const approvedCount = entries.filter((entry) => entry.status === "approved").length;
@@ -67,11 +70,24 @@ export function SquadRunPanel({
   function run(action: () => Promise<void>) {
     startTransition(async () => {
       try {
+        setActionError(null);
         await action();
-        window.location.reload();
+        router.refresh();
       } catch (error) {
-        alert(error instanceof Error ? error.message : "Action failed");
+        setActionError(error instanceof Error ? error.message : "Action failed");
       }
+    });
+  }
+
+  function runCloseRegistration() {
+    startTransition(async () => {
+      setActionError(null);
+      const result = await closeRegistrationAction(tournament.id);
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -85,6 +101,12 @@ export function SquadRunPanel({
         </p>
       </div>
 
+      {actionError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {actionError}
+        </div>
+      )}
+
       {tournament.status === "upcoming" && (
         <>
           <SquadRankingSection entries={entries} disabled={isPending} />
@@ -97,7 +119,7 @@ export function SquadRunPanel({
               type="button"
               disabled={isPending}
               className="btn-primary"
-              onClick={() => run(() => closeRegistrationAction(tournament.id))}
+              onClick={runCloseRegistration}
             >
               Close registration
             </button>
