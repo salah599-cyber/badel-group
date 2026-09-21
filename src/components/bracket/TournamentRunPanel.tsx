@@ -67,26 +67,7 @@ export function TournamentRunPanel({
         }
         window.location.reload();
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Action failed";
-        // #region agent log
-        fetch("http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "a55fac" },
-          body: JSON.stringify({
-            sessionId: "a55fac",
-            location: "TournamentRunPanel.tsx:run.catch",
-            message: "panel action threw",
-            data: {
-              name: err instanceof Error ? err.name : typeof err,
-              errMessage: message.slice(0, 300),
-              isRsc: message.includes("Server Components"),
-            },
-            timestamp: Date.now(),
-            hypothesisId: "A",
-          }),
-        }).catch(() => {});
-        // #endregion
-        setError(message);
+        setError(err instanceof Error ? err.message : "Action failed");
       }
     });
   }
@@ -196,11 +177,11 @@ export function TournamentRunPanel({
                 disabled={fixturesLocked || isPending}
                 onSave={(payload) =>
                   run(() =>
-                    postAdminJson(
-                      "/api/admin/bracket",
-                      { action: "update-groups", tournamentId: tournament.id, groups: payload },
-                      "update-groups",
-                    ),
+                    postAdminJson("/api/admin/bracket", {
+                      action: "update-groups",
+                      tournamentId: tournament.id,
+                      groups: payload,
+                    }),
                   )
                 }
               />
@@ -211,11 +192,10 @@ export function TournamentRunPanel({
                   className="btn-primary"
                   onClick={() =>
                     run(() =>
-                      postAdminJson(
-                        "/api/admin/bracket",
-                        { action: "lock-groups", tournamentId: tournament.id },
-                        "lock-groups",
-                      ),
+                      postAdminJson("/api/admin/bracket", {
+                        action: "lock-groups",
+                        tournamentId: tournament.id,
+                      }),
                     )
                   }
                 >
@@ -277,17 +257,13 @@ export function TournamentRunPanel({
                         alwaysShowFormWhenScheduled
                         onSubmit={(data) =>
                           run(() =>
-                            postAdminJson(
-                              "/api/admin/bracket",
-                              {
-                                action: "save-group-score",
-                                matchId: match.id,
-                                sets: data.sets,
-                                walkover: data.walkover,
-                                walkoverWinnerId: data.walkoverWinnerId,
-                              },
-                              "save-group-score",
-                            ),
+                            postAdminJson("/api/admin/bracket", {
+                              action: "save-group-score",
+                              matchId: match.id,
+                              sets: data.sets,
+                              walkover: data.walkover,
+                              walkoverWinnerId: data.walkoverWinnerId,
+                            }),
                           )
                         }
                       />
@@ -343,11 +319,10 @@ export function TournamentRunPanel({
               onClick={() =>
                 startTransition(async () => {
                   setError(null);
-                  const s = await postAdminJson(
-                    "/api/admin/bracket",
-                    { action: "knockout-suggestion", tournamentId: tournament.id },
-                    "knockout-suggestion",
-                  );
+                  const s = await postAdminJson("/api/admin/bracket", {
+                    action: "knockout-suggestion",
+                    tournamentId: tournament.id,
+                  });
                   if (s.ok === false) {
                     setError(s.error);
                     return;
@@ -367,17 +342,13 @@ export function TournamentRunPanel({
               className="btn-primary"
               onClick={() =>
                 run(() =>
-                  postAdminJson(
-                    "/api/admin/bracket",
-                    {
-                      action: "generate-knockout",
-                      tournamentId: tournament.id,
-                      advancePerGroup,
-                      knockoutStartRound: knockoutRound,
-                      thirdPlacePlayoff: thirdPlace,
-                    },
-                    "generate-knockout",
-                  ),
+                  postAdminJson("/api/admin/bracket", {
+                    action: "generate-knockout",
+                    tournamentId: tournament.id,
+                    advancePerGroup,
+                    knockoutStartRound: knockoutRound,
+                    thirdPlacePlayoff: thirdPlace,
+                  }),
                 )
               }
             >
@@ -400,17 +371,13 @@ export function TournamentRunPanel({
             disabled={isPending}
             onSaveKnockout={(matchId, data) =>
               run(() =>
-                postAdminJson(
-                  "/api/admin/bracket",
-                  {
-                    action: "save-knockout-score",
-                    matchId,
-                    sets: data.sets,
-                    walkover: data.walkover,
-                    walkoverWinnerId: data.walkoverWinnerId,
-                  },
-                  "save-knockout-score",
-                ),
+                postAdminJson("/api/admin/bracket", {
+                  action: "save-knockout-score",
+                  matchId,
+                  sets: data.sets,
+                  walkover: data.walkover,
+                  walkoverWinnerId: data.walkoverWinnerId,
+                }),
               )
             }
           />

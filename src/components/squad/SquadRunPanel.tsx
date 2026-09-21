@@ -165,11 +165,11 @@ export function SquadRunPanel({
                 disabled={fixturesLocked || isPending}
                 onSave={(payload) =>
                   run(() =>
-                    postAdminJson(
-                      "/api/admin/bracket",
-                      { action: "update-groups", tournamentId: tournament.id, groups: payload },
-                      "update-groups",
-                    ),
+                    postAdminJson("/api/admin/bracket", {
+                      action: "update-groups",
+                      tournamentId: tournament.id,
+                      groups: payload,
+                    }),
                   )
                 }
               />
@@ -180,11 +180,10 @@ export function SquadRunPanel({
                   className="btn-primary"
                   onClick={() =>
                     run(() =>
-                      postAdminJson(
-                        "/api/admin/bracket",
-                        { action: "lock-groups", tournamentId: tournament.id },
-                        "lock-groups",
-                      ),
+                      postAdminJson("/api/admin/bracket", {
+                        action: "lock-groups",
+                        tournamentId: tournament.id,
+                      }),
                     )
                   }
                 >
@@ -258,17 +257,13 @@ export function SquadRunPanel({
                             window.location.reload();
                           }}
                           onSaveScore={async (data) => {
-                            const result = await postAdminJson(
-                              "/api/admin/bracket",
-                              {
-                                action: "save-group-score",
-                                matchId: match.id,
-                                sets: data.sets,
-                                walkover: data.walkover,
-                                walkoverWinnerId: data.walkoverWinnerId,
-                              },
-                              "save-group-score",
-                            );
+                            const result = await postAdminJson("/api/admin/bracket", {
+                              action: "save-group-score",
+                              matchId: match.id,
+                              sets: data.sets,
+                              walkover: data.walkover,
+                              walkoverWinnerId: data.walkoverWinnerId,
+                            });
                             if (result.ok === false) throw new Error(result.error);
                             window.location.reload();
                           }}
@@ -329,17 +324,13 @@ export function SquadRunPanel({
                   window.location.reload();
                 }}
                 onSaveScore={async (data) => {
-                  const result = await postAdminJson(
-                    "/api/admin/bracket",
-                    {
-                      action: "save-knockout-score",
-                      matchId: match.id,
-                      sets: data.sets,
-                      walkover: data.walkover,
-                      walkoverWinnerId: data.walkoverWinnerId,
-                    },
-                    "save-knockout-score",
-                  );
+                  const result = await postAdminJson("/api/admin/bracket", {
+                    action: "save-knockout-score",
+                    matchId: match.id,
+                    sets: data.sets,
+                    walkover: data.walkover,
+                    walkoverWinnerId: data.walkoverWinnerId,
+                  });
                   if (result.ok === false) throw new Error(result.error);
                   window.location.reload();
                 }}
@@ -391,26 +382,21 @@ function KnockoutConfig({
           className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold"
           onClick={() =>
             run(async () => {
-              const suggestion = await postAdminJson(
-                "/api/admin/bracket",
-                { action: "knockout-suggestion", tournamentId: tournament.id },
-                "knockout-suggestion",
-              );
+              const suggestion = await postAdminJson("/api/admin/bracket", {
+                action: "knockout-suggestion",
+                tournamentId: tournament.id,
+              });
               if (suggestion.ok === false) return suggestion;
-              return postAdminJson(
-                "/api/admin/bracket",
-                {
-                  action: "configure-knockout",
-                  tournamentId: tournament.id,
-                  advancePerGroup: Math.max(
-                    1,
-                    Math.floor(Number(suggestion.advancingCount ?? 0) / Math.max(groups.length, 1)),
-                  ),
-                  knockoutStartRound: suggestion.suggestedRound,
-                  thirdPlacePlayoff: thirdPlace,
-                },
-                "configure-knockout",
-              );
+              return postAdminJson("/api/admin/bracket", {
+                action: "configure-knockout",
+                tournamentId: tournament.id,
+                advancePerGroup: Math.max(
+                  1,
+                  Math.floor(Number(suggestion.advancingCount ?? 0) / Math.max(groups.length, 1)),
+                ),
+                knockoutStartRound: suggestion.suggestedRound,
+                thirdPlacePlayoff: thirdPlace,
+              });
             })
           }
         >
@@ -422,17 +408,13 @@ function KnockoutConfig({
           className="btn-primary"
           onClick={() =>
             run(() =>
-              postAdminJson(
-                "/api/admin/bracket",
-                {
-                  action: "generate-knockout",
-                  tournamentId: tournament.id,
-                  advancePerGroup,
-                  knockoutStartRound: knockoutRound,
-                  thirdPlacePlayoff: thirdPlace,
-                },
-                "generate-knockout",
-              ),
+              postAdminJson("/api/admin/bracket", {
+                action: "generate-knockout",
+                tournamentId: tournament.id,
+                advancePerGroup,
+                knockoutStartRound: knockoutRound,
+                thirdPlacePlayoff: thirdPlace,
+              }),
             )
           }
         >

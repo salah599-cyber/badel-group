@@ -62,17 +62,13 @@ export function LiveMatchesSection({
     data: { sets: MatchSet[]; walkover?: boolean; walkoverWinnerId?: string },
   ) {
     run(async () => {
-      const result = await postAdminJson(
-        "/api/admin/bracket",
-        {
-          action: match.kind === "knockout" ? "save-knockout-score" : "save-group-score",
-          matchId: match.id,
-          sets: data.sets,
-          walkover: data.walkover,
-          walkoverWinnerId: data.walkoverWinnerId,
-        },
-        match.kind === "knockout" ? "save-knockout-score" : "save-group-score",
-      );
+      const result = await postAdminJson("/api/admin/bracket", {
+        action: match.kind === "knockout" ? "save-knockout-score" : "save-group-score",
+        matchId: match.id,
+        sets: data.sets,
+        walkover: data.walkover,
+        walkoverWinnerId: data.walkoverWinnerId,
+      });
       if (result.ok === false) throw new Error(result.error);
     });
   }
@@ -213,17 +209,13 @@ export function LiveKnockoutSection({
           canEditScores
             ? (matchId, data) =>
                 run(async () => {
-                  const result = await postAdminJson(
-                    "/api/admin/bracket",
-                    {
-                      action: "save-knockout-score",
-                      matchId,
-                      sets: data.sets,
-                      walkover: data.walkover,
-                      walkoverWinnerId: data.walkoverWinnerId,
-                    },
-                    "save-knockout-score",
-                  );
+                  const result = await postAdminJson("/api/admin/bracket", {
+                    action: "save-knockout-score",
+                    matchId,
+                    sets: data.sets,
+                    walkover: data.walkover,
+                    walkoverWinnerId: data.walkoverWinnerId,
+                  });
                   if (result.ok === false) throw new Error(result.error);
                 })
             : undefined

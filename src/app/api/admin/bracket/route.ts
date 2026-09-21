@@ -37,25 +37,6 @@ export async function POST(request: Request) {
     const body = (await request.json()) as BracketBody;
     const action = body.action;
 
-    // #region agent log
-    fetch("http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "a55fac" },
-      body: JSON.stringify({
-        sessionId: "a55fac",
-        location: "api/admin/bracket/route.ts:entry",
-        message: "bracket API entry",
-        data: {
-          action: action ?? null,
-          hasTournamentId: Boolean(body.tournamentId),
-          groupCount: Array.isArray(body.groups) ? body.groups.length : 0,
-        },
-        timestamp: Date.now(),
-        hypothesisId: "A",
-      }),
-    }).catch(() => {});
-    // #endregion
-
     if (!action) {
       return NextResponse.json({ ok: false, error: "Action is required" }, { status: 400 });
     }
@@ -136,20 +117,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: `Unknown action: ${action}` }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not update the bracket. Please try again.";
-    // #region agent log
-    fetch("http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "a55fac" },
-      body: JSON.stringify({
-        sessionId: "a55fac",
-        location: "api/admin/bracket/route.ts:catch",
-        message: "bracket API threw",
-        data: { errMessage: message.slice(0, 300) },
-        timestamp: Date.now(),
-        hypothesisId: "B",
-      }),
-    }).catch(() => {});
-    // #endregion
     console.error("[bracket-api]", error);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
