@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { requirePermission } from "@/lib/auth";
 import { drawGroupsCore } from "@/lib/bracket/draw-groups-core";
+import { lockGroupsCore, updateGroupMembershipCore } from "@/lib/bracket/group-ops-core";
 import {
   buildFullKnockoutTree,
   crossPairFirstRound,
@@ -15,7 +16,6 @@ import {
   getAdvancingTeams,
   placementsToWinners,
 } from "@/lib/bracket/placements";
-import { generateRoundRobinPairs } from "@/lib/bracket/score";
 import { deriveMatchWinner, validateSets, validateSquadMatchSets, deriveSquadMatchWinner } from "@/lib/bracket/score";
 import { computeStandings } from "@/lib/bracket/standings";
 import { getTournamentBracketState } from "@/lib/db/bracket-queries";
@@ -68,74 +68,15 @@ export async function updateGroupMembershipAction(
   groupsPayload: { groupId: string; teamIds: string[] }[],
 ) {
   await requireBracketAccess(tournamentId);
-
-  const existingMatches = await db!
-    .select({ id: groupMatches.id })
-    .from(groupMatches)
-    .innerJoin(groups, eq(groupMatches.groupId, groups.id))
-    .where(eq(groups.tournamentId, tournamentId))
-    .limit(1);
-
-  if (existingMatches.length > 0) {
-    throw new Error("Cannot edit groups after fixtures are generated");
-  }
-
-  const allTeamIds = new Set<string>();
-  for (const g of groupsPayload) {
-    for (const id of g.teamIds) {
-      if (allTeamIds.has(id)) throw new Error("A team cannot be in multiple groups");
-      allTeamIds.add(id);
-    }
-    await db!
-      .update(groups)
-      .set({ teamIds: g.teamIds })
-      .where(and(eq(groups.id, g.groupId), eq(groups.tournamentId, tournamentId)));
-  }
-
+  const result = await updateGroupMembershipCore(tournamentId, groupsPayload);
+  if (!result.ok) throw new Error(result.error);
   revalidateTournament(tournamentId);
 }
 
 export async function lockGroupsAction(tournamentId: string) {
   await requireBracketAccess(tournamentId);
-
-  const tournamentGroups = await db!
-    .select()
-    .from(groups)
-    .where(eq(groups.tournamentId, tournamentId));
-
-  if (!tournamentGroups.length) {
-    throw new Error("Draw groups first");
-  }
-
-  const existingMatches = await db!
-    .select({ id: groupMatches.id })
-    .from(groupMatches)
-    .innerJoin(groups, eq(groupMatches.groupId, groups.id))
-    .where(eq(groups.tournamentId, tournamentId))
-    .limit(1);
-
-  if (existingMatches.length > 0) {
-    throw new Error("Groups are already locked");
-  }
-
-  for (const g of tournamentGroups) {
-    const pairs = generateRoundRobinPairs(g.teamIds);
-    for (const pair of pairs) {
-      await db!.insert(groupMatches).values({
-        groupId: g.id,
-        teamAId: pair.teamAId,
-        teamBId: pair.teamBId,
-        status: "scheduled",
-        outcome: "played",
-      });
-    }
-  }
-
-  await db!
-    .update(tournaments)
-    .set({ status: "group_stage" })
-    .where(eq(tournaments.id, tournamentId));
-
+  const result = await lockGroupsCore(tournamentId);
+  if (!result.ok) throw new Error(result.error);
   revalidateTournament(tournamentId);
 }
 

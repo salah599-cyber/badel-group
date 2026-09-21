@@ -3,10 +3,7 @@
 import { useTransition } from "react";
 import { MatchScoreCard } from "@/components/bracket/MatchScoreCard";
 import { KnockoutBracketView } from "@/components/bracket/KnockoutBracketView";
-import {
-  saveGroupMatchScoreAction,
-  saveKnockoutMatchScoreAction,
-} from "@/lib/bracket-actions";
+import { postAdminJson } from "@/lib/admin-api";
 import type { KnockoutMatch, MatchFormat, MatchSet } from "@/lib/types";
 
 export type LivePublicMatch = {
@@ -64,17 +61,20 @@ export function LiveMatchesSection({
     match: LivePublicMatch,
     data: { sets: MatchSet[]; walkover?: boolean; walkoverWinnerId?: string },
   ) {
-    const payload = {
-      matchId: match.id,
-      sets: data.sets,
-      walkover: data.walkover,
-      walkoverWinnerId: data.walkoverWinnerId,
-    };
-    run(() =>
-      match.kind === "knockout"
-        ? saveKnockoutMatchScoreAction(payload)
-        : saveGroupMatchScoreAction(payload),
-    );
+    run(async () => {
+      const result = await postAdminJson(
+        "/api/admin/bracket",
+        {
+          action: match.kind === "knockout" ? "save-knockout-score" : "save-group-score",
+          matchId: match.id,
+          sets: data.sets,
+          walkover: data.walkover,
+          walkoverWinnerId: data.walkoverWinnerId,
+        },
+        match.kind === "knockout" ? "save-knockout-score" : "save-group-score",
+      );
+      if (result.ok === false) throw new Error(result.error);
+    });
   }
 
   if (scheduled.length === 0 && completed.length === 0) {
@@ -212,14 +212,20 @@ export function LiveKnockoutSection({
         onSaveKnockout={
           canEditScores
             ? (matchId, data) =>
-                run(() =>
-                  saveKnockoutMatchScoreAction({
-                    matchId,
-                    sets: data.sets,
-                    walkover: data.walkover,
-                    walkoverWinnerId: data.walkoverWinnerId,
-                  }),
-                )
+                run(async () => {
+                  const result = await postAdminJson(
+                    "/api/admin/bracket",
+                    {
+                      action: "save-knockout-score",
+                      matchId,
+                      sets: data.sets,
+                      walkover: data.walkover,
+                      walkoverWinnerId: data.walkoverWinnerId,
+                    },
+                    "save-knockout-score",
+                  );
+                  if (result.ok === false) throw new Error(result.error);
+                })
             : undefined
         }
       />

@@ -1,15 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  configureKnockoutAction,
-  generateKnockoutBracketAction,
-  getKnockoutSuggestionAction,
-  lockGroupsAction,
-  saveGroupMatchScoreAction,
-  saveKnockoutMatchScoreAction,
-  updateGroupMembershipAction,
-} from "@/lib/bracket-actions";
+import { postAdminJson } from "@/lib/admin-api";
 import { computeStandings } from "@/lib/bracket/standings";
 import { formatMatchScore } from "@/lib/bracket/score-format";
 import type {
@@ -75,7 +67,26 @@ export function TournamentRunPanel({
         }
         window.location.reload();
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Action failed");
+        const message = err instanceof Error ? err.message : "Action failed";
+        // #region agent log
+        fetch("http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "a55fac" },
+          body: JSON.stringify({
+            sessionId: "a55fac",
+            location: "TournamentRunPanel.tsx:run.catch",
+            message: "panel action threw",
+            data: {
+              name: err instanceof Error ? err.name : typeof err,
+              errMessage: message.slice(0, 300),
+              isRsc: message.includes("Server Components"),
+            },
+            timestamp: Date.now(),
+            hypothesisId: "A",
+          }),
+        }).catch(() => {});
+        // #endregion
+        setError(message);
       }
     });
   }
@@ -184,7 +195,13 @@ export function TournamentRunPanel({
                 teamLabels={teamLabels}
                 disabled={fixturesLocked || isPending}
                 onSave={(payload) =>
-                  run(() => updateGroupMembershipAction(tournament.id, payload))
+                  run(() =>
+                    postAdminJson(
+                      "/api/admin/bracket",
+                      { action: "update-groups", tournamentId: tournament.id, groups: payload },
+                      "update-groups",
+                    ),
+                  )
                 }
               />
               {!fixturesLocked && (
@@ -192,7 +209,15 @@ export function TournamentRunPanel({
                   type="button"
                   disabled={isPending}
                   className="btn-primary"
-                  onClick={() => run(() => lockGroupsAction(tournament.id))}
+                  onClick={() =>
+                    run(() =>
+                      postAdminJson(
+                        "/api/admin/bracket",
+                        { action: "lock-groups", tournamentId: tournament.id },
+                        "lock-groups",
+                      ),
+                    )
+                  }
                 >
                   Lock groups & generate fixtures
                 </button>
@@ -252,12 +277,17 @@ export function TournamentRunPanel({
                         alwaysShowFormWhenScheduled
                         onSubmit={(data) =>
                           run(() =>
-                            saveGroupMatchScoreAction({
-                              matchId: match.id,
-                              sets: data.sets,
-                              walkover: data.walkover,
-                              walkoverWinnerId: data.walkoverWinnerId,
-                            }),
+                            postAdminJson(
+                              "/api/admin/bracket",
+                              {
+                                action: "save-group-score",
+                                matchId: match.id,
+                                sets: data.sets,
+                                walkover: data.walkover,
+                                walkoverWinnerId: data.walkoverWinnerId,
+                              },
+                              "save-group-score",
+                            ),
                           )
                         }
                       />
@@ -311,10 +341,21 @@ export function TournamentRunPanel({
               disabled={isPending}
               className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold"
               onClick={() =>
-                run(async () => {
-                  const s = await getKnockoutSuggestionAction(tournament.id);
-                  setKnockoutRound(s.suggestedRound);
-                  setAdvancePerGroup(Math.max(1, Math.floor(s.advancingCount / groups.length)));
+                startTransition(async () => {
+                  setError(null);
+                  const s = await postAdminJson(
+                    "/api/admin/bracket",
+                    { action: "knockout-suggestion", tournamentId: tournament.id },
+                    "knockout-suggestion",
+                  );
+                  if (s.ok === false) {
+                    setError(s.error);
+                    return;
+                  }
+                  setKnockoutRound(s.suggestedRound as KnockoutRound);
+                  setAdvancePerGroup(
+                    Math.max(1, Math.floor(Number(s.advancingCount ?? 0) / Math.max(groups.length, 1))),
+                  );
                 })
               }
             >
@@ -325,15 +366,19 @@ export function TournamentRunPanel({
               disabled={isPending}
               className="btn-primary"
               onClick={() =>
-                run(async () => {
-                  await configureKnockoutAction({
-                    tournamentId: tournament.id,
-                    advancePerGroup,
-                    knockoutStartRound: knockoutRound,
-                    thirdPlacePlayoff: thirdPlace,
-                  });
-                  await generateKnockoutBracketAction(tournament.id);
-                })
+                run(() =>
+                  postAdminJson(
+                    "/api/admin/bracket",
+                    {
+                      action: "generate-knockout",
+                      tournamentId: tournament.id,
+                      advancePerGroup,
+                      knockoutStartRound: knockoutRound,
+                      thirdPlacePlayoff: thirdPlace,
+                    },
+                    "generate-knockout",
+                  ),
+                )
               }
             >
               Generate bracket
@@ -355,12 +400,17 @@ export function TournamentRunPanel({
             disabled={isPending}
             onSaveKnockout={(matchId, data) =>
               run(() =>
-                saveKnockoutMatchScoreAction({
-                  matchId,
-                  sets: data.sets,
-                  walkover: data.walkover,
-                  walkoverWinnerId: data.walkoverWinnerId,
-                }),
+                postAdminJson(
+                  "/api/admin/bracket",
+                  {
+                    action: "save-knockout-score",
+                    matchId,
+                    sets: data.sets,
+                    walkover: data.walkover,
+                    walkoverWinnerId: data.walkoverWinnerId,
+                  },
+                  "save-knockout-score",
+                ),
               )
             }
           />

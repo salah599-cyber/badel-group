@@ -1,15 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  configureKnockoutAction,
-  generateKnockoutBracketAction,
-  getKnockoutSuggestionAction,
-  lockGroupsAction,
-  saveGroupMatchScoreAction,
-  saveKnockoutMatchScoreAction,
-  updateGroupMembershipAction,
-} from "@/lib/bracket-actions";
+import { postAdminJson } from "@/lib/admin-api";
 import { computeStandings } from "@/lib/bracket/standings";
 import { GroupDrawEditor } from "@/components/bracket/GroupDrawEditor";
 import { KnockoutBracketView } from "@/components/bracket/KnockoutBracketView";
@@ -172,7 +164,13 @@ export function SquadRunPanel({
                 teamLabels={teamLabels}
                 disabled={fixturesLocked || isPending}
                 onSave={(payload) =>
-                  run(() => updateGroupMembershipAction(tournament.id, payload))
+                  run(() =>
+                    postAdminJson(
+                      "/api/admin/bracket",
+                      { action: "update-groups", tournamentId: tournament.id, groups: payload },
+                      "update-groups",
+                    ),
+                  )
                 }
               />
               {!fixturesLocked && (
@@ -180,7 +178,15 @@ export function SquadRunPanel({
                   type="button"
                   disabled={isPending}
                   className="btn-primary"
-                  onClick={() => run(() => lockGroupsAction(tournament.id))}
+                  onClick={() =>
+                    run(() =>
+                      postAdminJson(
+                        "/api/admin/bracket",
+                        { action: "lock-groups", tournamentId: tournament.id },
+                        "lock-groups",
+                      ),
+                    )
+                  }
                 >
                   Lock groups & generate fixtures
                 </button>
@@ -252,12 +258,18 @@ export function SquadRunPanel({
                             window.location.reload();
                           }}
                           onSaveScore={async (data) => {
-                            await saveGroupMatchScoreAction({
-                              matchId: match.id,
-                              sets: data.sets,
-                              walkover: data.walkover,
-                              walkoverWinnerId: data.walkoverWinnerId,
-                            });
+                            const result = await postAdminJson(
+                              "/api/admin/bracket",
+                              {
+                                action: "save-group-score",
+                                matchId: match.id,
+                                sets: data.sets,
+                                walkover: data.walkover,
+                                walkoverWinnerId: data.walkoverWinnerId,
+                              },
+                              "save-group-score",
+                            );
+                            if (result.ok === false) throw new Error(result.error);
                             window.location.reload();
                           }}
                         />
@@ -317,12 +329,18 @@ export function SquadRunPanel({
                   window.location.reload();
                 }}
                 onSaveScore={async (data) => {
-                  await saveKnockoutMatchScoreAction({
-                    matchId: match.id,
-                    sets: data.sets,
-                    walkover: data.walkover,
-                    walkoverWinnerId: data.walkoverWinnerId,
-                  });
+                  const result = await postAdminJson(
+                    "/api/admin/bracket",
+                    {
+                      action: "save-knockout-score",
+                      matchId: match.id,
+                      sets: data.sets,
+                      walkover: data.walkover,
+                      walkoverWinnerId: data.walkoverWinnerId,
+                    },
+                    "save-knockout-score",
+                  );
+                  if (result.ok === false) throw new Error(result.error);
                   window.location.reload();
                 }}
               />
@@ -373,13 +391,26 @@ function KnockoutConfig({
           className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold"
           onClick={() =>
             run(async () => {
-              const suggestion = await getKnockoutSuggestionAction(tournament.id);
-              await configureKnockoutAction({
-                tournamentId: tournament.id,
-                advancePerGroup: Math.max(1, Math.floor(suggestion.advancingCount / groups.length)),
-                knockoutStartRound: suggestion.suggestedRound,
-                thirdPlacePlayoff: thirdPlace,
-              });
+              const suggestion = await postAdminJson(
+                "/api/admin/bracket",
+                { action: "knockout-suggestion", tournamentId: tournament.id },
+                "knockout-suggestion",
+              );
+              if (suggestion.ok === false) return suggestion;
+              return postAdminJson(
+                "/api/admin/bracket",
+                {
+                  action: "configure-knockout",
+                  tournamentId: tournament.id,
+                  advancePerGroup: Math.max(
+                    1,
+                    Math.floor(Number(suggestion.advancingCount ?? 0) / Math.max(groups.length, 1)),
+                  ),
+                  knockoutStartRound: suggestion.suggestedRound,
+                  thirdPlacePlayoff: thirdPlace,
+                },
+                "configure-knockout",
+              );
             })
           }
         >
@@ -390,15 +421,19 @@ function KnockoutConfig({
           disabled={isPending}
           className="btn-primary"
           onClick={() =>
-            run(async () => {
-              await configureKnockoutAction({
-                tournamentId: tournament.id,
-                advancePerGroup,
-                knockoutStartRound: knockoutRound,
-                thirdPlacePlayoff: thirdPlace,
-              });
-              await generateKnockoutBracketAction(tournament.id);
-            })
+            run(() =>
+              postAdminJson(
+                "/api/admin/bracket",
+                {
+                  action: "generate-knockout",
+                  tournamentId: tournament.id,
+                  advancePerGroup,
+                  knockoutStartRound: knockoutRound,
+                  thirdPlacePlayoff: thirdPlace,
+                },
+                "generate-knockout",
+              ),
+            )
           }
         >
           Generate bracket
