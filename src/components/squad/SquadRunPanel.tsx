@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   closeRegistrationAction,
   configureKnockoutAction,
@@ -60,17 +60,23 @@ export function SquadRunPanel({
   fixturesLocked,
 }: SquadRunPanelProps) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const teamLabels = new Map(teams.map((team) => [team.id, team.label]));
   const entryNames = new Map(entries.map((entry) => [entry.id, entry.name]));
   const approvedCount = entries.filter((entry) => entry.status === "approved").length;
 
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<{ ok: true } | { ok: false; error: string } | void>) {
     startTransition(async () => {
+      setError(null);
       try {
-        await action();
+        const result = await action();
+        if (result && "ok" in result && result.ok === false) {
+          setError(result.error);
+          return;
+        }
         window.location.reload();
       } catch (error) {
-        alert(error instanceof Error ? error.message : "Action failed");
+        setError(error instanceof Error ? error.message : "Action failed");
       }
     });
   }
@@ -84,6 +90,12 @@ export function SquadRunPanel({
           · {approvedCount}/{tournament.maxPlayers} players approved · 3 x 2v2 per match
         </p>
       </div>
+
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-brand-red" role="alert">
+          {error}
+        </p>
+      )}
 
       {tournament.status === "upcoming" && (
         <>
@@ -99,7 +111,7 @@ export function SquadRunPanel({
               className="btn-primary"
               onClick={() => run(() => closeRegistrationAction(tournament.id))}
             >
-              Close registration
+              {isPending ? "Closing…" : "Close registration"}
             </button>
           </section>
         </>

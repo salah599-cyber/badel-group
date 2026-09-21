@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { uploadFiles } from "@/lib/uploads";
+import { nameFromFilename, uploadFiles } from "@/lib/uploads";
 import {
   addTournamentPartnerAction,
   addTournamentSponsorAction,
@@ -11,6 +11,8 @@ import {
 import { getMediaSrc } from "@/lib/media";
 import type { TournamentPartner, TournamentSponsor } from "@/lib/types";
 import { tierLabels } from "@/lib/types";
+
+type MutationResult = { ok: true } | { ok: false; error: string };
 
 type TournamentBrandingSectionProps = {
   tournamentId: string;
@@ -24,14 +26,20 @@ export function TournamentBrandingSection({
   sponsors,
 }: TournamentBrandingSectionProps) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<MutationResult | void>) {
     startTransition(async () => {
+      setError(null);
       try {
-        await action();
+        const result = await action();
+        if (result && result.ok === false) {
+          setError(result.error);
+          return;
+        }
         window.location.reload();
-      } catch (error) {
-        alert(error instanceof Error ? error.message : "Action failed");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Action failed");
       }
     });
   }
@@ -44,6 +52,12 @@ export function TournamentBrandingSection({
           Partner logos appear beside Badel Group on this tournament only. Event sponsors are separate from global sponsors.
         </p>
       </div>
+
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-brand-red" role="alert">
+          {error}
+        </p>
+      )}
 
       <div>
         <h3 className="mb-2 font-semibold text-gray-800">Partner groups</h3>
@@ -76,12 +90,14 @@ export function TournamentBrandingSection({
             run(async () => {
               const uploaded = await uploadFiles(files, "tournament-partners");
               for (const file of uploaded) {
-                await addTournamentPartnerAction({
+                const result = await addTournamentPartnerAction({
                   tournamentId,
-                  name: file.name.replace(/\.[^.]+$/, ""),
+                  name: nameFromFilename(file.name) || "Event partner",
                   logoUrl: file.url,
                 });
+                if (!result.ok) return result;
               }
+              return { ok: true };
             })
           }
         />
@@ -120,13 +136,15 @@ export function TournamentBrandingSection({
             run(async () => {
               const uploaded = await uploadFiles(files, "tournament-sponsors");
               for (const file of uploaded) {
-                await addTournamentSponsorAction({
+                const result = await addTournamentSponsorAction({
                   tournamentId,
-                  name: file.name.replace(/\.[^.]+$/, ""),
+                  name: nameFromFilename(file.name) || "Event sponsor",
                   tier,
                   logoUrl: file.url,
                 });
+                if (!result.ok) return result;
               }
+              return { ok: true };
             })
           }
         />
@@ -153,6 +171,7 @@ function PartnerUploadForm({
         onChange={(e) => {
           const files = [...(e.target.files ?? [])];
           if (files.length) onUpload(files);
+          e.target.value = "";
         }}
       />
       Upload partner logo
@@ -187,16 +206,17 @@ function SponsorUploadForm({
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700">
         <input
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           multiple
           disabled={disabled}
           className="hidden"
           onChange={(e) => {
             const files = [...(e.target.files ?? [])];
             if (files.length) onUpload(files, tier);
+            e.target.value = "";
           }}
         />
-        Upload sponsor logo
+        {disabled ? "Uploading…" : "Upload sponsor logo"}
       </label>
     </div>
   );

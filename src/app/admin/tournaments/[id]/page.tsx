@@ -14,6 +14,7 @@ import {
 import { countConfirmedEntries, getEntriesForTournament, getTournamentById } from "@/lib/db/queries";
 import { canManageTournament } from "@/lib/permissions";
 import { isSquadFormat } from "@/lib/competition-format";
+import { getUnpairedApprovedEntries } from "@/lib/tournament-teams";
 import { groupMatches } from "@/lib/db/schema";
 import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
@@ -209,6 +210,7 @@ export default async function AdminTournamentRunPage({
             outcome: m.outcome,
           }))}
           confirmedTeamCount={confirmedTeamCount}
+          unpairedApprovedCount={getUnpairedApprovedEntries(entries).length}
           fixturesLocked={fixturesLocked}
         />
       )}
