@@ -4,11 +4,11 @@ import { useState, useTransition } from "react";
 import { nameFromFilename, uploadFiles } from "@/lib/uploads";
 import {
   addTournamentPartnerAction,
-  addTournamentSponsorAction,
   deleteTournamentPartnerAction,
   deleteTournamentSponsorAction,
 } from "@/lib/squad-actions";
 import { getMediaSrc } from "@/lib/media";
+import { debugLog } from "@/lib/debug-session";
 import type { TournamentPartner, TournamentSponsor } from "@/lib/types";
 import { tierLabels } from "@/lib/types";
 
@@ -33,12 +33,34 @@ export function TournamentBrandingSection({
       setError(null);
       try {
         const result = await action();
+        debugLog(
+          "TournamentBrandingSection.tsx:run",
+          "branding action returned",
+          {
+            ok: result && "ok" in result ? result.ok : "void",
+            error: result && result.ok === false ? result.error : null,
+          },
+          "E",
+        );
         if (result && result.ok === false) {
           setError(result.error);
           return;
         }
         window.location.reload();
       } catch (err) {
+        debugLog(
+          "TournamentBrandingSection.tsx:run:catch",
+          "branding action threw",
+          {
+            errName: err instanceof Error ? err.name : typeof err,
+            errMessage: err instanceof Error ? err.message : String(err),
+            digest:
+              err && typeof err === "object" && "digest" in err
+                ? String((err as { digest?: unknown }).digest)
+                : null,
+          },
+          "D",
+        );
         setError(err instanceof Error ? err.message : "Action failed");
       }
     });
@@ -136,13 +158,26 @@ export function TournamentBrandingSection({
             run(async () => {
               const uploaded = await uploadFiles(files, "tournament-sponsors");
               for (const file of uploaded) {
-                const result = await addTournamentSponsorAction({
-                  tournamentId,
-                  name: nameFromFilename(file.name) || "Event sponsor",
-                  tier,
-                  logoUrl: file.url,
+                const response = await fetch("/api/admin/tournament-sponsors", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    tournamentId,
+                    name: nameFromFilename(file.name) || "Event sponsor",
+                    tier,
+                    logoUrl: file.url,
+                  }),
                 });
-                if (!result.ok) return result;
+                const result = (await response.json().catch(() => ({}))) as MutationResult;
+                if (!response.ok || result.ok === false) {
+                  return {
+                    ok: false,
+                    error:
+                      ("error" in result && result.error) ||
+                      `Could not save this event sponsor (${response.status})`,
+                  };
+                }
               }
               return { ok: true };
             })

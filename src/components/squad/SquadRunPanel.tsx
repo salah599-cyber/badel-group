@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { closeRegistrationAction } from "@/lib/actions/close-registration";
 import {
   configureKnockoutAction,
   generateKnockoutBracketAction,
@@ -109,7 +108,28 @@ export function SquadRunPanel({
               type="button"
               disabled={isPending}
               className="btn-primary"
-              onClick={() => run(() => closeRegistrationAction(tournament.id))}
+              onClick={() =>
+                run(async () => {
+                  const response = await fetch("/api/admin/close-registration", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ tournamentId: tournament.id }),
+                  });
+                  const result = (await response.json().catch(() => ({}))) as
+                    | { ok: true }
+                    | { ok: false; error: string };
+                  if (!response.ok || result.ok === false) {
+                    return {
+                      ok: false as const,
+                      error:
+                        ("error" in result && result.error) ||
+                        `Could not close registration (${response.status})`,
+                    };
+                  }
+                  return { ok: true as const };
+                })
+              }
             >
               {isPending ? "Closing…" : "Close registration"}
             </button>

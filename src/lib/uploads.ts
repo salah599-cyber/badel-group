@@ -1,4 +1,4 @@
-import { upload } from "@vercel/blob/client";
+import { put } from "@vercel/blob/client";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$/i;
@@ -152,16 +152,44 @@ export async function uploadFiles(
     }
 
     const pathname = `${folder}/${Date.now()}-${safeFilename(file.name)}`;
+    const multipart = file.size > 4 * 1024 * 1024;
 
-    const blob = await upload(pathname, file, {
-      access: "public",
-      handleUploadUrl: "/api/upload",
-      clientPayload: folder,
-      multipart: file.size > 4 * 1024 * 1024,
-    });
+    try {
+      const tokenRes = await fetch("/api/upload", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          type: "blob.generate-client-token",
+          payload: {
+            pathname,
+            clientPayload: folder,
+            multipart,
+          },
+        }),
+      });
+      const tokenBody = (await tokenRes.json().catch(() => ({}))) as {
+        clientToken?: string;
+        error?: string;
+      };
+      if (!tokenRes.ok || !tokenBody.clientToken) {
+        throw new Error(tokenBody.error || `Upload auth failed (${tokenRes.status})`);
+      }
 
-    uploaded.push({ name: original.name, url: blob.url });
-    onProgress?.(index + 1, files.length);
+      const blob = await put(pathname, file, {
+        access: "public",
+        token: tokenBody.clientToken,
+        multipart,
+      });
+      uploaded.push({ name: original.name, url: blob.url });
+      onProgress?.(index + 1, files.length);
+    } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9848f0'},body:JSON.stringify({sessionId:'9848f0',location:'uploads.ts:uploadFiles',message:'blob upload failed',data:{folder,pathname,fileType:file.type,fileSize:file.size,originalType:original.type,errMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+      fetch('/api/debug-log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'9848f0',location:'uploads.ts:uploadFiles',message:'blob upload failed',data:{folder,pathname,fileType:file.type,fileSize:file.size,originalType:original.type,errMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),hypothesisId:'D',runId:'post-fix'})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
   }
 
   return uploaded;

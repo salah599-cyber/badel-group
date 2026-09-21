@@ -121,6 +121,9 @@ export async function closeRegistrationCore(input: {
       .where(eq(tournaments.id, input.tournamentId));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // #region agent log
+    fetch('http://127.0.0.1:7718/ingest/9a547b53-ac0a-44a6-b020-b4f4691082ad',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9848f0'},body:JSON.stringify({sessionId:'9848f0',location:'close-registration-core.ts:update',message:'status update failed',data:{message},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     if (message.includes("invalid input value for enum")) {
       return fail(
         "This database is missing a required tournament status. Run migrations and try again.",

@@ -14,9 +14,10 @@ const isPublicRoute = createRouteMatcher([
   "/complete-profile(.*)",
   "/api/webhooks(.*)",
   "/api/media(.*)",
+  "/api/debug-log(.*)",
 ]);
 
-const isAdminRoute = createRouteMatcher(["/admin(.*)", "/api/upload(.*)"]);
+const isAdminRoute = createRouteMatcher(["/admin(.*)", "/api/upload(.*)", "/api/admin(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   warnIfTestClerkKeysInProduction();
