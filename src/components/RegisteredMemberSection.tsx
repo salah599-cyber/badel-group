@@ -15,6 +15,7 @@ export function RegisteredMemberSection({
   onComplete,
 }: RegisteredMemberSectionProps) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const upcomingTournaments = tournaments.filter((t) => t.status === "upcoming");
   const [selectedTournamentId, setSelectedTournamentId] = useState(
     upcomingTournaments[0]?.id ?? "",
@@ -22,17 +23,6 @@ export function RegisteredMemberSection({
   const [memberLookup, setMemberLookup] = useState<"membership_number" | "email">(
     "membership_number",
   );
-
-  function wrapAction(action: () => Promise<void>) {
-    startTransition(async () => {
-      try {
-        await action();
-        onComplete();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Action failed");
-      }
-    });
-  }
 
   if (upcomingTournaments.length === 0) return null;
 
@@ -47,10 +37,24 @@ export function RegisteredMemberSection({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          const formData = new FormData(e.currentTarget);
+          const form = e.currentTarget;
+          const formData = new FormData(form);
           formData.set("tournamentId", selectedTournamentId);
           formData.set("memberLookup", memberLookup);
-          wrapAction(() => createMemberEntryAction(formData));
+          setError(null);
+          startTransition(async () => {
+            try {
+              const result = await createMemberEntryAction(formData);
+              if (!result.ok) {
+                setError(result.error);
+                return;
+              }
+              form.reset();
+              onComplete();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Action failed");
+            }
+          });
         }}
         className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4"
       >
@@ -139,8 +143,14 @@ export function RegisteredMemberSection({
           </p>
         </div>
 
+        {error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-brand-red" role="alert">
+            {error}
+          </p>
+        )}
+
         <button type="submit" disabled={isPending} className="btn-primary">
-          Add member to tournament
+          {isPending ? "Adding member…" : "Add member to tournament"}
         </button>
       </form>
     </section>

@@ -1,11 +1,27 @@
 import type { AdminMetadata } from "@/lib/permissions";
 
-type UserNameSource = {
+type UserEmailSource = {
+  emailAddresses?: { id?: string; emailAddress?: string }[];
+  primaryEmailAddressId?: string | null;
+  primaryEmailAddress?: { emailAddress?: string } | null;
+};
+
+type UserNameSource = UserEmailSource & {
   firstName: string | null;
   lastName: string | null;
-  emailAddresses?: { emailAddress: string }[];
   publicMetadata?: AdminMetadata | Record<string, unknown> | null;
 };
+
+/** Primary email from a Clerk user, whether the client or backend shape is used. */
+export function getClerkUserEmail(user: UserEmailSource): string | null {
+  const email =
+    user.primaryEmailAddress?.emailAddress ??
+    user.emailAddresses?.find((address) => address.id && address.id === user.primaryEmailAddressId)
+      ?.emailAddress ??
+    user.emailAddresses?.[0]?.emailAddress;
+  const normalized = email?.trim().toLowerCase();
+  return normalized || null;
+}
 
 export function getUserDisplayName(
   user: UserNameSource,
@@ -20,7 +36,7 @@ export function getUserDisplayName(
     .join(" ");
   if (profileName) return profileName;
 
-  const email = user.emailAddresses?.[0]?.emailAddress;
+  const email = getClerkUserEmail(user);
   if (email) return email;
 
   return fallback;
