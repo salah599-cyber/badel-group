@@ -54,13 +54,17 @@ export async function rebuildMembershipIndexFromClerk() {
   }
 }
 
+function membershipMatches(user: { publicMetadata?: unknown }, normalized: string) {
+  return getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized;
+}
+
 async function lookupUserByMembershipNumber(normalized: string) {
   const indexedUserId = await getUserIdByMembershipNumber(normalized);
   if (indexedUserId) {
     const client = await clerkClient();
     try {
       const user = await client.users.getUser(indexedUserId);
-      if (getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized) {
+      if (membershipMatches(user, normalized)) {
         return user;
       }
     } catch {
@@ -68,17 +72,36 @@ async function lookupUserByMembershipNumber(normalized: string) {
     }
   }
 
-  const client = await clerkClient();
-  const { data: queryResults } = await client.users.getUserList({
-    query: normalized,
-    limit: 100,
-  });
+  // Clerk `query` searches name/email/id, not publicMetadata. Keep it as a cheap
+  // first pass, then scan every user's membership metadata.
+  try {
+    const client = await clerkClient();
+    const { data: queryResults } = await client.users.getUserList({
+      query: normalized,
+      limit: 100,
+    });
 
-  for (const user of queryResults) {
-    if (getMembershipFromMetadata(user.publicMetadata as AdminMetadata) === normalized) {
-      await persistMembershipNumber(user.id, normalized);
-      return user;
+    for (const user of queryResults) {
+      if (membershipMatches(user, normalized)) {
+        await persistMembershipNumber(user.id, normalized);
+        return user;
+      }
     }
+  } catch (error) {
+    console.warn("[membership] Clerk query lookup failed:", error);
+  }
+
+  try {
+    const { listAllClerkUsers } = await import("@/lib/clerk-user-list");
+    const users = await listAllClerkUsers();
+    for (const user of users) {
+      if (membershipMatches(user, normalized)) {
+        await persistMembershipNumber(user.id, normalized);
+        return user;
+      }
+    }
+  } catch (error) {
+    console.warn("[membership] Full membership scan failed:", error);
   }
 
   return null;

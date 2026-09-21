@@ -8,7 +8,7 @@ import { findUserByEmail } from "@/lib/admin-members";
 import { parseTournamentStartTime } from "@/lib/dates";
 import { ensureMembershipNumber, findUserByMembershipNumber, getMembershipFromMetadata, normalizeMembershipNumber } from "@/lib/membership";
 import { hasRequiredProfile, normalizeProfileName, validateRegistrationNames } from "@/lib/registration";
-import { getUserDisplayName } from "@/lib/user-display";
+import { getClerkUserEmail, getUserDisplayName } from "@/lib/user-display";
 import {
   getAdminContext,
   requireApprovedUser,
@@ -62,7 +62,13 @@ export type CreateEntryResult =
   | { ok: true; status: "pending" | "waitlisted" }
   | { ok: false; error: string };
 
+export type AdminMutationResult = { ok: true } | { ok: false; error: string };
+
 function entryError(error: string): CreateEntryResult {
+  return { ok: false, error };
+}
+
+function mutationError(error: string): AdminMutationResult {
   return { ok: false, error };
 }
 
@@ -781,106 +787,128 @@ export async function createGuestEntryAction(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function createMemberEntryAction(formData: FormData) {
-  const tournamentId = (formData.get("tournamentId") as string)?.trim();
-  if (!tournamentId) throw new Error("Tournament is required");
+export async function createMemberEntryAction(
+  formData: FormData,
+): Promise<AdminMutationResult> {
+  try {
+    const tournamentId = (formData.get("tournamentId") as string)?.trim();
+    if (!tournamentId) return mutationError("Tournament is required");
 
-  const lookup =
-    (formData.get("memberLookup") as "membership_number" | "email" | null) ??
-    "membership_number";
-  const membershipNumber = (formData.get("membershipNumber") as string | null)?.trim() || null;
-  const memberEmail = (formData.get("memberEmail") as string | null)?.trim().toLowerCase() || null;
+    const lookup =
+      (formData.get("memberLookup") as "membership_number" | "email" | null) ??
+      "membership_number";
+    const membershipNumber = (formData.get("membershipNumber") as string | null)?.trim() || null;
+    const memberEmail = (formData.get("memberEmail") as string | null)?.trim().toLowerCase() || null;
 
-  const ctx = await assertGuestTournamentAccess(tournamentId);
-  const adminName = await getAdminDisplayName(ctx);
+    const ctx = await assertGuestTournamentAccess(tournamentId);
+    const adminName = await getAdminDisplayName(ctx);
 
-  const [tournament] = await db!
-    .select({ name: tournaments.name })
-    .from(tournaments)
-    .where(eq(tournaments.id, tournamentId))
-    .limit(1);
+    const [tournament] = await db!
+      .select({ name: tournaments.name })
+      .from(tournaments)
+      .where(eq(tournaments.id, tournamentId))
+      .limit(1);
 
-  let memberUser = null;
+    let memberUser = null;
 
-  if (lookup === "email") {
-    if (!memberEmail) throw new Error("Member email is required");
-    memberUser = await findUserByEmail(memberEmail);
-    if (!memberUser) {
-      throw new Error("No registered member found with that email.");
+    if (lookup === "email") {
+      if (!memberEmail) return mutationError("Member email is required");
+      memberUser = await findUserByEmail(memberEmail);
+      if (!memberUser) {
+        return mutationError("No registered member found with that email.");
+      }
+    } else {
+      if (!membershipNumber) return mutationError("Membership number is required");
+      const normalizedMembershipNumber = normalizeMembershipNumber(membershipNumber);
+      if (!normalizedMembershipNumber) {
+        return mutationError("Enter a valid 3-digit membership number between 100 and 999.");
+      }
+      memberUser = await findUserByMembershipNumber(normalizedMembershipNumber);
+      if (!memberUser) {
+        return mutationError("No registered member found with that membership number.");
+      }
     }
-  } else {
-    if (!membershipNumber) throw new Error("Membership number is required");
-    const normalizedMembershipNumber = normalizeMembershipNumber(membershipNumber);
-    if (!normalizedMembershipNumber) {
-      throw new Error("Enter a valid 3-digit membership number between 100 and 999.");
+
+    const memberMeta = memberUser.publicMetadata as AdminMetadata;
+    if (!isMemberApproved(memberMeta)) {
+      return mutationError("This member must be approved before they can be added to a tournament.");
     }
-    memberUser = await findUserByMembershipNumber(normalizedMembershipNumber);
-    if (!memberUser) {
-      throw new Error("No registered member found with that membership number.");
+
+    const email = getClerkUserEmail(memberUser);
+    if (!email) return mutationError("Member has no email on file.");
+
+    if (await hasExistingEntry(tournamentId, email, memberUser.id)) {
+      const participation = await findTournamentParticipation(tournamentId, email, memberUser.id);
+      if (participation?.role === "partner") {
+        return mutationError("This member is already registered as someone else's partner.");
+      }
+      return mutationError("This member is already registered for this tournament.");
     }
-  }
 
-  const memberMeta = memberUser.publicMetadata as AdminMetadata;
-  if (!hasAdminAccess(memberMeta) && !isMemberApproved(memberMeta)) {
-    throw new Error("This member must be approved before they can be added to a tournament.");
-  }
+    const fullName = getUserDisplayName(
+      {
+        firstName: memberUser.firstName,
+        lastName: memberUser.lastName,
+        emailAddresses: memberUser.emailAddresses,
+        publicMetadata: memberMeta,
+      },
+      email,
+    );
 
-  if (memberUser.id === ctx.userId) {
-    throw new Error("You cannot add yourself to a tournament from the admin panel.");
-  }
+    const formSide = formData.get("playingSide");
+    const playingSide = formSide
+      ? parsePlayingSide(formSide)
+      : parsePlayingSide(memberMeta.playingSide);
 
-  const email = memberUser.emailAddresses[0]?.emailAddress?.toLowerCase();
-  if (!email) throw new Error("Member has no email on file.");
-
-  if (await hasExistingEntry(tournamentId, email, memberUser.id)) {
-    const participation = await findTournamentParticipation(tournamentId, email, memberUser.id);
-    if (participation?.role === "partner") {
-      throw new Error("This member is already registered as someone else's partner.");
+    try {
+      await db!.insert(entries).values({
+        tournamentId,
+        userId: memberUser.id,
+        name: fullName,
+        email,
+        phone: "—",
+        signupMode: "solo",
+        partnershipStatus: "not_applicable",
+        playingSide,
+        skillLevel: "intermediate",
+        status: "approved",
+        isGuest: false,
+        addedByAdminId: ctx.userId,
+        addedByAdminName: adminName,
+      });
+    } catch (error) {
+      console.error("[createMemberEntryAction] Failed to insert entry:", error);
+      return mutationError("Could not add this member to the tournament. Please try again.");
     }
-    throw new Error("This member is already registered for this tournament.");
+
+    await notifyUserSafe(memberUser.id, {
+      type: "admin_entry_added",
+      title: "Tournament registration",
+      message: `${adminName} registered you for ${tournament?.name ?? "a tournament"}. An admin may still need to pair you before your team is confirmed.`,
+      href: "/signup",
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/signup");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (error) {
+    console.error("[createMemberEntryAction]", error);
+    const message = error instanceof Error ? error.message : "";
+    if (
+      message &&
+      !message.toLowerCase().includes("digest") &&
+      (message.includes("Tournament") ||
+        message.includes("permission") ||
+        message.includes("access") ||
+        message.includes("Database") ||
+        message.includes("Unauthorized") ||
+        message.includes("Players can only"))
+    ) {
+      return mutationError(message);
+    }
+    return mutationError("Could not add this member to the tournament. Please try again.");
   }
-
-  const fullName = getUserDisplayName(
-    {
-      firstName: memberUser.firstName,
-      lastName: memberUser.lastName,
-      emailAddresses: memberUser.emailAddresses,
-      publicMetadata: memberMeta,
-    },
-    email,
-  );
-
-  const formSide = formData.get("playingSide");
-  const playingSide = formSide
-    ? parsePlayingSide(formSide)
-    : parsePlayingSide(memberMeta.playingSide);
-
-  await db!.insert(entries).values({
-    tournamentId,
-    userId: memberUser.id,
-    name: fullName,
-    email,
-    phone: "—",
-    signupMode: "solo",
-    partnershipStatus: "not_applicable",
-    playingSide,
-    skillLevel: "intermediate",
-    status: "approved",
-    isGuest: false,
-    addedByAdminId: ctx.userId,
-    addedByAdminName: adminName,
-  });
-
-  await notifyUserSafe(memberUser.id, {
-    type: "admin_entry_added",
-    title: "Tournament registration",
-    message: `${adminName} registered you for ${tournament?.name ?? "a tournament"}. An admin may still need to pair you before your team is confirmed.`,
-    href: "/signup",
-  });
-
-  revalidatePath("/admin");
-  revalidatePath("/signup");
-  revalidatePath("/");
 }
 
 export async function createGuestTeamAction(formData: FormData) {
