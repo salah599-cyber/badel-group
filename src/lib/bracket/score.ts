@@ -103,7 +103,7 @@ export function validateSets(
       if (format === "best_of_3_super_tiebreak") {
         return "A super tiebreak decider is required when sets are 1-1";
       }
-      return null;
+      return "A third set is required when sets are 1-1";
     }
     if (sets.length === 3) {
       if (aSets === 2 || bSets === 2) return null;
