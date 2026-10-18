@@ -6,7 +6,7 @@ export const metadata = {
   title: "Gallery | Badel Group",
 };
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 export default async function GalleryPage() {
   const galleryPhotos = await fetchGalleryPhotos();

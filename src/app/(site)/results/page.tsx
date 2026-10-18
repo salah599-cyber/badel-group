@@ -8,7 +8,7 @@ export const metadata = {
   title: "Results | Badel Group",
 };
 
-export const revalidate = 60;
+export const revalidate = 300;
 
 function placeNumber(place: string) {
   const match = place.match(/\d+/);

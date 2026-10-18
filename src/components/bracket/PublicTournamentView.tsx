@@ -1,4 +1,5 @@
 import { LiveKnockoutSection, LiveMatchesSection, type LivePublicMatch } from "@/components/bracket/LiveMatchesSection";
+import { ScoreEditProvider } from "@/components/bracket/ScoreEditProvider";
 import { StandingsTable } from "@/components/bracket/StandingsTable";
 import { computeStandings } from "@/lib/bracket/standings";
 import { formatMatchScore } from "@/lib/bracket/score-format";
@@ -159,7 +160,7 @@ export function PublicTournamentView({
           Lineups and scores will appear here once the draw is published.
         </p>
       ) : (
-        <>
+        <ScoreEditProvider tournamentId={tournament.id} serverCanEdit={canEditScores}>
           <LiveMatchesSection
             canEditScores={canEditScores}
             matchFormat={tournament.matchFormat}
@@ -215,7 +216,7 @@ export function PublicTournamentView({
             teamLabels={teamLabels}
             roundLabels={ROUND_LABELS}
           />
-        </>
+        </ScoreEditProvider>
       )}
     </div>
   );

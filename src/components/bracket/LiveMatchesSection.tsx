@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { MatchScoreCard } from "@/components/bracket/MatchScoreCard";
 import { KnockoutBracketView } from "@/components/bracket/KnockoutBracketView";
+import { useScoreEditAllowed } from "@/components/bracket/ScoreEditProvider";
 import { postAdminJson } from "@/lib/admin-api";
 import type { KnockoutMatch, MatchFormat, MatchSet } from "@/lib/types";
 
@@ -55,6 +56,8 @@ export function LiveMatchesSection({
   completed,
   renderMatchExtra,
 }: LiveMatchesSectionProps) {
+  const scoreEditAllowed = useScoreEditAllowed();
+  const canEdit = canEditScores || scoreEditAllowed;
   const { isPending, run } = useScoreSave();
 
   function saveMatch(
@@ -88,7 +91,7 @@ export function LiveMatchesSection({
           </h3>
           <ul className="space-y-2">
             {scheduled.map((m) =>
-              canEditScores ? (
+              canEdit ? (
                 <li key={m.id}>
                   <MatchScoreCard
                     label={m.label}
@@ -129,7 +132,7 @@ export function LiveMatchesSection({
           </h3>
           <ul className="space-y-2">
             {completed.map((m) =>
-              canEditScores ? (
+              canEdit ? (
                 <li key={m.id}>
                   <MatchScoreCard
                     label={m.label}
@@ -190,6 +193,8 @@ export function LiveKnockoutSection({
   teamLabels,
   roundLabels,
 }: LiveKnockoutSectionProps) {
+  const scoreEditAllowed = useScoreEditAllowed();
+  const canEdit = canEditScores || scoreEditAllowed;
   const { isPending, run } = useScoreSave();
 
   if (knockoutMatches.length === 0) return null;
@@ -201,12 +206,12 @@ export function LiveKnockoutSection({
         matches={knockoutMatches}
         teamLabels={teamLabels}
         roundLabels={roundLabels}
-        admin={canEditScores}
+        admin={canEdit}
         matchFormat={matchFormat}
         superTiebreakPoints={superTiebreakPoints}
         disabled={isPending}
         onSaveKnockout={
-          canEditScores
+          canEdit
             ? (matchId, data) =>
                 run(async () => {
                   const result = await postAdminJson("/api/admin/bracket", {

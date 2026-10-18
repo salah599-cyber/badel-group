@@ -2,7 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { clerkClient, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { eq, max } from "drizzle-orm";
 import { findUserByEmail } from "@/lib/admin-members";
 import { parseTournamentStartTime } from "@/lib/dates";
@@ -2087,15 +2087,15 @@ export async function getCurrentAdminPermissionsAction() {
 }
 
 export async function fetchUnreadNotificationsAction(): Promise<AppNotification[]> {
-  const user = await currentUser();
-  if (!user) return [];
-  return getUnreadNotifications(user.id);
+  const { userId } = await auth();
+  if (!userId) return [];
+  return getUnreadNotifications(userId);
 }
 
 export async function fetchUnreadNotificationCountAction() {
-  const user = await currentUser();
-  if (!user) return 0;
-  return getUnreadNotificationCount(user.id);
+  const { userId } = await auth();
+  if (!userId) return 0;
+  return getUnreadNotificationCount(userId);
 }
 
 export async function dismissNotificationAction(notificationId: string) {

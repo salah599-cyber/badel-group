@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, count, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "./index";
@@ -96,11 +97,11 @@ export async function getLiveWithCounts() {
   return attachTournamentCounts(live);
 }
 
-export async function getTournamentById(id: string) {
+export const getTournamentById = cache(async (id: string) => {
   if (!db) return null;
   const rows = await tournamentSelect().where(eq(tournaments.id, id)).limit(1);
   return rows[0] ?? null;
-}
+});
 
 export async function getEntriesForTournament(tournamentId: string) {
   if (!db) return [];

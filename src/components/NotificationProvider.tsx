@@ -13,7 +13,7 @@ import {
 import { fetchUnreadNotificationsAction } from "@/lib/actions";
 import type { AppNotification } from "@/lib/notifications";
 
-const POLL_INTERVAL_MS = 90_000;
+const POLL_INTERVAL_MS = 5 * 60_000;
 
 type NotificationContextValue = {
   unreadCount: number;
@@ -44,6 +44,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [isSignedIn]);
 
   useEffect(() => {
+    if (!isSignedIn) {
+      setNotifications([]);
+      return;
+    }
+
     void refresh();
 
     const interval = window.setInterval(() => {
@@ -62,7 +67,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refresh]);
+  }, [isSignedIn, refresh]);
+
 
   const dismissLocal = useCallback((id: string) => {
     setNotifications((current) => current.filter((item) => item.id !== id));

@@ -9,7 +9,7 @@ import { TournamentCard } from "@/components/TournamentCard";
 import { fetchGalleryPhotos, fetchLiveTournaments, fetchSponsors, fetchUpcomingTournaments } from "@/lib/data";
 import { tierOrder, type SponsorTier } from "@/lib/types";
 
-export const revalidate = 60;
+export const revalidate = 120;
 
 export default async function HomePage() {
   const [upcoming, live, galleryPhotos, allSponsors] = await Promise.all([

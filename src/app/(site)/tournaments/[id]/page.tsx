@@ -1,26 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { currentUser } from "@clerk/nextjs/server";
+import { CaptainDashboardLink } from "@/components/bracket/CaptainDashboardLink";
 import { LiveTournamentRefresh } from "@/components/bracket/LiveTournamentRefresh";
 import { PublicTournamentView } from "@/components/bracket/PublicTournamentView";
 import { SectionHeading } from "@/components/SectionHeading";
 import { TournamentBrandingHeader } from "@/components/TournamentBrandingHeader";
 import { TournamentEventSponsors } from "@/components/TournamentEventSponsors";
-import { getAdminContext } from "@/lib/auth";
 import {
-  getCaptainTeamForUser,
   getMatchLineupsByMatchIds,
   getTournamentBracketState,
   getTournamentPartners,
   getTournamentSponsors,
 } from "@/lib/db/bracket-queries";
-import { getEntriesForTournament, getTournamentById } from "@/lib/db/queries";
+import { getEntriesForTournament, getTournamentById, getTournaments } from "@/lib/db/queries";
 import { formatTournamentDateTimeShort } from "@/lib/dates";
-import { canManageTournament, hasPermission } from "@/lib/permissions";
 import { isSquadFormat } from "@/lib/competition-format";
 import type { KnockoutRound, Tournament } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  const tournaments = await getTournaments();
+  return tournaments.map((tournament) => ({ id: tournament.id }));
+}
 
 export async function generateMetadata({
   params,
@@ -40,14 +43,28 @@ export default async function PublicTournamentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const tournamentRow = await getTournamentById(id);
+  const [tournamentRow, bracketState, partners, eventSponsors] = await Promise.all([
+    getTournamentById(id),
+    getTournamentBracketState(id),
+    getTournamentPartners(id),
+    getTournamentSponsors(id),
+  ]);
   if (!tournamentRow) notFound();
 
-  const bracketState = await getTournamentBracketState(id);
   const teams = bracketState?.teams ?? [];
   const tournamentGroups = bracketState?.groups ?? [];
   const groupMatchesList = bracketState?.groupMatches ?? [];
   const knockoutMatches = bracketState?.knockoutMatches ?? [];
+  const isSquad = isSquadFormat(tournamentRow.competitionFormat);
+  const [entries, lineups] = await Promise.all([
+    isSquad ? getEntriesForTournament(id) : Promise.resolve([]),
+    isSquad
+      ? getMatchLineupsByMatchIds({
+          groupMatchIds: groupMatchesList.map((match) => match.id),
+          knockoutMatchIds: knockoutMatches.map((match) => match.id),
+        })
+      : Promise.resolve([]),
+  ]);
 
   const dateFormatted =
     formatTournamentDateTimeShort(tournamentRow.date, tournamentRow.startTime) ??
@@ -62,27 +79,7 @@ export default async function PublicTournamentPage({
   const isLive =
     tournament.status === "group_stage" || tournament.status === "knockout_stage";
 
-  const adminCtx = await getAdminContext();
-  const canEditScores = Boolean(
-    adminCtx &&
-      hasPermission(adminCtx, "results:manage") &&
-      canManageTournament(adminCtx, id),
-  );
-
-  const user = await currentUser();
-  const isSquad = isSquadFormat(tournamentRow.competitionFormat);
-  const partners = await getTournamentPartners(id);
-  const eventSponsors = await getTournamentSponsors(id);
-  const entries = isSquad ? await getEntriesForTournament(id) : [];
   const entryNames = new Map(entries.map((entry) => [entry.id, entry.name]));
-  const lineups = isSquad
-    ? await getMatchLineupsByMatchIds({
-        groupMatchIds: groupMatchesList.map((match) => match.id),
-        knockoutMatchIds: knockoutMatches.map((match) => match.id),
-      })
-    : [];
-  const captainTeam =
-    user && isSquad ? await getCaptainTeamForUser(id, user.id) : null;
 
   const content = (
     <PublicTournamentView
@@ -126,7 +123,7 @@ export default async function PublicTournamentPage({
       pointsWin={bracketState?.tournament.pointsWin ?? 1}
       pointsLoss={bracketState?.tournament.pointsLoss ?? 0}
       championTeamId={bracketState?.tournament.championTeamId}
-      canEditScores={canEditScores}
+      canEditScores={false}
       lineups={lineups.map((lineup) => ({
         id: lineup.id,
         groupMatchId: lineup.groupMatchId,
@@ -157,16 +154,7 @@ export default async function PublicTournamentPage({
         title={tournament.name}
         subtitle={`${dateFormatted} · ${tournament.location}`}
       />
-      {captainTeam && (
-        <div className="mb-6">
-          <Link
-            href={`/tournaments/${id}/team`}
-            className="inline-flex rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
-          >
-            Captain dashboard — {captainTeam.label}
-          </Link>
-        </div>
-      )}
+      {isSquad ? <CaptainDashboardLink tournamentId={id} /> : null}
 
       {isLive ? <LiveTournamentRefresh>{content}</LiveTournamentRefresh> : content}
 

@@ -24,7 +24,7 @@ export function RankingsSeasonNav({
       {seasons.map((season) => {
         const isCurrent = season.id === currentSeasonId;
         const isActive = season.id === activeId;
-        const href = isCurrent ? "/rankings" : `/rankings?season=${season.id}`;
+        const href = isCurrent ? "/rankings" : `/rankings/${season.id}`;
         const label = isCurrent ? "Current season" : season.name;
 
         return (

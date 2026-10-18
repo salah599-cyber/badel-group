@@ -8,7 +8,7 @@ export const metadata = {
   title: "Live tournaments | Badel Group",
 };
 
-export const revalidate = 30;
+export const revalidate = 60;
 
 export default async function LiveTournamentsPage() {
   const live = await fetchLiveTournaments();
@@ -21,23 +21,23 @@ export default async function LiveTournamentsPage() {
         align="center"
       />
 
-      <LiveTournamentRefresh>
-        {live.length > 0 ? (
+      {live.length > 0 ? (
+        <LiveTournamentRefresh>
           <div className="grid gap-6 sm:grid-cols-2">
             {live.map((tournament) => (
               <LiveTournamentCard key={tournament.id} tournament={tournament} />
             ))}
           </div>
-        ) : (
-          <p className="rounded-2xl border border-dashed border-primary/20 bg-white/60 p-10 text-center text-gray-500">
-            No tournaments are live right now. Check back during event day or browse{" "}
-            <Link href="/results" className="font-semibold text-primary hover:text-primary-dark">
-              past results
-            </Link>
-            .
-          </p>
-        )}
-      </LiveTournamentRefresh>
+        </LiveTournamentRefresh>
+      ) : (
+        <p className="rounded-2xl border border-dashed border-primary/20 bg-white/60 p-10 text-center text-gray-500">
+          No tournaments are live right now. Check back during event day or browse{" "}
+          <Link href="/results" className="font-semibold text-primary hover:text-primary-dark">
+            past results
+          </Link>
+          .
+        </p>
+      )}
 
       <Link
         href="/"
